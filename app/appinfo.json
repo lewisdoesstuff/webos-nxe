@@ -1,0 +1,17 @@
+{
+  "id": "ooo.lew.xne",
+  "version": "0.1.0",
+  "vendor": "lew",
+  "type": "web",
+  "main": "index.html",
+  "title": "XNE",
+  "icon": "icons/icon-80.png",
+  "largeIcon": "icons/icon-256.png",
+  "resolution": "1920x1080",
+  "visible": true,
+  "supportQuickStart": true,
+  "noSplashOnLaunch": true,
+  "spinnerOnLaunch": false,
+  "disableBackHistoryAPI": true,
+  "iconColor": "#0f0f0f"
+}

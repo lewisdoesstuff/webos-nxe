@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="LemmonLauncher">
+  <rect width="512" height="512" rx="112" fill="#1e1e2e" />
+  <ellipse cx="256" cy="280" rx="150" ry="112" fill="#f9e2af" />
+  <ellipse cx="298" cy="242" rx="62" ry="38" fill="#fcecc8" opacity="0.6" />
+  <path d="M262 152c-4-32 16-56 46-64 2 32-16 55-46 64z" fill="#a6e3a1" />
+  <path d="M262 152c-22-12-30-34-24-62 22 14 30 36 24 62z" fill="#94e2d5" />
+</svg>

@@ -1,0 +1,63 @@
+/**
+ * The dashboard's stylesheet.
+ *
+ * Tailwind was dropped deliberately: the Blades look is multi-stop gradients,
+ * bevels, rotated tab labels and glow pseudo-elements, none of which read as
+ * utilities. Structure is expressed in this file; there is no utility layer.
+ *
+ * The TV is Chromium 108, so `color-mix()` (Chrome 111) and `@property` are
+ * unavailable — translucency is written out, or computed in TS.
+ */
+
+@font-face {
+  font-family: "Inter";
+  src: url("../assets/fonts/inter-light.ttf") format("truetype");
+  font-weight: 300;
+  font-style: normal;
+  font-display: block;
+}
+
+@font-face {
+  font-family: "Inter";
+  src: url("../assets/fonts/inter-regular.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: block;
+}
+
+@font-face {
+  font-family: "Inter";
+  src: url("../assets/fonts/inter-bold.ttf") format("truetype");
+  font-weight: 700;
+  font-style: normal;
+  font-display: block;
+}
+
+:root {
+  --void: #0b0f14;
+  --text: #f2f5f7;
+  --text-dim: #a8b2bd;
+  --text-faint: #6d7883;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+}
+
+/* A TV: no chrome, no scrolling, no text selection. The focus layer owns
+   navigation, so there is no default cursor to fall back on. */
+body {
+  margin: 0;
+  overflow: hidden;
+  background: var(--void);
+  color: var(--text);
+  font-family: "Inter", system-ui, sans-serif;
+  user-select: none;
+  -webkit-user-select: none;
+}

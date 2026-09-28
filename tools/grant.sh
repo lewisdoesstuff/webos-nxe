@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Show, apply or undo the Luna ACL grant that lets Blades take a still picture.
+# Show, apply or undo the Luna ACL grant that lets the launcher take a still picture.
 #
 #   ./tools/grant.sh              read-only: print the file and what would change
 #   ./tools/grant.sh --apply      add capture.client, keep everything else
@@ -7,7 +7,7 @@
 #   TV_HOST=root@192.168.1.40 ./tools/grant.sh --apply
 #
 # THIS EDITS A PERSISTENT FILE ON THE TV. It changes one line of
-# client-permissions.d/ooo.lew.blades.app.json, which survives a reboot, and
+# client-permissions.d/ooo.lew.xne.app.json, which survives a reboot, and
 # survives a reinstall of the IPK only in the sense that the installer rewrites
 # the file. The change is one added ACL group: it widens what this app may ask
 # of the system, and nothing else about the TV is touched.
@@ -20,18 +20,27 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 TV_HOST="${TV_HOST:-root@192.168.1.37}"
-APP_ID="${APP_ID:-ooo.lew.blades}"
+APP_ID="${APP_ID:-ooo.lew.xne}"
 
 # /etc/palm/client-permissions.d/ does not exist on this firmware. The live path
 # is under cmn_data, which is persistent.
 ACL_DIR="/mnt/lg/cmn_data/var/luna-service2-dev/client-permissions.d"
 ACL_FILE="${ACL_DIR}/${APP_ID}.app.json"
-SNAPSHOT_DIR="/var/lib/webosbrew/blades/backups"
+SNAPSHOT_DIR="/var/lib/webosbrew/xne/backups"
 SNAPSHOT_FILE="${SNAPSHOT_DIR}/${APP_ID}.app.json"
 
-# The app id as the ACL file spells it, and the group being added.
+# The app id as the ACL file spells it, and the groups this app needs.
+#
+# `applications.internal` is what `listLaunchPoints` requires, so without it the
+# app list comes back empty and silently. `capture.client` is what taking an HDMI
+# still requires. A fresh install writes `["public"]` and nothing else, so both
+# have to be added after every install.
 CLIENT_KEY="${APP_ID}-*"
-GROUP="capture.client"
+# Space separated so it drops straight into a python list.
+# Not named GROUPS: that is a bash special variable holding the caller's group
+# ids, so an assignment to it is silently ignored and reads back as a bare GID.
+NEEDED="applications.internal capture.client"
+GROUP="applications.internal"
 
 MODE="show"
 case "${1:-}" in
@@ -71,8 +80,9 @@ groups = data.get(key)
 if groups is None:
     groups = []
     data[key] = groups
-if '$GROUP' not in groups:
-    groups.append('$GROUP')
+for extra in '$NEEDED'.split():
+    if extra not in groups:
+        groups.append(extra)
 fd, tmp = tempfile.mkstemp(dir=os.path.dirname(path))
 with os.fdopen(fd, 'w') as fh:
     json.dump(data, fh, separators=(',', ':'))
@@ -117,7 +127,8 @@ if [[ $MODE == "show" ]]; then
     echo "  status:  $GROUP is NOT granted."
     echo "  --apply would add it, leaving every other group untouched:"
     echo "    $current"
-    echo "     -> $(printf '%s' "$current" | sed "s/]}$/,\"$GROUP\"]}/")"
+    echo "     -> the app's key, with these groups added, every other key untouched:"
+    echo "        $NEEDED"
   fi
   print_undo
   exit 0

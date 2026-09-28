@@ -113,29 +113,47 @@ const repeat = new Map();
  * earlier attribution went to the wrong element, so a `data-*` attribute is read
  * before the class, and a class with no handle is numbered.
  */
+/**
+ * The label cache, and why it exists.
+ *
+ * `DOM.describeNode` is a round trip per layer, and a snapshot taken while the
+ * page is animating competes with the frame it is trying to measure: taking
+ * three samples dropped a 105% run to 19%, while the median gap stayed a flat
+ * 16.7ms throughout. So layers are labelled once, at rest, and every later
+ * snapshot reuses the cache and only pays for layers it has not seen.
+ */
 async function labelFor(layer) {
   if (!layer.backendNodeId) return layer.name || "(root)";
-  if (!labels.has(layer.backendNodeId)) {
-    const { result } = await send("DOM.describeNode", { backendNodeId: layer.backendNodeId });
-    const attrs = result?.node?.attributes ?? [];
-    const at = (name) => {
-      const i = attrs.indexOf(name);
-      return i >= 0 ? attrs[i + 1] : "";
-    };
-    const node = result?.node?.nodeName.toLowerCase() ?? "node";
-    const key = ["data-slot", "data-card", "id"].find((name) => at(name));
-    const cls = at("class");
-    let selector = key
-      ? `${node}[${key}="${at(key)}"]`
-      : `${node}${cls ? `.${cls.split(" ").filter(Boolean).join(".")}` : ""}`;
-    if (!key) {
-      const n = (repeat.get(selector) ?? 0) + 1;
-      repeat.set(selector, n);
-      if (n > 1) selector += `#${n}`;
-    }
-    labels.set(layer.backendNodeId, selector);
+  if (labels.has(layer.backendNodeId)) return labels.get(layer.backendNodeId);
+  const { result } = await send("DOM.describeNode", { backendNodeId: layer.backendNodeId });
+  const attrs = result?.node?.attributes ?? [];
+  const at = (name) => {
+    const i = attrs.indexOf(name);
+    return i >= 0 ? attrs[i + 1] : "";
+  };
+  const node = result?.node?.nodeName.toLowerCase() ?? "node";
+  const key = ["data-slot", "data-card", "data-blade", "data-panel", "id"].find((n) => at(n));
+  const cls = at("class");
+  /**
+   * A layer with no resolvable node is labelled by its geometry rather than
+   * `(root)`, because an unresolved node reads back as `(root)` and every
+   * unresolved layer then collides with every other, which looks like a mass
+   * allocation. Size is stable across a transition, so it identifies a layer
+   * well enough to diff two snapshots against each other.
+   */
+  let selector;
+  if (!result?.node || (!key && !cls)) {
+    selector = `${node}@${Math.round(layer.width ?? 0)}x${Math.round(layer.height ?? 0)}`;
+  } else if (key) {
+    selector = `${node}[${key}="${at(key)}"]`;
+  } else {
+    selector = `${node}${cls ? `.${cls.split(" ").filter(Boolean).join(".")}` : ""}`;
+    const n = (repeat.get(selector) ?? 0) + 1;
+    repeat.set(selector, n);
+    if (n > 1) selector += `#${n}`;
   }
-  return labels.get(layer.backendNodeId);
+  labels.set(layer.backendNodeId, selector);
+  return selector;
 }
 
 /**
@@ -151,14 +169,20 @@ function textureMb(w, h) {
 }
 
 async function snapshot() {
-  const { result } = await send("LayerTree.getLayerTree");
   /**
    * `getLayerTree` has been observed returning an empty result on a page whose
    * `layerTreeDidChange` events carry a full tree, so the event is the source of
    * truth and the getter is only a fallback. Preferring the getter made the gate
    * read zero layers and pass on no data at all.
+   *
+   * The getter is also a round trip that competes with the animation, so it is
+   * only called when the event cache is empty.
    */
-  const layers = cached.length ? cached : (result?.layers ?? []);
+  let layers = cached;
+  if (layers.length === 0) {
+    const { result } = await send("LayerTree.getLayerTree");
+    layers = result?.layers ?? [];
+  }
   const rows = [];
   for (const layer of layers) {
     if (layer.drawsContent === false) continue;
@@ -201,7 +225,24 @@ if (visible !== "visible") {
   process.exit(2);
 }
 
+/**
+ * Get the compositor to commit before anything is read.
+ *
+ * A snapshot taken before the first paint reports layers with no resolved DOM
+ * node and `paints: 0`, and the next snapshot resolves them, so every layer looks
+ * like it was allocated. That is the measurement changing, not the page. Two
+ * animation frames plus a screenshot forces a real commit.
+ */
+async function warm() {
+  await evaluate(
+    "new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => r(1))))",
+  );
+  await send("Page.captureScreenshot", { format: "jpeg", quality: 1 });
+  await sleep(120);
+}
+
 await sleep(settle);
+await warm();
 const rest = await snapshot();
 
 /**
@@ -218,36 +259,44 @@ if (rest.rows.length === 0) {
   process.exit(2);
 }
 
-await evaluate(`(() => {
-  const g = { gaps: [], frames: 0, last: null, t0: performance.now() };
-  window.__gate = g;
-  const tick = (t) => {
-    if (g.last !== null) g.gaps.push(t - g.last);
-    g.last = t;
-    g.frames++;
-    if (t - g.t0 < ${span}) requestAnimationFrame(tick);
-  };
-  requestAnimationFrame(tick);
-  return true;
-})()`);
-
-await evaluate(`(() => {
-  for (const type of ["keydown", "keyup"]) {
-    const e = new Event(type, { bubbles: true, cancelable: true });
-    Object.defineProperty(e, "keyCode", { value: ${keyCode} });
-    window.dispatchEvent(e);
-  }
-  return true;
-})()`);
-
-const during = [];
-for (const at of samples) {
-  await sleep(at - (during.at(-1) ?? 0));
-  during.push({ at, snap: await snapshot() });
+/**
+ * Arm a frame recorder that runs entirely inside the page and stops on its own.
+ *
+ * Reading it back over CDP is the only way to get the result, and that read is
+ * not free: asking the page a question while it is animating costs frames, and a
+ * gate that measured itself reading its own instrument reported 19% on a run
+ * that was in fact a flat 16.7ms for every frame. So the recorder is armed, the
+ * key is pressed, the layers are sampled, and the timing is only collected at the
+ * very end.
+ */
+async function armRecorder() {
+  await evaluate(`(() => {
+    const g = { gaps: [], frames: 0, last: null, t0: performance.now() };
+    window.__gate = g;
+    const tick = (t) => {
+      if (g.last !== null) g.gaps.push(t - g.last);
+      g.last = t;
+      g.frames++;
+      if (t - g.t0 < ${span}) requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+    return true;
+  })()`);
 }
 
-const timing = await evaluate(
-  `(() => {
+async function pressKey() {
+  await evaluate(`(() => {
+    for (const type of ["keydown", "keyup"]) {
+      const e = new Event(type, { bubbles: true, cancelable: true });
+      Object.defineProperty(e, "keyCode", { value: ${keyCode} });
+      window.dispatchEvent(e);
+    }
+    return true;
+  })()`);
+}
+
+async function readTiming() {
+  return evaluate(`(() => {
     const g = window.__gate ?? { gaps: [], frames: 0 };
     const gaps = g.gaps.slice().sort((a, b) => a - b);
     return {
@@ -256,8 +305,42 @@ const timing = await evaluate(
       median: gaps.length ? gaps[Math.floor(gaps.length / 2)] : 0,
       over20: gaps.filter((x) => x > 20).length,
     };
-  })()`,
-);
+  })()`);
+}
+
+await armRecorder();
+await pressKey();
+
+/**
+ * Two passes, because one pass cannot do both honestly.
+ *
+ * Reading the compositor's layer tree means a CDP round trip into the renderer,
+ * and that competes with the frame being measured. Three samples during a ribbon
+ * move took a run that is in fact a flat 16.7ms per frame from 105% down to 7%,
+ * while the median gap never moved off 16.7ms and nothing ever exceeded 20ms.
+ * The instrument was the only thing that changed.
+ *
+ * So the invariant is judged on a pass that samples, and the timing is taken on a
+ * second pass that does not. The layers are identical either way, since sampling
+ * does not allocate.
+ */
+const during = [];
+for (const at of samples) {
+  await sleep(at - (during.at(-1) ?? 0));
+  during.push({ at, snap: await snapshot() });
+}
+await sleep(Math.max(0, span - (during.at(-1) ?? 0)));
+const sampledTiming = await readTiming();
+
+await sleep(260);
+await warm();
+
+const cleanTiming = await (async () => {
+  await armRecorder();
+  await pressKey();
+  await sleep(span);
+  return readTiming();
+})();
 
 const worst = during.reduce((a, b) => (b.snap.totalMb > a.snap.totalMb ? b : a), during[0]);
 const newLayers = [];
@@ -280,14 +363,18 @@ const offLimits = worst.snap.rows.filter(spansFrame);
 
 console.log(`\ndpr ${dpr}, key ${keyCode}, window ${span}ms, sampled at ${samples.join("/")}ms`);
 
-const coverage =
-  timing && timing.frames > 0 ? Math.round((timing.frames / (span / 16.667)) * 100) : 0;
+const pct = (t) => (t && t.frames > 0 ? Math.round((t.frames / (span / 16.667)) * 100) : 0);
 console.log(
-  `\n  frames ${timing?.frames ?? 0} in ${span}ms  (${coverage}% coverage, ` +
-    `worst gap ${(timing?.worst ?? 0).toFixed(1)}ms, median ${(timing?.median ?? 0).toFixed(1)}ms, ` +
-    `${timing?.over20 ?? 0} over 20ms)`,
+  `\n  timing, a pass that did not sample: ${cleanTiming?.frames ?? 0} frames in ${span}ms, ` +
+    `${pct(cleanTiming)}% coverage, worst gap ${(cleanTiming?.worst ?? 0).toFixed(1)}ms, ` +
+    `median ${(cleanTiming?.median ?? 0).toFixed(1)}ms, ${cleanTiming?.over20 ?? 0} over 20ms`,
 );
-console.log("  coverage is reported, not gated. The verdict below is the invariant.\n");
+console.log(
+  `  same move with ${samples.length} layer samples in it: ${pct(sampledTiming)}% coverage, ` +
+    `worst gap ${(sampledTiming?.worst ?? 0).toFixed(1)}ms, ${sampledTiming?.over20 ?? 0} over 20ms`,
+);
+console.log("  the second figure is the instrument measuring itself. Reading the layer tree is a");
+console.log("  round trip into the renderer, so it is reported but never gated.\n");
 
 console.log(`  at rest   ${rest.rows.length} drawing layers, ${rest.totalMb} MB`);
 console.log(

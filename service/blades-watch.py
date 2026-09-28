@@ -288,7 +288,7 @@ def main(argv: list[str]) -> int:
     parser.add_argument("--devices", default="/dev/input/event*")
     parser.add_argument("--discover", action="store_true")
     parser.add_argument("--code", type=int, default=KEY_HOME)
-    parser.add_argument("--app-id", default=os.environ.get("BLADES_APP_ID", "ooo.lew.blades"))
+    parser.add_argument("--app-id", default=os.environ.get("BLADES_APP_ID", "ooo.lew.xne"))
     parser.add_argument("--duration", type=float, default=120.0)
     parser.add_argument("--verify-timeout", type=float, default=4.0)
     parser.add_argument("--max-flashes", type=int, default=3,

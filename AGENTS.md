@@ -24,13 +24,12 @@ deploy — and `../weboshome-web/PLAN.md` before that.
 
 ## Ground rules
 
-- **Author in 1280x720 and scale up.** NXE was a 720p interface on a 1080p panel,
-  so every number in the app is a real 720p pixel. The TV reports
-  `devicePixelRatio: 2`, so a plane authored at on-screen size rasterises at
-  3840x2160 and costs 33.2MB of a 311MB per-frame budget. Authoring the box at
-  1280x720 leaves its layer bounds there, 14.7MB. **`zoom` does not do this** —
-  it scales contents and leaves bounds alone, and `tools/gate.mjs` measured the
-  hub still at 31.6MB with `zoom: 0.5` on it.
+- **Author at 1920x1080 and render 1:1.** NXE was a 720p interface, so its numbers
+  are **proportions**: divide by 1.5. Measured on the TV with `tools/raster.mjs`,
+  the root layer reports 1920x1080, not 3840x2160, so a full-frame layer is
+  7.9MB and the whole app is 30 layers and 21.9MB. The earlier claim that dpr 2
+  forces a 33.2MB full-frame layer was wrong, and the 720p-and-scale-up build it
+  justified piled the entire interface into the top 45% of the screen.
 - **A transition must not allocate.** Every layer it will draw is a texture that
   already exists before the key press, and no layer spans the frame unless it
   fills it. LG-XMB holds 102% through a transition on this hardware with a
@@ -40,10 +39,11 @@ deploy — and `../weboshome-web/PLAN.md` before that.
   anything that moves, because a transform on an unpromoted box repaints it every
   frame — and remember a promoted layer's texture is fixed at rest, so promotion
   is what makes a move free.
-- **`LayerTree` reports device pixels.** `layer.width` is already multiplied by
-  the dpr and is unaffected by transforms, so a layer's texture is `w * h * 4`.
-  The inherited `tools/layers.mjs` multiplies by the dpr again and reports every
-  layer 4x too large. Do not copy that arithmetic.
+- **`LayerTree` reports CSS pixels here.** `layer.width` is the element's CSS box
+  and is unaffected by transforms, so a layer's texture is `w * h * 4`. Measured:
+  the root layer is 1920x1080 at `devicePixelRatio: 2`. The inherited
+  `tools/layers.mjs` multiplies by the dpr again and reports every layer 4x too
+  large; `tools/raster.mjs` exists to settle this rather than argue it.
 - **Keep the focus and navigation layer framework-agnostic and pure.** Navigation
   rules are the part worth testing; they must not touch the DOM, Vapor or the TV.
 - **Chromium 108 is the floor.** `color-mix()` (111), `@property` (111) and CSS

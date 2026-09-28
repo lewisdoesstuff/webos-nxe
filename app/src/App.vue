@@ -1,6 +1,7 @@
 <script setup lang="ts" vapor>
 import { computed, onMounted, onUnmounted, ref } from "vue";
 
+import { stepFocus } from "./focus/row";
 import { useAppsStore } from "./stores/apps";
 
 /**
@@ -36,16 +37,6 @@ interface Section {
   appId?: string;
 }
 
-const SECTIONS: readonly [Section, ...Section[]] = [
-  { id: "games", label: "Games", tint: "#3f6a1f" },
-  { id: "media", label: "Movies", tint: "#5a3a6e" },
-  { id: "music", label: "Music", tint: "#1f5a6a" },
-  { id: "live", label: "Live TV", tint: "#6a5a1f", appId: "com.webos.app.livetv" },
-  { id: "store", label: "Store", tint: "#6a3a1f" },
-  { id: "library", label: "Library", tint: "#3a3a44" },
-  { id: "settings", label: "Settings", tint: "#2a2a32", appId: "launcher-settings" },
-];
-
 /** `Blade_Center`. */
 const PANEL_W = 386;
 const PANEL_H = 235;
@@ -66,11 +57,39 @@ function step(table: readonly number[], i: number): number {
   return table[Math.min(Math.max(i, 0), table.length - 1)] ?? 0;
 }
 
+/**
+ * Move along the row, clamping at both ends.
+ *
+ * NXE rows do not wrap. Read off retail 9199: a rightward run goes 3 of 8, 5 of
+ * 8, 8 of 8 and then holds at 8 of 8, never stepping to 1, and the small lists
+ * behave the same. The drops back to 1 are channel changes, which re-home the
+ * row, not a wrap. See NXE-BOOT-INPUT.md section 3.6.
+ */
+function moveTo(index: number, delta: number): number {
+  return stepFocus(index, delta, SECTIONS.length);
+}
+
+/**
+ * A page the user can see and select.
+ *
+ * `SECTIONS` is typed as a tuple so the first entry is a `Section` and not a
+ * `Section | undefined`, which is what lets the clamped index below stay typed.
+ */
+const SECTIONS = [
+  { id: "games", label: "Games", tint: "#3f6a1f" },
+  { id: "media", label: "Movies", tint: "#5a3a6e" },
+  { id: "music", label: "Music", tint: "#1f5a6a" },
+  { id: "live", label: "Live TV", tint: "#6a5a1f", appId: "com.webos.app.livetv" },
+  { id: "store", label: "Store", tint: "#6a3a1f" },
+  { id: "library", label: "Library", tint: "#3a3a44" },
+  { id: "settings", label: "Settings", tint: "#2a2a32", appId: "launcher-settings" },
+] as const satisfies readonly [Section, ...Section[]];
+
 const focus = ref(0);
 
 interface Blade {
   id: string;
-  /** Offset from the focus, negative to the left. */
+  /** Step out from the panel, 0 being the blade against its right edge. */
   d: number;
   x: number;
   scale: number;
@@ -134,7 +153,7 @@ function onKeyDown(event: KeyboardEvent): void {
   const back = event.keyCode === 37;
   if (!forward && !back) return;
   event.preventDefault();
-  focus.value = (focus.value + (forward ? 1 : SECTIONS.length - 1)) % SECTIONS.length;
+  focus.value = moveTo(focus.value, forward ? 1 : -1);
 }
 
 onMounted(() => {

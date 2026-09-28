@@ -75,20 +75,38 @@ describe("the blip engine", () => {
     expect(sound.status().sounds).toBe(MENU_SOUND_COUNT);
   });
 
+  // The three calls have to land inside `CURSOR_MIN_GAP_MS` of each other for the
+  // engine to collapse them, and that only holds if the clock is held still.
+  // Left on the real clock this failed roughly one run in three, so "all tests
+  // pass" was not a claim that could be made.
   it("drops a held cursor rather than machine-gunning", () => {
+    const clock = vi.spyOn(performance, "now").mockReturnValue(1000);
     const sound = armed();
     sound.play("cursor");
     sound.play("cursor");
     sound.play("cursor");
     expect(log?.sources).toBe(1);
+    clock.mockRestore();
+  });
+
+  it("keeps separate cursor blips once the gap has passed", () => {
+    const clock = vi.spyOn(performance, "now").mockReturnValue(1000);
+    const sound = armed();
+    sound.play("cursor");
+    clock.mockReturnValue(1000 + 1000);
+    sound.play("cursor");
+    expect(log?.sources).toBe(2);
+    clock.mockRestore();
   });
 
   it("does not rate limit the blips that are not the cursor", () => {
+    const clock = vi.spyOn(performance, "now").mockReturnValue(1000);
     const sound = armed();
     sound.play("decide");
     sound.play("decide");
     sound.play("decide");
     expect(log?.sources).toBe(3);
+    clock.mockRestore();
   });
 
   it("never has more than four blips sounding at once", () => {

@@ -1,40 +1,56 @@
-# AGENTS.md — Blades
+# AGENTS.md — XNE
 
-A faithful recreation of the **original Xbox 360 "Blades" dashboard** (2005–2008),
-built as a webOS home app. It is a web app that runs from `file://` on a rooted
-LG TV, and runs in desktop Chrome against a mock transport for development.
+A recreation of the **Xbox 360 "New Xbox Experience" dashboard as it launched in
+November 2008**, built as a webOS home app. It runs from `file://` on a rooted LG
+TV and in desktop Chrome against a mock transport for development.
 
-**Groundwork:** the framework (Vue 3.6 all-Vapor, Vite, Pinia, the focus layer,
-the typed Luna wrapper and its mock, the test/lint/format toolchain) was copied
-from `../weboshome-web` (LemmonLauncher). Its `PLAN.md` is still the reference
-for *platform* facts — what the TV does, how Luna behaves, how to deploy. Its
-UI and Tailwind layer were **not** carried over.
+**Groundwork** is the webOS platform layer from `../webos-blades`: Vue 3.6
+all-Vapor, Vite, Pinia, the focus layer, the typed Luna wrapper and its mock, the
+sound engine, the HDMI preview capture, and the test/lint/format toolchain. Its
+UI was **not** carried over. `../webos-blades/docs/HOME-BUTTON.md` is still the
+reference for *platform* facts — what the TV does, how Luna behaves, how to
+deploy — and `../weboshome-web/PLAN.md` before that.
 
 ## Read first
 
-- [`docs/BLADES-SPEC.md`](./docs/BLADES-SPEC.md) — visual + content spec of the
-  real dashboard.
-- [`docs/BLADES-MOTION.md`](./docs/BLADES-MOTION.md) — transition and
-  second-level navigation behaviour, mined from video.
-- [`docs/refs/`](./docs/refs/) — reference photographs. **Look at these.** Fidelity
-  is judged against them, not against memory.
+- [`docs/PERF.md`](./docs/PERF.md) — the measured bandwidth ceiling and the rules
+  that follow from it. **The design rests on this; read it before touching the
+  DOM.**
+- [`docs/research/NXE-XUI.md`](./docs/research/NXE-XUI.md) — every layout number,
+  read out of retail build 9199's scene graphs.
+- [`docs/research/NXE-EXISTING.md`](./docs/research/NXE-EXISTING.md) — where
+  those numbers came from, the corroborating recreations, and the licensing
+  position.
 
 ## Ground rules
 
-- **No Tailwind, no CSS framework.** One hand-written stylesheet plus `<style>`
-  blocks in SFCs. The Blades look is multi-stop gradients, bevels, rotated tab
-  labels and glow pseudo-elements — none of that reads as utilities.
-- **Chromium 108 is the floor.** `color-mix()` (111), `@property` (111), CSS
-  nesting without `&` (112) are unavailable. Compute translucency in TS
-  (`withAlpha` in `icons.ts`) or write rgba out. **Do not upgrade Tailwind —
-  it is already gone.**
-- **Animate only `transform` and `opacity`.** The TV reports
-  `devicePixelRatio: 2`, so a 1920×1080 page rasterises at 3840×2160.
-  Never animate `box-shadow` (a fresh blur each frame) — put glows on a
-  pseudo-element with a static shadow and animate its `opacity`. Promote moving
-  planes with `translateZ(0)`.
-- **Keep the focus/navigation layer framework-agnostic and pure.** Navigation
+- **Author in 1280x720 and scale up.** NXE was a 720p interface on a 1080p panel,
+  so every number in the app is a real 720p pixel. The TV reports
+  `devicePixelRatio: 2`, so a plane authored at on-screen size rasterises at
+  3840x2160 and costs 33.2MB of a 311MB per-frame budget. Authoring the box at
+  1280x720 leaves its layer bounds there, 14.7MB. **`zoom` does not do this** —
+  it scales contents and leaves bounds alone, and `tools/gate.mjs` measured the
+  hub still at 31.6MB with `zoom: 0.5` on it.
+- **A transition must not allocate.** Every layer it will draw is a texture that
+  already exists before the key press, and no layer spans the frame unless it
+  fills it. LG-XMB holds 102% through a transition on this hardware with a
+  byte-identical layer set; that is the bar. `tools/gate.mjs` enforces it.
+- **Animate only `transform` and `opacity`.** Never animate `box-shadow`. Put
+  glows on a pseudo-element with a static shadow and animate its opacity. Promote
+  anything that moves, because a transform on an unpromoted box repaints it every
+  frame — and remember a promoted layer's texture is fixed at rest, so promotion
+  is what makes a move free.
+- **`LayerTree` reports device pixels.** `layer.width` is already multiplied by
+  the dpr and is unaffected by transforms, so a layer's texture is `w * h * 4`.
+  The inherited `tools/layers.mjs` multiplies by the dpr again and reports every
+  layer 4x too large. Do not copy that arithmetic.
+- **Keep the focus and navigation layer framework-agnostic and pure.** Navigation
   rules are the part worth testing; they must not touch the DOM, Vapor or the TV.
+- **Chromium 108 is the floor.** `color-mix()` (111), `@property` (111) and CSS
+  nesting without `&` (112) are unavailable. Compute translucency in TS or write
+  rgba out.
+- **No Tailwind, no CSS framework.** One hand-written stylesheet plus `<style>`
+  blocks in SFCs.
 - Keep comments minimal. No separators, no em-dashes, no references to previous
   behaviour or to anyone's request.
 - **bun** only — `bun install`, `bun run …`, `bunx …`. No npm/pnpm.
@@ -47,14 +63,23 @@ UI and Tailwind layer were **not** carried over.
 
 ```
 app/src/
-  App.vue              the shell: blade stack, keyboard, top-level wiring
-  blades/model.ts      Blade / BladeRow types, the canonical blade definitions
-  blades/palette.ts    per-blade colour tokens (surface, spine, title)
-  blades/focus.ts      pure navigation: which blade, which row
-  components/          presentational pieces of a blade
-  focus/               the original generic focus layer (v-focusable, grid rules)
-  luna.ts, stores/, mock/   unchanged from the groundwork
-  settings.ts, stores/settings.ts   persisted user settings
+  App.vue              the shell: hub ribbon, panel, keyboard
+  paths.ts             the `hack` prefix, for reaching outside the app directory
+  luna.ts, mock/       the typed Luna wrapper and its desktop mock
+  stores/              apps (launch points) and persisted settings
+  focus/               the generic focus layer
+  sound/               menu blips and background music
+  preview/             HDMI input stills
+  screensaver/         idle tracking
+  styles/main.css      the dashboard's stylesheet
+tools/
+  gate.mjs             the transition gate: allocates nothing, or fails
+  layers.mjs           compositor layer tree, sizes, per-element histogram
+  trace.mjs            Chromium timeline
+  eval.mjs             run an expression in the page over CDP
+  capture.mjs          screenshot with key presses
+  deploy.sh            build and sync into the installed dir
+  restart.sh           closeByAppId and launch
 ```
 
 ## Quick reference
@@ -70,112 +95,52 @@ bun run format      # oxfmt
 ./build.sh          # typecheck + bundle + ares-package -> dist/*.ipk
 ```
 
-**Blade order is fixed.** The chrome artwork and `panelBox` are keyed to the
-canonical order (Inputs, Apps, Games, Media, System) — each state's PNG shows a
-specific number of leaves either side of its panel, and `panelBox` gives that
-blade a fixed x range to match. Reordering blades would put a panel against the
-wrong artwork, so there is deliberately no `bladeOrder` setting.
+## The gate
+
+```bash
+node tools/gate.mjs                     # the TV, CDP :9998, arrow right
+node tools/gate.mjs --keys 37
+node tools/gate.mjs --at 60,150,300      # when to sample mid-transition
+CDP_URL=http://localhost:9222 node tools/gate.mjs --match localhost
+```
+
+Exits 0 pass, 1 fail, 2 untrustworthy. Run it after any change to what moves.
+It needs a real compositor, so it will not run against headless Chrome.
 
 ## On the TV
 
+The full procedure, the Luna ACL grant, the `luna-send` invocation and the Home
+key takeover are in [`../webos-blades/docs/HOME-BUTTON.md`](../webos-blades/docs/HOME-BUTTON.md).
+The short version:
+
 ```bash
-./build.sh && scp dist/ooo.lew.blades_*.ipk root@192.168.1.37:/tmp/
+./build.sh && scp dist/ooo.lew.xne_*.ipk root@192.168.1.37:/tmp/
 ssh -tt root@192.168.1.37 "luna-send-pub -w 90000 -i \
   'luna://com.webos.appInstallService/dev/install' \
-  '{\"id\":\"com.ares.defaultName\",\"ipkUrl\":\"/tmp/ooo.lew.blades_0.1.0_all.ipk\",\"subscribe\":true}' < /dev/null"
+  '{\"id\":\"com.ares.defaultName\",\"ipkUrl\":\"/tmp/ooo.lew.xne_0.1.0_all.ipk\",\"subscribe\":true}' < /dev/null"
 
 ./tools/deploy.sh       # build + sync into the installed dir + restart
-./tools/deploy.sh --service   # also sync service/, still opt-in and inert
 ./tools/restart.sh      # closeByAppId + launch
 node tools/capture.mjs --keys 39 --state --shot /tmp/s.png
-node tools/eval.mjs "<expression>"     # read the page over CDP :9998
-APP_ID=ooo.lew.blades node tools/eval.mjs --console --wait 2000
 ```
 
-- **`luna-send` needs `ssh -tt`**, and its stdin must be `/dev/null`.
 - **Never restart the page with `Page.reload`.** It leaves the renderer updating
   the DOM without ever painting, so the screen freezes on the last frame it
   produced. `tools/restart.sh` closes and launches instead.
-- CDP throttles the renderer hard: `capture.mjs` and `eval.mjs` both call
+- CDP throttles the renderer hard: `capture.mjs` and `eval.mjs` call
   `Page.bringToFront` first, or measurements come back stalled.
-- `listLaunchPoints` needs `applications.internal` in
-  `/mnt/lg/cmn_data/var/luna-service2-dev/client-permissions.d/ooo.lew.blades.app.json`.
-  Install creates the file with `["public"]` only, which silently returns zero
-  apps. **Undo: restore the snapshot and rescan services, in one line:**
-
-  ```bash
-  ssh root@192.168.1.37 'cp /var/lib/webosbrew/blades/backups/ooo.lew.blades.app.json \
-    /mnt/lg/cmn_data/var/luna-service2-dev/client-permissions.d/ooo.lew.blades.app.json \
-    && ls-control scan-services'
-  ```
-
-  `tools/deploy.sh` re-takes that snapshot on every run, onto the persistent
-  `/var` overlay. The old backup AGENTS.md pointed at, `/tmp/*.bak`, was tmpfs
-  and a reboot destroyed it, so there was no original left to restore.
-- Make **no other persistent change** to the TV. No keyfilter edits, nothing
-  under the stock home. The one bind mount this project owns, over
-  `/usr/lib/qml/KeyFilters/systemUi.js`, is created on demand and is gone after
-  a reboot.
-- **Measure only while Blades is the foreground app.** A backgrounded page on
+- **Measure only while this app is the foreground app.** A backgrounded page on
   this firmware has no timers and no animation frames, so a probe that waits on
-  either hangs forever. Worse, the TV's own screensaver
-  (`com.webos.app.lifeonscreen`) steals foreground on its own schedule, which
-  makes a probe fail intermittently for reasons that have nothing to do with the
-  code. Check `getForegroundAppInfo` first, launch right before measuring, and
-  wrap every probe in a shell `timeout`.
-- After `restart sam`, **nothing** is in the foreground (`appId` is `""`), so
-  launch the app before measuring anything.
+  either hangs forever. The TV's screensaver
+  (`com.webos.app.lifeonscreen`) steals foreground on its own schedule, so wrap
+  every probe in a shell `timeout`.
+- Installing an IPK resets that app's Luna ACL to `["public"]`, which silently
+  empties `listLaunchPoints`. Snapshot before, restore after.
+- **Make no persistent change to the TV beyond this app's own install directory.**
+  Nothing under the stock home, no keyfilter edits.
 
-## The Home button
+## Test locally
 
-```bash
-./tools/homectl.sh status          # what is armed, by whom, does it actually work
-./tools/homectl.sh probe           # read-only capability report
-./tools/homectl.sh quarantine      # park ooo.lew.customhome so nothing races for Home
-./tools/homectl.sh arm             # take the Home key, then restart sam (~91s)
-./tools/homectl.sh verify          # waits for a real Home press and judges it
-./tools/homectl.sh disarm          # give it back, then restart sam
-./tools/homectl.sh revert          # ONE COMMAND: disarm + unquarantine
-```
-
-The Home key is dispatched by QML JavaScript in
-`/usr/lib/qml/KeyFilters/systemUi.js`, where the home app id is a hardcoded
-string in exactly two places: line 31 `var HOME_APP_ID = "com.webos.app.home";`
-and line 170 `applicationManager.launch("com.webos.app.home",`. We rewrite
-those two into a copy on tmpfs and `mount --bind` it over the original, so Home
-goes to `ooo.lew.blades` and LG's home is never launched, which is why there is
-no flash. `service/tactics/3-keyfilter.sh` refuses to mount unless the result
-round-trips byte-identically back to the stock file, so an unrecognised firmware
-leaves the stock TV alone.
-
-- **`sam` reads the keyfilters once, at startup.** So "armed" and "working" are
-  different claims, and `restart sam` is required in *both* directions. Status
-  reports "in effect" separately, and treats "dormant" as a failure.
-- **`restart sam` is 90.5 s** and raises a screensaver partway through that
-  looks like sleep. It is not asleep; any key clears it and the home returns on
-  its own. Do not run it twice needlessly.
-- **A mount existing is not evidence.** The only check that catches a silent
-  no-op is a real Home press, read from `/var/log/messages`:
-  `sam NL_APP_LAUNCH_BEGIN {"app_id":"ooo.lew.blades","caller_id":"com.webos.surfacemanager","mode":"hotKey"}`
-  with no `NL_HOME_SHOWN`. `mode` and `caller` are what separate the keyfilter
-  from a launch of ours and from the idle-timeout home.
-- **`umount` needs `-l`.** The home holds its files open and is CRIU-restored
-  with its pid preserved, so killing it does not release them; a plain `umount`
-  says "target is busy" and leaves the takeover in place.
-- **The Home key is consumed while Blades is foreground.** Blades *is*
-  `HOME_APP_ID` as far as the keyfilter is concerned, so pressing Home on Blades
-  does nothing. That is the stock home's own semantics and is intended. Get to
-  Live TV or another app to press it from when testing.
-- **There is no `init.d` hook, on purpose.** `init.d` runs ~29 s into boot and
-  `sam` starts at ~5.5 s, so a hook's mount is ~124 s too late and stays
-  dormant. It would also be this project's first reboot-persisting change. So a
-  reboot is a total reset. `service/autostart.sh` exists and is deliberately not
-  symlinked; if that ever changes, the undo is to **move the file out of**
-  `init.d` (renaming to `*.disabled` does not disable it, this `run-parts` is
-  BusyBox and runs dotted filenames) and reboot.
-- **Revert everything: `./tools/homectl.sh revert`.** Nothing is ever deleted:
-  the only file created is a patched copy on tmpfs, and the quarantined
-  third-party home is `mv`'d aside, never removed.
-
-Test locally with the browser: `bun run dev`, then open the dev URL. Arrow keys
-navigate, Enter selects, Escape/Back returns. `?blade=games` opens on a blade.
+`bun run dev`, then open the dev URL. Arrow keys move along the ribbon, Enter
+selects. The design is a fixed 1280x720, so a preview window that is not 16:9
+will crop it — that is the window's shape, not a layout bug.

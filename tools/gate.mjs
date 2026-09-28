@@ -6,6 +6,7 @@
  *   node tools/gate.mjs --keys 37
  *   node tools/gate.mjs --at 60,150,300     # sample the layer tree at these ms
  *   node tools/gate.mjs --match localhost   # pick a CDP target by URL instead
+ *   CDP_URL=http://localhost:9222 node tools/gate.mjs
  *
  * The layer set and its texture bytes are read before the key and again while
  * the transition runs. Every layer the transition will draw has to be a texture
@@ -17,6 +18,12 @@
  * run and a gate on a number that noisy gates on nothing. LG-XMB holds 102%
  * through a transition on this hardware with a byte-identical layer set, so a
  * coverage number is a consequence of passing, not the thing to assert.
+ *
+ * Needs a real compositor, so it will not run against headless Chrome, which
+ * builds no layer tree at all and makes this exit 2 rather than pass. It is built
+ * for the TV, which has one and a CDP endpoint on :9998. Coverage measured
+ * locally is about seven times faster than the TV's and means nothing; the
+ * layer set and its byte counts are geometry and do carry over.
  *
  * Exits 0 on pass, 1 on fail, 2 if the run cannot be trusted. Needs Node >= 22.
  */
@@ -97,15 +104,15 @@ await send("LayerTree.enable");
 
 const dpr = (await evaluate("window.devicePixelRatio")) ?? 2;
 const labels = new Map();
+const repeat = new Map();
 
 /**
- * Label a layer by its element. Id first, then class, and a class is suffixed
- * with an index when it repeats, because two elements both reporting as
- * `div.frame` is how the biggest item in an earlier attribution went to the
- * wrong element.
+ * Label a layer by its element, preferring whatever stable handle it exposes.
+ *
+ * Two elements both reporting as `div.frame` is how the biggest item in an
+ * earlier attribution went to the wrong element, so a `data-*` attribute is read
+ * before the class, and a class with no handle is numbered.
  */
-const classSeen = new Map();
-
 async function labelFor(layer) {
   if (!layer.backendNodeId) return layer.name || "(root)";
   if (!labels.has(layer.backendNodeId)) {
@@ -115,26 +122,43 @@ async function labelFor(layer) {
       const i = attrs.indexOf(name);
       return i >= 0 ? attrs[i + 1] : "";
     };
-    const id = at("id");
+    const node = result?.node?.nodeName.toLowerCase() ?? "node";
+    const key = ["data-slot", "data-card", "id"].find((name) => at(name));
     const cls = at("class");
-    let selector = result?.node
-      ? `${result.node.nodeName.toLowerCase()}${id ? `#${id}` : ""}${
-          cls ? `.${cls.split(" ").filter(Boolean).join(".")}` : ""
-        }`
-      : `node#${layer.backendNodeId}`;
-    if (!id) {
-      const n = (classSeen.get(selector) ?? 0) + 1;
-      classSeen.set(selector, n);
-      if (n > 1) selector += `:nth-of-type(${n})`;
+    let selector = key
+      ? `${node}[${key}="${at(key)}"]`
+      : `${node}${cls ? `.${cls.split(" ").filter(Boolean).join(".")}` : ""}`;
+    if (!key) {
+      const n = (repeat.get(selector) ?? 0) + 1;
+      repeat.set(selector, n);
+      if (n > 1) selector += `#${n}`;
     }
     labels.set(layer.backendNodeId, selector);
   }
   return labels.get(layer.backendNodeId);
 }
 
+/**
+ * `LayerTree` reports a layer's width and height in **device** pixels: already
+ * multiplied by `devicePixelRatio`, and unaffected by any transform on the
+ * element. A `1280x720` box on this TV is a `2560x1440` layer, and a
+ * `scale(1.5)` on it does not change the texture. So the texture is `w * h * 4`
+ * and nothing more. The `layers.mjs` this was derived from multiplies by the dpr
+ * a second time, which reports every layer four times its real size.
+ */
+function textureMb(w, h) {
+  return +((w * h * 4) / 1048576).toFixed(2);
+}
+
 async function snapshot() {
   const { result } = await send("LayerTree.getLayerTree");
-  const layers = result?.layers ?? cached;
+  /**
+   * `getLayerTree` has been observed returning an empty result on a page whose
+   * `layerTreeDidChange` events carry a full tree, so the event is the source of
+   * truth and the getter is only a fallback. Preferring the getter made the gate
+   * read zero layers and pass on no data at all.
+   */
+  const layers = cached.length ? cached : (result?.layers ?? []);
   const rows = [];
   for (const layer of layers) {
     if (layer.drawsContent === false) continue;
@@ -145,7 +169,7 @@ async function snapshot() {
       name: await labelFor(layer),
       w: Math.round(w),
       h: Math.round(h),
-      mb: +((w * dpr * h * dpr * 4) / 1048576).toFixed(2),
+      mb: textureMb(w, h),
       paints: layer.paintCount ?? 0,
     });
   }
@@ -179,6 +203,20 @@ if (visible !== "visible") {
 
 await sleep(settle);
 const rest = await snapshot();
+
+/**
+ * A gate that passes on an empty read is worse than no gate, because it reports
+ * a clean result it never measured. An empty layer tree means the page navigated
+ * under us, or the tree event never arrived, and either way the run means nothing.
+ */
+if (rest.rows.length === 0) {
+  console.error(
+    "gate: read an empty layer tree, so there is nothing to compare against.\n" +
+      "      The page probably navigated after the run started. Re-run it.",
+  );
+  socket.close();
+  process.exit(2);
+}
 
 await evaluate(`(() => {
   const g = { gaps: [], frames: 0, last: null, t0: performance.now() };

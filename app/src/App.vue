@@ -4,30 +4,39 @@ import { computed, onMounted, onUnmounted, ref } from "vue";
 import { useAppsStore } from "./stores/apps";
 
 /**
- * The Guide hub, at the console's own resolution.
+ * The Guide hub, authored in the console's own coordinate space.
  *
- * Every number below is a 720p pixel from retail build 9199 or a measured table
- * from a recreation, and is scaled once by `K` into the 1920x1080 authoring
- * space. See `docs/research/NXE-XUI.md` for the provenance of each.
+ * NXE drew at 1280x720. Every number here is a 720p pixel read out of retail
+ * build 9199's scene graphs, and the hub is scaled once to fill the panel, so
+ * the design resolution and the authoring resolution are the same and there is
+ * no conversion table to get wrong.
  *
- * The arrangement is a perspective row: each card is smaller and closer to the
- * centre line than the one before it, and the tables below are the ramp. Cards
- * are placed by a single left-to-right pass, so the row is one plane.
+ * Two things are in the scene file and they are not one thing. `Blade_Center` is
+ * 386x235 at x=231 and never moves: it is the panel showing whatever is focused.
+ * `Blade2..5` are 70x235 and do move, stepping right by 27, 26, 24 while their
+ * scale falls 0.96, 0.93, 0.90, 0.87. The blades are a section list beside a
+ * panel, not a carousel of cards that one of them grows into.
+ *
+ * How the two compose is the one thing the scene file does not settle, because
+ * the resting slots are placed at runtime. That needs frames from the real
+ * dashboard. Provenance for each number is in `docs/research/NXE-XUI.md`.
  */
-
-const K = 1.5;
 
 const apps = useAppsStore();
 
-interface Card {
+/** The hub's canvas, and the factor that takes it to the panel. */
+const CANVAS_W = 1280;
+const CANVAS_H = 720;
+const PRESENT = 1.5;
+
+interface Section {
   id: string;
   label: string;
   tint: string;
   appId?: string;
 }
 
-/** Placeholder art until the launch tiles are known. Non-empty, by type. */
-const CARDS: readonly [Card, ...Card[]] = [
+const SECTIONS: readonly [Section, ...Section[]] = [
   { id: "games", label: "Games", tint: "#3f6a1f" },
   { id: "media", label: "Movies", tint: "#5a3a6e" },
   { id: "music", label: "Music", tint: "#1f5a6a" },
@@ -37,99 +46,95 @@ const CARDS: readonly [Card, ...Card[]] = [
   { id: "settings", label: "Settings", tint: "#2a2a32", appId: "launcher-settings" },
 ];
 
-/**
- * `GameGeneric` is the 4:3 tile, 420x320, and its three ramps are measured:
- * multiplying the scale column by 320 gives whole pixels, which is how you can
- * tell a measured table from an eyeballed one.
- */
-const CARD_W = 420;
-const CARD_H = 320;
-const SCALE_RAMP = [1, 0.74375, 0.59375, 0.49375, 0.421875, 0.36875] as const;
-const GAP_RAMP = [0, -1, -65, -85, -91, -94] as const;
-/** Negative, so the row converges on the centre line. The wide tile goes positive. */
-const RISE_RAMP = [0, -7, -11, -14, -16, -17] as const;
+/** `Blade_Center`. */
+const PANEL_W = 386;
+const PANEL_H = 235;
+const PANEL_X = 231;
+/** Every blade box is 235 tall, pivoted at its own vertical centre, y=117.5. */
+const BLADE_Y = 117.5;
 
-const CENTRE_Y = 352;
-const HUB_LEFT = 300;
-const WINDOW_BEFORE = 2;
-const WINDOW_AFTER = 5;
+const BLADE_W = 70;
+const BLADE_H = 235;
+const BLADE_COUNT = 5;
+const STEP = [27, 26, 24, 22, 21] as const;
+const STEP_SCALE = [0.96, 0.93, 0.9, 0.87, 0.84] as const;
 
 const MOVE_MS = 300;
 const STAGGER_MS = 50;
 
-function ramp(table: readonly number[], d: number): number {
-  return table[Math.min(Math.abs(d), table.length - 1)] ?? 0;
+function step(table: readonly number[], i: number): number {
+  return table[Math.min(Math.max(i, 0), table.length - 1)] ?? 0;
 }
 
 const focus = ref(0);
 
-const layout = computed(() => {
-  const placed: { card: Card; d: number; x: number; y: number; scale: number }[] = [];
-  let edge = HUB_LEFT;
-  for (let d = -WINDOW_BEFORE; d <= WINDOW_AFTER; d += 1) {
-    const card = CARDS[focus.value + d];
-    if (!card) continue;
-    const scale = ramp(SCALE_RAMP, d);
-    const w = CARD_W * scale;
-    const y = CENTRE_Y + CARD_H / 2 + ramp(RISE_RAMP, d) * K;
-    if (d < 0) {
-      const x = HUB_LEFT - w + ramp(GAP_RAMP, d) * K;
-      placed.push({ card, d, x, y, scale });
-      continue;
-    }
-    if (d === 0) {
-      placed.push({ card, d, x: edge, y, scale });
-      edge = edge + w;
-      continue;
-    }
-    const x = edge + ramp(GAP_RAMP, d) * K;
-    placed.push({ card, d, x, y, scale });
-    edge = x + w;
+interface Blade {
+  id: string;
+  /** Offset from the focus, negative to the left. */
+  d: number;
+  x: number;
+  scale: number;
+}
+
+/**
+ * The section at an offset from the focus, wrapping.
+ *
+ * Always defined, so every blade element exists from the first frame. A version
+ * that skipped a blade when none mapped to it had one element fewer at the ends,
+ * and moving off the end created another, with a layer allocated mid-transition.
+ * The gate caught that.
+ */
+function sectionAt(offset: number): Section {
+  return SECTIONS[(focus.value + offset + SECTIONS.length) % SECTIONS.length] ?? SECTIONS[0];
+}
+
+/**
+ * One pass outward along the ribbon.
+ *
+ * Blades are a fixed count and always populated, and a move only changes their
+ * transforms. Nothing is created, destroyed or resized, so the compositor has
+ * every layer it will need before the key is pressed.
+ */
+const blades = computed<Blade[]>(() => {
+  const placed: Blade[] = [];
+  let edge = PANEL_X + PANEL_W;
+  for (let i = 0; i < BLADE_COUNT; i += 1) {
+    const scale = step(STEP_SCALE, i);
+    const width = BLADE_W * scale;
+    const x = i === 0 ? edge : edge + step(STEP, i);
+    placed.push({ id: sectionAt(i).id, d: i, x, scale });
+    edge = x + width;
   }
   return placed;
 });
 
-function styleFor(item: {
-  x: number;
-  y: number;
-  scale: number;
-  d: number;
-}): Record<string, string> {
+function bladeStyle(blade: Blade): Record<string, string> {
   return {
-    width: `${CARD_W * K}px`,
-    height: `${CARD_H * K}px`,
-    transform: `translate3d(${item.x * K}px, ${-item.y * K}px, 0) scale(${item.scale})`,
-    transitionDelay: `${Math.max(0, item.d) * STAGGER_MS}ms`,
+    width: `${BLADE_W}px`,
+    height: `${BLADE_H}px`,
+    transform: `translate3d(${blade.x}px, ${BLADE_Y}px, 0) scale(${blade.scale})`,
+    transitionDelay: `${blade.d * STAGGER_MS}ms`,
   };
 }
 
-const highlight = computed(() => layout.value.find((item) => item.d === 0) ?? null);
+const panel = computed((): Section => SECTIONS[focus.value] ?? SECTIONS[0]);
 
-function highlightStyle(): Record<string, string> {
-  const item = highlight.value;
-  if (!item) return { opacity: "0" };
-  return {
-    width: `${CARD_W * K}px`,
-    height: `${CARD_H * K}px`,
-    transform: `translate3d(${item.x * K}px, ${-item.y * K}px, 0)`,
-    transitionDelay: "0ms",
-  };
-}
-
-const detail = computed((): Card => CARDS[focus.value] ?? CARDS[0]);
-
-/** Single source for the move, so the stylesheet cannot drift from the model. */
-const motion = { "--move-ms": `${MOVE_MS}ms`, "--stagger-ms": `${STAGGER_MS}ms` };
-
-const gamertag = "Player";
+/** Single source for the move and the canvas, so the stylesheet cannot drift. */
+const motion = {
+  "--move-ms": `${MOVE_MS}ms`,
+  "--stagger-ms": `${STAGGER_MS}ms`,
+  "--present": String(PRESENT),
+  "--canvas-w": `${CANVAS_W}px`,
+  "--canvas-h": `${CANVAS_H}px`,
+  "--panel-h": `${PANEL_H}px`,
+};
 
 function onKeyDown(event: KeyboardEvent): void {
   const forward = event.keyCode === 39;
   const back = event.keyCode === 37;
   if (!forward && !back) return;
   event.preventDefault();
-  const next = (focus.value + (forward ? 1 : CARDS.length - 1)) % CARDS.length;
-  focus.value = next;
+  focus.value = (focus.value + (forward ? 1 : SECTIONS.length - 1)) % SECTIONS.length;
 }
 
 onMounted(() => {
@@ -142,7 +147,7 @@ onUnmounted(() => window.removeEventListener("keydown", onKeyDown));
 
 /** Readable over CDP, so the TV can be probed without a rebuild. */
 function expose(): void {
-  (window as typeof window & { xneDebug?: unknown }).xneDebug = { focus, layout, detail };
+  (window as typeof window & { xneDebug?: unknown }).xneDebug = { focus, blades, panel };
 }
 </script>
 
@@ -154,44 +159,45 @@ function expose(): void {
       <header class="who">
         <div class="avatar" />
         <div class="id">
-          <span class="tag">{{ gamertag }}</span>
+          <span class="tag">Player</span>
           <span class="score">G 1250</span>
         </div>
       </header>
 
-      <div class="row">
-        <div
-          v-for="item in layout"
-          :key="item.card.id"
-          class="card"
-          :class="{ on: item.d === 0 }"
-          :style="styleFor(item)"
-          :data-card="item.card.id"
-        >
-          <div class="art" :style="{ background: item.card.tint }" />
-          <span class="cap">{{ item.card.label }}</span>
+      <div class="ribbon">
+        <div class="panel" :data-panel="panel.id">
+          <div class="panel-art" :style="{ background: panel.tint }" />
+          <div class="panel-copy">
+            <span class="panel-label">{{ panel.label }}</span>
+            <span class="panel-note">
+              Detail plate. The 2008 hub carried a preview here, with the section's own copy beneath
+              it.
+            </span>
+          </div>
         </div>
 
-        <div class="mark" :style="highlightStyle()" />
+        <div
+          v-for="blade in blades"
+          :key="blade.d"
+          class="blade"
+          :style="bladeStyle(blade)"
+          :data-blade="blade.id"
+          :data-offset="blade.d"
+        >
+          <span class="blade-label">{{ blade.id }}</span>
+        </div>
       </div>
-
-      <aside class="detail">
-        <h1>{{ detail.label }}</h1>
-        <p>
-          Detail plate. The 2008 hub carried a preview here, with the panel's own copy beneath it.
-        </p>
-      </aside>
     </div>
   </main>
 </template>
 
 <style scoped>
 /*
- * The stage is 1920x1080 at `devicePixelRatio: 2` on this TV, so an unzoomed
- * plane rasterises at 3840x2160 and a single one of those costs 31.6MB of the
- * 311MB the GPU gets per frame. `zoom: 0.5` drops the whole stack to one
- * device pixel per CSS pixel, 8.3MB for everything, which is 2.25x the pixel
- * count NXE itself ran at. See docs/PERF.md.
+ * The stage is 1920x1080 at `devicePixelRatio: 2` on this TV, so a plane authored
+ * at on-screen size rasterises at 3840x2160. Authoring at 1280x720 and scaling by
+ * 1.5 leaves the layer's own bounds at 1280x720, which rasterises at 2560x1440.
+ * `zoom` does not do this: it scales a box's contents and leaves its bounds
+ * alone, and the gate measured the hub still costing 31.6MB with `zoom: 0.5` on it.
  */
 .stage {
   position: relative;
@@ -205,15 +211,14 @@ function expose(): void {
   position: absolute;
   top: 50%;
   left: 50%;
-  width: 1920px;
-  height: 1080px;
-  margin: -540px 0 0 -960px;
-  zoom: 0.5;
-  transform: translateZ(0);
+  width: var(--canvas-w);
+  height: var(--canvas-h);
+  margin: calc(var(--canvas-h) / -2) 0 0 calc(var(--canvas-w) / -2);
+  transform: scale(var(--present)) translateZ(0);
 }
 
-/* The hub's own radial, from GuideMain.xui: #0F0F0F at alpha 100 into #81878D
-   at alpha 0. Real values, not the greys the recreations picked. */
+/* The hub's own radial, from GuideMain.xui: #0F0F0F at alpha 100 into #81878D at
+   alpha 0. The real values, not the greys the recreations picked. */
 .glow {
   position: absolute;
   inset: 0;
@@ -226,115 +231,117 @@ function expose(): void {
 
 .who {
   position: absolute;
-  top: 96px;
-  left: 168px;
+  top: 40px;
+  left: 112px;
   display: flex;
-  gap: 24px;
+  gap: 14px;
   align-items: center;
 }
 
 .avatar {
-  width: 132px;
-  height: 132px;
-  border: 2px solid rgba(255, 255, 255, 0.35);
-  border-radius: 8px;
+  width: 64px;
+  height: 64px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 5px;
   background: linear-gradient(160deg, #4a4f57, #22262b);
 }
 
 .id {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 3px;
 }
 
 .tag {
-  font-size: 38px;
+  font-size: 20px;
   font-weight: 700;
-  letter-spacing: -0.01em;
 }
 
 .score {
-  font-size: 24px;
+  font-size: 13px;
   color: #9aa4ad;
 }
 
-.row {
+.ribbon {
   position: absolute;
   inset: 0;
 }
 
-.card {
+/*
+ * The panel is a fixed size at a fixed place, so focusing a different section
+ * repaints it and allocates nothing. It is deliberately not promoted: a layer
+ * here would be re-rastered on every focus change for no gain, and 386x235 is
+ * small enough that a paint costs nothing worth a layer.
+ */
+.panel {
+  position: absolute;
+  top: 0;
+  left: 231px;
+  width: 386px;
+  height: var(--panel-h);
+  border-radius: 7px;
+  box-shadow: 0 12px 23px rgba(0, 0, 0, 0.45);
+  overflow: hidden;
+}
+
+.panel-art {
+  position: absolute;
+  inset: 0;
+  background: #3f6a1f;
+}
+
+.panel-copy {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 6px;
+  padding: 14px 16px;
+}
+
+.panel-label {
+  font-size: 22px;
+  font-weight: 700;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.55);
+}
+
+.panel-note {
+  font-size: 12px;
+  line-height: 1.3;
+  color: rgba(255, 255, 255, 0.78);
+}
+
+/*
+ * Blades move, so they are promoted: a transform on an unpromoted box repaints it
+ * every frame. The layer exists at rest and only its transform changes, which is
+ * what keeps a move from allocating.
+ */
+.blade {
   position: absolute;
   top: 0;
   left: 0;
-  border-radius: 10px;
-  box-shadow: 0 18px 34px rgba(0, 0, 0, 0.45);
-  /* Promoted, because a transform on an unpromoted box repaints it every frame.
-     The layer exists at rest and only its transform changes, so a move
-     allocates nothing. */
+  border-radius: 5px;
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.16), rgba(0, 0, 0, 0.3));
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.4);
   will-change: transform;
   transform-origin: 0 0;
   transition: transform var(--move-ms) cubic-bezier(0.215, 0.61, 0.355, 1);
 }
 
-.art {
+.blade-label {
   position: absolute;
-  inset: 0;
-  border-radius: 10px;
-  opacity: 0.82;
-}
-
-.card.on .art {
-  opacity: 1;
-}
-
-.cap {
-  position: absolute;
-  bottom: 22px;
-  left: 26px;
-  font-size: 30px;
-  font-weight: 700;
-  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.55);
-}
-
-/* The selection rides on its own element so that moving it never changes a
-   card's content, and a card's content is what would force a re-raster. */
-.mark {
-  position: absolute;
-  top: 0;
+  bottom: 10px;
   left: 0;
-  border: 3px solid rgba(255, 255, 255, 0.85);
-  border-radius: 13px;
-  box-shadow: 0 0 22px rgba(255, 255, 255, 0.25);
-  will-change: transform;
-  transition: transform var(--move-ms) cubic-bezier(0.215, 0.61, 0.355, 1);
-  pointer-events: none;
-}
-
-.detail {
-  position: absolute;
-  top: 300px;
-  right: 150px;
-  width: 560px;
-}
-
-.detail h1 {
-  margin: 0 0 18px;
-  font-size: 52px;
-  font-weight: 300;
-  letter-spacing: 0.015em;
-}
-
-.detail p {
-  margin: 0;
-  font-size: 28px;
-  line-height: 1.3;
-  color: #c3ccd4;
+  width: 100%;
+  font-size: 11px;
+  font-weight: 700;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.85);
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .card,
-  .mark {
+  .blade {
     transition: none;
   }
 }

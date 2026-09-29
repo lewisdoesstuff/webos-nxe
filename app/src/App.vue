@@ -1,5 +1,5 @@
 <script setup lang="ts" vapor>
-import { computed, onMounted, onUnmounted, ref } from "vue";
+import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 
 import { type BootReason, type BootSpeed, resolveBootMode } from "./boot";
 import BootScreen from "./components/BootScreen.vue";
@@ -37,6 +37,7 @@ import {
   type PooledPane,
   stepHub,
 } from "./hub";
+import { paneArt } from "./panel";
 import { SELECT, promptsFor } from "./prompts";
 import { CANVAS_H, CANVAS_W } from "./ribbon";
 import { CHANNEL_ORDER, SECTIONS, sectionRows, START_CHANNEL } from "./sections";
@@ -126,6 +127,26 @@ const shownRow = computed(() => rows.value[shown.value.channel] ?? []);
 const pool = computed(() => placePool(shown.value.item, shownRow.value.length));
 
 const counter = computed(() => counterText(shown.value.item, shownRow.value.length));
+
+/**
+ * Every pane's art, decoded as soon as the apps load and held for the life of
+ * the page, so a channel change that puts eight new icons up at once finds
+ * them already decoded (PERF-STATUS, "decode artwork at boot").
+ */
+const heldArt = new Map<string, HTMLImageElement>();
+watch(
+  () => apps.launchPoints,
+  (points) => {
+    for (const point of points) {
+      const url = paneArt(point);
+      if (!url || heldArt.has(url)) continue;
+      const image = new Image();
+      image.src = url;
+      heldArt.set(url, image);
+      image.decode().catch(() => undefined);
+    }
+  },
+);
 
 function paneItem(pane: PooledPane) {
   return pane.item === null ? null : (shownRow.value[pane.item] ?? null);
@@ -319,8 +340,23 @@ function expose(): void {
 
 <template>
   <main class="stage" :style="motion">
+    <!--
+      Everything static paints before anything promoted. Unpromoted content
+      painted after an animating layer has to be squashed into a layer of its
+      own, and that layer changes identity mid-move, which is an allocation.
+    -->
     <div class="sky" />
     <div class="floor" />
+    <span class="bullet" :style="bulletStyle" />
+    <span class="counter" :style="counterStyle">{{ counter }}</span>
+    <header class="card" :style="cardStyle">
+      <span class="tag">{{ settings.settings.gamertag || "Player1" }}</span>
+      <span class="score">0 G</span>
+    </header>
+    <div class="pic" :style="picStyle" />
+    <div class="frame" data-frame :style="frameStyle">
+      <PromptBar :prompts="promptsFor({ a: SELECT.label })" />
+    </div>
 
     <span
       v-for="(channel, index) in channels"
@@ -331,7 +367,6 @@ function expose(): void {
       :style="labelStyle(index)"
       >{{ channel.label }}</span
     >
-    <span class="bullet" :style="bulletStyle" />
 
     <div class="row" data-panes>
       <HubPane
@@ -343,17 +378,7 @@ function expose(): void {
       />
     </div>
 
-    <span class="counter" :style="counterStyle">{{ counter }}</span>
-
-    <header class="card" :style="cardStyle">
-      <span class="tag">{{ settings.settings.gamertag || "Player1" }}</span>
-      <span class="score">0 G</span>
-    </header>
-    <div class="pic" :style="picStyle" />
-
-    <div class="frame" data-frame :style="frameStyle">
-      <PromptBar :prompts="promptsFor({ a: SELECT.label })" />
-
+    <div class="frame" data-guide :style="frameStyle">
       <GuideOverlay
         :open="guide"
         :blade="hub.channel"

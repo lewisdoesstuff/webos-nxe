@@ -66,7 +66,12 @@ bun run build
 # assets is replaced wholesale because every build emits new hashed filenames;
 # index.html and icons are overwritten in place.
 ssh -o BatchMode=yes -o LogLevel=ERROR "$TV_HOST" "rm -rf '$APP_ROOT/assets' && mkdir -p '$APP_ROOT/assets'"
-tar -C dist/app -cf - assets index.html icons | ssh -o BatchMode=yes -o LogLevel=ERROR "$TV_HOST" "tar -C '$APP_ROOT' -xf -"
+COPYFILE_DISABLE=1 tar -C dist/app -cf - assets index.html icons | ssh -o BatchMode=yes -o LogLevel=ERROR "$TV_HOST" "tar -C '$APP_ROOT' -xf -"
+
+# Other apps' icons sit outside this app's origin, and a file:// page cannot
+# load them directly. A `hack -> /` link in the app's own directory puts every
+# absolute path inside it (panel.ts `paneArt`).
+ssh -o BatchMode=yes -o LogLevel=ERROR "$TV_HOST" "ln -sfn / '$APP_ROOT/hack' && rm -f '$APP_ROOT'/._*"
 
 echo "synced dist/app -> ${TV_HOST}:${APP_ROOT}"
 

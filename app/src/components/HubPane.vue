@@ -30,7 +30,6 @@ const rootStyle = { width: `${PANE_W}px`, height: `${PANE_H}px` };
         <span v-else class="initial">{{ initial }}</span>
       </div>
       <div class="echo"><img v-if="art" class="art" :src="art" alt="" /></div>
-      <div class="fade" />
       <span class="name">{{ props.item?.title ?? "" }}</span>
     </div>
     <div class="mirror">
@@ -41,7 +40,6 @@ const rootStyle = { width: `${PANE_W}px`, height: `${PANE_H}px` };
           <span v-else class="initial">{{ initial }}</span>
         </div>
         <div class="echo"><img v-if="art" class="art" :src="art" alt="" /></div>
-        <div class="fade" />
       </div>
     </div>
   </div>
@@ -61,7 +59,7 @@ const rootStyle = { width: `${PANE_W}px`, height: `${PANE_H}px` };
   width: 630px;
   height: 480px;
   overflow: hidden;
-  border-radius: 6px;
+  border-radius: 4px;
 }
 
 .mirror {
@@ -84,10 +82,11 @@ const rootStyle = { width: `${PANE_W}px`, height: `${PANE_H}px` };
   position: absolute;
   inset: 0;
   background:
+    linear-gradient(180deg, #e9ea14 0, #e4e91a 3px, rgba(228, 233, 26, 0) 7px),
     radial-gradient(
-      ellipse 90% 45% at 50% 0%,
-      rgba(235, 255, 130, 0.36),
-      rgba(255, 255, 200, 0) 100%
+      ellipse 70% 40% at 55% 0%,
+      rgba(245, 248, 150, 0.4),
+      rgba(245, 248, 150, 0) 100%
     ),
     radial-gradient(
       circle at 78% 30%,
@@ -111,12 +110,17 @@ const rootStyle = { width: `${PANE_W}px`, height: `${PANE_H}px` };
       rgba(255, 255, 255, 0.1) 25px 28px,
       transparent 29px
     ),
-    linear-gradient(180deg, #c2e80e 0%, #b6de10 35%, #93c60c 70%, #7bb208 100%);
-  box-shadow:
-    inset 0 2px 0 rgba(214, 255, 60, 1),
-    inset 1px 0 0 rgba(235, 255, 140, 0.4),
-    inset -1px 0 0 rgba(235, 255, 140, 0.25),
-    inset 0 -3px 0 rgba(0, 24, 0, 0.55);
+    linear-gradient(
+      180deg,
+      #d2dd1c 0%,
+      #c0d818 25%,
+      #9fc905 53%,
+      #75aa01 71%,
+      #628a08 80%,
+      #3e5e08 90%,
+      #1e3402 97%,
+      #182d01 100%
+    );
 }
 
 .tile {
@@ -138,11 +142,11 @@ const rootStyle = { width: `${PANE_W}px`, height: `${PANE_H}px` };
   top: 334px;
   left: 195px;
   width: 240px;
-  height: 96px;
+  height: 120px;
   overflow: hidden;
-  opacity: 0.32;
-  -webkit-mask-image: linear-gradient(180deg, #000 0%, transparent 100%);
-  mask-image: linear-gradient(180deg, #000 0%, transparent 100%);
+  opacity: 0.6;
+  -webkit-mask-image: linear-gradient(180deg, #000 0%, rgba(0, 0, 0, 0.5) 35%, transparent 100%);
+  mask-image: linear-gradient(180deg, #000 0%, rgba(0, 0, 0, 0.5) 35%, transparent 100%);
 }
 
 .echo .art {
@@ -179,20 +183,6 @@ const rootStyle = { width: `${PANE_W}px`, height: `${PANE_H}px` };
   justify-content: center;
   color: rgba(255, 255, 255, 0.92);
   font-size: 120px;
-}
-
-.fade {
-  position: absolute;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  height: 210px;
-  background: linear-gradient(
-    180deg,
-    rgba(10, 50, 0, 0) 0%,
-    rgba(8, 40, 0, 0.55) 55%,
-    rgba(2, 16, 0, 0.95) 100%
-  );
 }
 
 .name {

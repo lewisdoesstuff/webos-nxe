@@ -77,6 +77,7 @@ app/src/
   hubRows.ts           synthetic rows: System settings panes, "All" panes
   boot*.ts             the WebGL boot: timing, keyframes, shader, theme
   paths.ts             the `hack` prefix, for reaching outside the app directory
+  avatar/              the 3D avatar: renderer, idle clips, framing; /avatar.html in dev
   luna.ts, mock/       the typed Luna wrapper and its desktop mock
   stores/              apps (launch points) and persisted settings
   focus/               the generic focus layer

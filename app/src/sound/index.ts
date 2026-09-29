@@ -3,7 +3,7 @@
  *
  * Both features read the persisted settings through the store, so there is no
  * state here to keep in step with them and nothing has to be wired up for a
- * setting to take effect. The blips are off unless `navSound` says otherwise;
+ * setting to take effect. The blips play unless `navSound` is off;
  * the music plays whatever `musicPath` points at.
  *
  * Nothing here throws. A dashboard with no audio device, a browser that refuses
@@ -11,6 +11,11 @@
  * reason in `status()`, never in a broken menu.
  */
 
+import cancelUrl from "../assets/sounds/cancel.ogg";
+import categoryUrl from "../assets/sounds/category.ogg";
+import cursorUrl from "../assets/sounds/cursor.ogg";
+import decideUrl from "../assets/sounds/decide.ogg";
+import optionUrl from "../assets/sounds/option.ogg";
 import { SETTINGS_DEFAULTS, type Settings } from "../settings";
 import { useSettingsStore } from "../stores/settings";
 import { createSoundEngine } from "./engine";
@@ -21,8 +26,23 @@ import type { SoundName } from "./voices";
 export { MENU_SOUND_COUNT, SOUND_NAMES, type SoundName } from "./voices";
 export { describeStatus, type MusicState, type SoundStatus } from "./status";
 
-const engine = createSoundEngine();
+const engine = createSoundEngine({
+  files: {
+    cursor: cursorUrl,
+    category: categoryUrl,
+    decide: decideUrl,
+    option: optionUrl,
+    cancel: cancelUrl,
+  },
+});
 const music = createMusicPlayer();
+
+/** Decode the clips once the shell has mounted, so no key press waits on them. */
+export function preloadSounds(): void {
+  if (stored().navSound) engine.preload();
+}
+
+setTimeout(preloadSounds, 0);
 
 /** The stored settings, falling back to the defaults with no store to read. */
 function stored(): Settings {
@@ -34,8 +54,8 @@ function stored(): Settings {
 }
 
 /**
- * A menu blip. Silent when `navSound` is off, so the default dashboard is
- * completely mute and no audio context is ever created for it.
+ * A menu blip. Silent when `navSound` is off, so with it off no audio
+ * context is ever created.
  */
 export function playSound(name: SoundName): void {
   if (!stored().navSound) return;

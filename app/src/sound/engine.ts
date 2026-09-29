@@ -35,6 +35,8 @@ export interface EngineStatus {
 
 export interface SoundEngine {
   play(name: SoundName): void;
+  /** Make the context and start decoding the clips, so the first key press finds them ready. */
+  preload(): void;
   /** Resume a context that already exists. Makes none, so boot stays free. */
   unlock(): void;
   status(): EngineStatus;
@@ -71,7 +73,31 @@ function silence(voice: Voice): void {
   }
 }
 
-export function createSoundEngine(): SoundEngine {
+export interface EngineOptions {
+  /** Recorded clips that replace the synthesised blips once decoded. */
+  files?: Partial<Record<SoundName, string>>;
+  /** Fetch a clip's bytes. Defaults to XMLHttpRequest, which also reads `file://`. */
+  load?: (url: string) => Promise<ArrayBuffer>;
+}
+
+export function fetchBytes(url: string): Promise<ArrayBuffer> {
+  return new Promise((resolve, reject) => {
+    const request = new XMLHttpRequest();
+    request.open("GET", url);
+    request.responseType = "arraybuffer";
+    request.addEventListener("load", () => {
+      const ok = request.status === 0 || (request.status >= 200 && request.status < 300);
+      if (ok && request.response instanceof ArrayBuffer) resolve(request.response);
+      else reject(new Error(`${url}: ${request.status}`));
+    });
+    request.addEventListener("error", () => reject(new Error(`${url}: request failed`)));
+    request.send();
+  });
+}
+
+export function createSoundEngine(options: EngineOptions = {}): SoundEngine {
+  const files = options.files ?? {};
+  const load = options.load ?? fetchBytes;
   let context: AudioContext | null = null;
   let master: GainNode | null = null;
   let buffers: Partial<Record<SoundName, AudioBuffer>> = {};
@@ -79,6 +105,20 @@ export function createSoundEngine(): SoundEngine {
   let abandoned = false;
   let lastCursorAt = -CURSOR_MIN_GAP_MS;
   const voices: Voice[] = [];
+
+  /** Decode each recorded clip over its synthesised fallback. A failed file keeps the fallback. */
+  function loadFiles(ctx: AudioContext): void {
+    for (const name of SOUND_NAMES) {
+      const url = files[name];
+      if (!url) continue;
+      void load(url)
+        .then((bytes) => ctx.decodeAudioData(bytes))
+        .then((decoded) => {
+          if (context === ctx) buffers = { ...buffers, [name]: decoded };
+        })
+        .catch(() => {});
+    }
+  }
 
   /** Render all six, once, at the context's own rate. */
   function render(ctx: AudioContext): void {
@@ -109,6 +149,7 @@ export function createSoundEngine(): SoundEngine {
       master = bus;
       context = created;
       render(created);
+      loadFiles(created);
       reason = null;
     } catch (cause) {
       context = null;
@@ -172,6 +213,10 @@ export function createSoundEngine(): SoundEngine {
     }
   }
 
+  function preload(): void {
+    ensure();
+  }
+
   function unlock(): void {
     // Deliberately makes no context. A blip makes one on the first key, which
     // is a moment the cost of rendering all six lands far more quietly than it
@@ -209,5 +254,5 @@ export function createSoundEngine(): SoundEngine {
     }
   }
 
-  return { play, unlock, status, dispose };
+  return { play, preload, unlock, status, dispose };
 }

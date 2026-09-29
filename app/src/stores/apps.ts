@@ -5,12 +5,28 @@ import { LunaCallError, callLuna } from "../luna";
 import { isInputAppId } from "../preview/inputs";
 import { loadStills } from "../preview/stills";
 import { usePreviewStore } from "../preview/store";
+import { readJson, writeJson } from "../storage";
 import type { LaunchPoint, ListAppsResult, ListLaunchPointsResult } from "../types";
 
 const LIST_LAUNCH_POINTS = "luna://com.webos.applicationManager/listLaunchPoints";
 const LIST_APPS = "luna://com.webos.applicationManager/listApps";
 const LAUNCH = "luna://com.webos.applicationManager/launch";
 const GET_APP_INFO = "luna://com.webos.applicationManager/getAppInfo";
+
+/** The last list Luna gave, so a cold start can draw before Luna answers. */
+const LAST_POINTS_KEY = "ooo.lew.xne.launchPoints";
+
+function lastPoints(): LaunchPoint[] {
+  const saved = readJson(LAST_POINTS_KEY);
+  if (!Array.isArray(saved)) return [];
+  return saved.filter(
+    (point): point is LaunchPoint =>
+      typeof point === "object" &&
+      point !== null &&
+      typeof point.id === "string" &&
+      typeof point.title === "string",
+  );
+}
 
 /** The sources this TV does not list as launch points. */
 const INPUT_IDS: readonly { id: string; title: string }[] = [
@@ -128,7 +144,10 @@ export const useAppsStore = defineStore("apps", () => {
   }
 
   async function load(): Promise<void> {
-    status.value = "loading";
+    const saved = lastPoints();
+    const cached = saved.length > 0;
+    if (cached) launchPoints.value = saved;
+    status.value = cached ? "ready" : "loading";
     error.value = null;
     // The boot path this app has. The still registry is read here so a row can
     // draw a photograph taken on a previous run rather than only one taken since
@@ -143,11 +162,15 @@ export const useAppsStore = defineStore("apps", () => {
       // Both in flight together: the grid is usable before the icons land, and
       // on the TV the icon paths are the difference between tiles and initials.
       const [apps, inputs] = await Promise.all([loadIcons(), loadInputs(points)]);
-      launchPoints.value = enrichWithIcons([...points, ...inputs], apps);
+      const fresh = enrichWithIcons([...points, ...inputs], apps);
+      if (JSON.stringify(fresh) !== JSON.stringify(launchPoints.value)) {
+        launchPoints.value = fresh;
+        writeJson(LAST_POINTS_KEY, fresh);
+      }
       status.value = "ready";
     } catch (cause) {
       error.value = describe(cause);
-      status.value = "error";
+      if (!cached) status.value = "error";
     }
   }
 

@@ -1,5 +1,6 @@
 import { shallowReactive, shallowRef } from "vue";
 
+import { readAllArt, type StoredArt, writeArt } from "./artStore";
 import cardBokeh from "./assets/hub/card-bokeh.svg";
 
 /**
@@ -14,7 +15,15 @@ import cardBokeh from "./assets/hub/card-bokeh.svg";
  * The in-card echo and the floor mirror are baked the same way, fade and
  * opacity included, so a pane draws them as plain images: no mask and no group
  * opacity, each of which costs an offscreen pass on every repaint.
+ *
+ * What is baked is kept between launches (`artStore.ts`), so a cold start only
+ * decodes it. An icon is checked against its stored bake once the dashboard is
+ * up, and baked again only if it has changed.
  */
+
+/** Bumped whenever what a bake draws changes, so older stored bakes are ignored. */
+const BAKE_VERSION = 1;
+const FLOOR_KEY = "floor-face";
 
 /** The size the hub shows art at, in CSS px, which is what this TV rasters at. */
 export const ART_PX = 240;
@@ -100,19 +109,61 @@ async function decoded(src: string): Promise<HTMLImageElement | null> {
   return image.naturalWidth > 0 && image.naturalHeight > 0 ? image : null;
 }
 
-/** Encode a canvas and keep the result decoded, so a repaint never waits on it. */
-async function keep(element: HTMLCanvasElement): Promise<string | null> {
-  let blob: Blob | null = null;
+async function encode(element: HTMLCanvasElement): Promise<Blob | null> {
   try {
-    blob = await new Promise<Blob | null>((resolve) => element.toBlob(resolve, "image/png"));
+    return await new Promise<Blob | null>((resolve) => element.toBlob(resolve, "image/png"));
   } catch {
     return null;
   }
-  if (!blob) return null;
+}
+
+/** Keep an image decoded, so a repaint never waits on it. */
+async function show(blob: Blob): Promise<string | null> {
   const copy = await decoded(URL.createObjectURL(blob));
   if (!copy) return null;
   held.push(copy);
   return copy.src;
+}
+
+/** Show every image of a record, or none. */
+async function showAll(images: Record<string, Blob>): Promise<Record<string, string> | null> {
+  const names = Object.keys(images);
+  const urls = await Promise.all(names.map((name) => show(images[name]!)));
+  if (urls.some((url) => url === null)) return null;
+  return Object.fromEntries(names.map((name, index) => [name, urls[index]!]));
+}
+
+/** Encode canvases, store them under a key, and show them. */
+async function store(
+  key: string,
+  hash: number,
+  canvases: Record<string, HTMLCanvasElement>,
+): Promise<Record<string, string> | null> {
+  const names = Object.keys(canvases);
+  const blobs = await Promise.all(names.map((name) => encode(canvases[name]!)));
+  if (blobs.some((blob) => blob === null)) return null;
+  const images = Object.fromEntries(names.map((name, index) => [name, blobs[index]!]));
+  void writeArt({ key, version: BAKE_VERSION, hash, images });
+  return showAll(images);
+}
+
+let stored: Promise<Map<string, StoredArt>> | null = null;
+
+/** A stored bake of this version, if there is one. */
+async function storedFor(key: string): Promise<StoredArt | undefined> {
+  stored ??= readAllArt();
+  const record = (await stored).get(key);
+  return record?.version === BAKE_VERSION ? record : undefined;
+}
+
+/** FNV-1a over the pixels, enough to tell one icon from its replacement. */
+function hashPixels(context: CanvasRenderingContext2D): number {
+  const data = context.getImageData(0, 0, ART_PX, ART_PX).data;
+  let hash = 0x811c9dc5;
+  for (let index = 0; index < data.length; index++) {
+    hash = Math.imul(hash ^ data[index]!, 0x01000193);
+  }
+  return hash >>> 0;
 }
 
 /** Multiply what is drawn by alpha stops that run top to bottom from `top` over `h`. */
@@ -176,23 +227,51 @@ function drawMirror(
 
 let facing: Promise<void> | null = null;
 
-/** Draw the bare card's mirror once. */
+/** Draw the bare card's mirror once, or take it from the store. */
 export function prepareFloor(): Promise<void> {
   facing ??= (async () => {
-    const card = await drawCard();
-    const mirror = card && drawMirror(card, null, { x: 0, y: 0, w: CARD_W, h: MIRROR.h });
-    const patch = card && drawMirror(card, null, PATCH);
-    if (!mirror || !patch) return;
-    mirror.getContext("2d")?.clearRect(PATCH.x, PATCH.y, PATCH.w, PATCH.h);
-    const [face, patchUrl] = await Promise.all([keep(mirror), keep(patch)]);
-    if (face && patchUrl) floorFace.value = { face, patch: patchUrl };
+    const record = await storedFor(FLOOR_KEY);
+    let urls = record ? await showAll(record.images) : null;
+    if (!urls) {
+      const card = await drawCard();
+      const mirror = card && drawMirror(card, null, { x: 0, y: 0, w: CARD_W, h: MIRROR.h });
+      const patch = card && drawMirror(card, null, PATCH);
+      if (!mirror || !patch) return;
+      mirror.getContext("2d")?.clearRect(PATCH.x, PATCH.y, PATCH.w, PATCH.h);
+      urls = await store(FLOOR_KEY, 0, { face: mirror, patch });
+    }
+    if (urls?.["face"] && urls["patch"])
+      floorFace.value = { face: urls["face"], patch: urls["patch"] };
   })();
   return facing;
 }
 
-/** Scale one source and bake its reflections, and leave the source in place if anything refuses. */
+/** Sources shown from the store this session, still to be checked against their icon. */
+const unchecked = new Map<string, number>();
+
+/** Show a source's art, from the store when it has it, baked otherwise. */
 export async function prepareArt(url: string): Promise<void> {
   if (baked.has(url)) return;
+  const record = await storedFor(url);
+  const urls = record ? await showAll(record.images) : null;
+  if (record && urls?.["art"] && urls["echo"] && urls["floor"]) {
+    baked.set(url, { art: urls["art"], echo: urls["echo"], floor: urls["floor"] });
+    unchecked.set(url, record.hash);
+    return;
+  }
+  await bake(url, null);
+}
+
+/** Bake a source again if its icon no longer matches what was stored. */
+export async function checkArt(url: string): Promise<void> {
+  const hash = unchecked.get(url);
+  if (hash === undefined) return;
+  unchecked.delete(url);
+  await bake(url, hash);
+}
+
+/** Scale one source and bake its reflections, and leave what is shown in place if anything refuses. */
+async function bake(url: string, unless: number | null): Promise<void> {
   const [source, card] = await Promise.all([decoded(url), drawCard()]);
   const scaledCanvas = canvas(ART_PX, ART_PX);
   const echoCanvas = canvas(ECHO.w, ECHO.h);
@@ -204,6 +283,8 @@ export async function prepareArt(url: string): Promise<void> {
   const h = source.naturalHeight * fit;
   context.imageSmoothingQuality = "high";
   context.drawImage(source, (ART_PX - w) / 2, (ART_PX - h) / 2, w, h);
+  const hash = hashPixels(context);
+  if (hash === unless) return;
 
   const [echo, echoContext] = echoCanvas;
   echoContext.beginPath();
@@ -220,6 +301,8 @@ export async function prepareArt(url: string): Promise<void> {
 
   const patch = drawMirror(card, echo, PATCH);
   if (!patch) return;
-  const [art, echoUrl, floor] = await Promise.all([keep(scaled), keep(echo), keep(patch)]);
-  if (art && echoUrl && floor) baked.set(url, { art, echo: echoUrl, floor });
+  const urls = await store(url, hash, { art: scaled, echo, floor: patch });
+  if (urls?.["art"] && urls["echo"] && urls["floor"]) {
+    baked.set(url, { art: urls["art"], echo: urls["echo"], floor: urls["floor"] });
+  }
 }

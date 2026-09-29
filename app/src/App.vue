@@ -46,6 +46,7 @@ import { paneArt } from "./panel";
 import { SELECT, promptsFor } from "./prompts";
 import { CANVAS_H, CANVAS_W } from "./ribbon";
 import { CHANNEL_ORDER, SECTIONS, START_CHANNEL } from "./sections";
+import { playSound } from "./sound";
 import { useAppsStore } from "./stores/apps";
 import { useSettingsStore } from "./stores/settings";
 
@@ -143,12 +144,15 @@ function openPage(): void {
 
 function stepPage(delta: number): void {
   const next = stepVertical([{ page: page.value, focus: pageFocus.value }], delta)[0];
-  if (next) pageFocus.value = next.focus;
+  if (!next || next.focus === pageFocus.value) return;
+  pageFocus.value = next.focus;
+  playSound("cursor");
 }
 
 function launchListed(): void {
   const item = listed.value[pageFocus.value.item];
   if (!item) return;
+  playSound("decide");
   const target = launchTarget(item);
   void apps.launch(target.id, { ...target.params });
 }
@@ -297,6 +301,7 @@ function navigate(move: HubMove): void {
   if (next === hub.value) return;
   const channelChanged = next.channel !== hub.value.channel;
   hub.value = next;
+  playSound(channelChanged ? "category" : "cursor");
   if (channelChanged) {
     void changeChannel();
     return;
@@ -311,6 +316,7 @@ function navigate(move: HubMove): void {
 function activate(): void {
   const item = rows.value[hub.value.channel]?.[hub.value.item];
   if (!item) return;
+  playSound("decide");
   if (isAllPane(item)) {
     openPage();
     return;
@@ -351,6 +357,7 @@ function onKeyDown(event: KeyboardEvent): void {
     ) {
       event.preventDefault();
       guide.value = false;
+      playSound("cancel");
     }
     return;
   }
@@ -364,6 +371,7 @@ function onKeyDown(event: KeyboardEvent): void {
     } else if (BACK_KEYS.has(event.keyCode)) {
       event.preventDefault();
       pageOpen.value = false;
+      playSound("cancel");
     }
     return;
   }
@@ -389,6 +397,7 @@ function onKeyDown(event: KeyboardEvent): void {
   if (event.keyCode === 71 || event.keyCode === YELLOW) {
     event.preventDefault();
     guide.value = true;
+    playSound("option");
   }
 }
 

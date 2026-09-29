@@ -71,14 +71,14 @@ export interface BootTheme {
   /**
    * The mark cut into the sphere's face: two grooves on great circles through
    * the pole, at `angle` degrees either side of the vertical, each `width`
-   * wide at the pole and `flare` wider at the equator.
+   * (the half-gap in sphere radii at one unit of opening) wide at the pole.
    */
   readonly mark: {
     readonly angle: number;
     readonly width: number;
-    readonly flare: number;
-    /** The groove's light, from its walls to its hot core. */
+    /** The groove's light, from its walls through its floor to its hot core. */
     readonly wall: Rgb;
+    readonly floor: Rgb;
     readonly core: Rgb;
   };
   /** The accent the rings and the field's light beams are drawn in. */
@@ -115,8 +115,8 @@ export const XBOX_THEME: BootTheme = {
   mark: {
     angle: 45,
     width: 0.026,
-    flare: 0.04,
     wall: hex(0x2fa313),
+    floor: hex(0x8cff46),
     core: hex(0xf6ffc8),
   },
   accent: hex(0x8ef070),

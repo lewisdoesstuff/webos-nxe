@@ -39,6 +39,7 @@ const COLOURS = {
   cRim: (t: BootTheme) => t.sphere.rim,
   cWall: (t: BootTheme) => t.mark.wall,
   cCore: (t: BootTheme) => t.mark.core,
+  cFloor: (t: BootTheme) => t.mark.floor,
   cAccent: (t: BootTheme) => t.accent,
 } as const satisfies Record<string, (theme: BootTheme) => Rgb>;
 
@@ -47,6 +48,9 @@ const VEC4S = [
   "light",
   "halo",
   "mark",
+  "groove",
+  "gaps",
+  "streak",
   "star",
   "field",
   "ring",
@@ -257,7 +261,7 @@ export class BootRenderer {
       this.location(gl, "uShape"),
       (mark.angle * Math.PI) / 180,
       mark.width,
-      mark.flare,
+      0,
       this.theme.sphere.grain,
     );
     gl.uniform2f(this.location(gl, "uRes"), this.canvas.width, this.canvas.height);

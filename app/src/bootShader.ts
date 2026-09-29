@@ -30,6 +30,9 @@ uniform sampler2D tOrb;
 uniform sampler2D tMark;
 uniform vec4 uField;
 uniform vec4 uShape;
+uniform vec4 uGroove;
+uniform vec4 uGaps;
+uniform vec4 uStreak;
 
 uniform vec3 cGreyTop;
 uniform vec3 cGreyEdge;
@@ -43,6 +46,7 @@ uniform vec3 cSpec;
 uniform vec3 cRim;
 uniform vec3 cWall;
 uniform vec3 cCore;
+uniform vec3 cFloor;
 uniform vec3 cAccent;
 
 float hash(vec2 p) {
@@ -76,8 +80,8 @@ vec3 field(vec2 p) {
 
 vec3 shell(vec3 n, float px) {
   vec3 q = n * uBasis;
-  float ca = cos(uShape.x);
-  float sa = sin(uShape.x);
+  float ca = cos(uShape.x + uGroove.w);
+  float sa = sin(uShape.x + uGroove.w);
   vec3 m1 = vec3(ca, -sa, 0.0);
   vec3 m2 = vec3(ca, sa, 0.0);
   float e1 = dot(q, m1);
@@ -88,13 +92,22 @@ vec3 shell(vec3 n, float px) {
   float front = smoothstep(-0.35, -0.05, q.z);
 
   float open = uMark.w;
-  float w = uShape.y * open + uShape.z * max(1.0 - q.z, 0.0) * min(open, 1.0);
-  float dm = min(d1, d2);
-  float gap = dm - w;
+  float on = step(0.001, open);
+  float base = uShape.y * open * (1.0 + uGroove.x * clamp(1.0 - q.z, 0.0, 1.0));
+  float away = smoothstep(0.05, 0.7, theta);
+  float w1 = base * mix(1.0, mix(uGaps.z, uGaps.x, smoothstep(-0.2, 0.2, q.x * sa + q.y * ca)), away);
+  float w2 = base * mix(1.0, mix(uGaps.w, uGaps.y, smoothstep(-0.2, 0.2, q.y * ca - q.x * sa)), away);
+  float g1 = d1 - w1;
+  float g2 = d2 - w2;
+  bool one = g1 < g2;
+  float gap = one ? g1 : g2;
+  float e = one ? e1 : e2;
+  float w = one ? w1 : w2;
+  vec3 m = one ? m1 : m2;
+
   float bw = 0.018 + 0.03 * min(open, 1.0);
-  float bev = (1.0 - smoothstep(0.0, bw, gap)) * step(0.0, gap) * front * step(0.001, open);
-  vec3 mn = d1 < d2 ? m1 * sign(e1) : m2 * sign(e2);
-  vec3 nb = normalize(n - bev * 1.3 * (uBasis * mn));
+  float bev = (1.0 - smoothstep(0.0, bw, gap)) * step(0.0, gap) * front * on;
+  vec3 nb = normalize(n - bev * 1.3 * (uBasis * (m * (e < 0.0 ? -1.0 : 1.0))));
 
   vec3 key = normalize(vec3(0.9, 0.25, 0.35));
   float diff = max(dot(nb, key), 0.0);
@@ -118,22 +131,31 @@ vec3 shell(vec3 n, float px) {
   float star = max(exp(-d1 * d1 / (sw * sw)), exp(-d2 * d2 / (sw * sw))) * sqrt(taper);
   c += mix(cRim, cCore, 0.4) * star * uMark.x * front;
 
-  float inGroove = (1.0 - smoothstep(-px, px, gap)) * front * step(0.001, open);
-  float across = clamp(dm / max(w, 1e-4), 0.0, 1.0);
+  vec3 vq = vec3(uBasis[0].z, uBasis[1].z, uBasis[2].z);
+  float s = dot(m, vq);
+  float u = e * (s < 0.0 ? -1.0 : 1.0);
+  float wallF = (u + w) / max(abs(s), 0.05) * max(n.z, 0.05) / max(uGroove.y, 1e-3);
+  float inWall = 1.0 - smoothstep(0.9, 1.0, wallF);
+  float along = one ? q.x * sa + q.y * ca : q.y * ca - q.x * sa;
+  float hatch = noise(vec2(along * 240.0, wallF * 1.7));
   float nearPole = exp(-theta * theta / 0.25);
-  float hatch = noise(vec2(q.x * 260.0 + q.y * 260.0, q.z * 40.0));
-  float wall = smoothstep(0.6, 0.92, across + 0.06 * (hatch - 0.5));
-  vec3 floorC = mix(cCore * vec3(0.97, 0.98, 0.72), mix(cCore, cWall, 0.6), smoothstep(0.3, 0.8, across));
-  floorC = mix(floorC, cCore, nearPole * 0.8);
-  vec3 grooveC = mix(floorC, min(cWall * 1.25, 1.0), wall);
-  grooveC *= 1.0 - 0.35 * smoothstep(0.9, 1.0, across);
-  float heat = max(uMark.z, 1.15 * nearPole * min(open, 1.0));
-  grooveC = mix(grooveC, vec3(1.0), heat * (1.0 - 0.6 * wall));
+
+  vec3 wallC = cWall * 1.35 * (0.6 + 0.8 * hatch) * mix(0.7, 1.0, wallF);
+  vec3 cream = cCore * vec3(0.97, 0.98, 0.75);
+  float side = clamp((u + w) / (2.0 * w + 1e-4), 0.0, 1.0);
+  vec3 floorC = mix(cFloor * 0.75, cFloor, smoothstep(0.0, 0.15, side));
+  floorC = mix(floorC, cream, smoothstep(0.1, 0.55, side) * (1.0 - smoothstep(0.5, 1.2, theta)));
+  vec3 grooveC = mix(floorC, wallC, inWall);
+  float heat = max(uMark.z, (1.0 - smoothstep(0.28, 0.8, theta)) * min(open, 1.0));
+  grooveC = mix(grooveC, vec3(1.0), clamp(heat, 0.0, 1.0) * (1.0 - 0.6 * inWall));
   grooveC *= uMark.y;
+
+  float inGroove = (1.0 - smoothstep(-px, px, gap)) * front * on;
   float spill = exp(-max(gap, 0.0) / (0.012 + 0.02 * uMark.z)) + 0.35 * exp(-max(gap, 0.0) / 0.1);
   spill *= (0.25 + 0.75 * nearPole) * (1.0 - 0.75 * inGroove);
-  c += mix(mix(cCore, cWall, 0.6), vec3(1.0), uMark.z * 0.7 + 0.3 * nearPole) * spill * (uMark.y * 0.35 + uMark.z * 0.8) * front * min(open, 1.0);
-  c += mix(cCore, vec3(1.0), 0.6) * uMark.y * min(open, 1.0) * 1.5 * nearPole * front;
+  c += mix(mix(cCore, cFloor, 0.6), vec3(1.0), uMark.z * 0.7 + 0.3 * nearPole) * spill * (uMark.y * 0.6 + uMark.z * 0.8) * front * min(open, 1.0);
+  c += mix(cCore, vec3(1.0), 0.6) * uMark.y * min(open, 1.0) * 0.45 * nearPole * front;
+  c += vec3(1.0) * uMark.z * min(open, 1.0) * (0.8 * exp(-max(gap, 0.0) / 0.07)) * front;
   float lip = exp(-pow(gap / (0.004 + px), 2.0)) * step(0.0, gap);
   c += vec3(0.85, 0.95, 0.85) * lip * open * 0.35 * front;
   return mix(c, grooveC, inGroove);
@@ -155,7 +177,7 @@ float ring(vec2 p, float scale) {
   v = vec2(ca * v.x + sa * v.y, -sa * v.x + ca * v.y);
   float e = length(v / (uRing.zw * scale));
   float dist = (e - 1.0) * min(uRing.z, uRing.w) * scale;
-  float fill = 0.12 * smoothstep(1.0, 0.5, e);
+  float fill = 0.04 * smoothstep(1.0, 0.5, e);
   return exp(-dist * dist / (uRingB.y * uRingB.y)) + 0.25 * exp(-abs(dist) / (uRingB.y * 5.0)) + fill;
 }
 
@@ -174,6 +196,17 @@ vec3 bokeh(vec2 p) {
 vec3 scene(vec2 p) {
   vec3 c = field(p);
   c += bokeh(p) * uExtra.z * 0.25;
+  if (uStreak.w > 0.0) {
+    vec2 sd = vec2(cos(uStreak.z), -sin(uStreak.z));
+    vec2 sv = p - uStreak.xy;
+    float sl = max(dot(sv, sd), 0.0);
+    float sx = dot(sv, vec2(-sd.y, sd.x));
+    float sw = 20.0 + 0.11 * sl;
+    float fade = exp(-sl / 3200.0) * smoothstep(0.0, 120.0, sl);
+    float white = exp(-sx * sx / (sw * sw * 2.0));
+    float green = exp(-pow((sx - 1.5 * sw) / (0.8 * sw), 2.0));
+    c += vec3(0.5) * white * fade * uStreak.w + cAccent * 0.9 * green * fade * uStreak.w;
+  }
   vec2 d = (p - uSphere.xy) / uSphere.z;
   d.x /= uExtra.x;
   float rr = dot(d, d);
@@ -191,8 +224,8 @@ vec3 scene(vec2 p) {
   if (uStar.z > 0.0) {
     vec3 ez = uBasis[2];
     vec2 at = uSphere.xy + vec2(ez.x, -ez.y) * uSphere.z;
-    float ca = cos(uShape.x);
-    float sa = sin(uShape.x);
+    float ca = cos(uShape.x + uGroove.w);
+    float sa = sin(uShape.x + uGroove.w);
     vec3 t1 = uBasis * vec3(sa, ca, 0.0);
     vec3 t2 = uBasis * vec3(-sa, ca, 0.0);
     vec2 s1 = normalize(vec2(t1.x, -t1.y) + 1e-5);

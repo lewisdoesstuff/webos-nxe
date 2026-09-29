@@ -83,7 +83,11 @@ const titleStyle = computed((): Record<string, string> => ({
       <div class="clip">
         <span class="name">{{ itemOf(pane)?.title ?? "" }}</span>
         <div class="art" :style="artStyle(pane)">
-          <img v-if="itemOf(pane) && paneArt(itemOf(pane)!)" :src="paneArt(itemOf(pane)!)!" alt="" />
+          <img
+            v-if="itemOf(pane) && paneArt(itemOf(pane)!)"
+            :src="paneArt(itemOf(pane)!)!"
+            alt=""
+          />
           <span v-else class="initial">{{ initialsFor(itemOf(pane)?.title ?? "") }}</span>
         </div>
         <p class="body">{{ detail(pane) }}</p>

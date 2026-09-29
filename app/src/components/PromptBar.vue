@@ -1,7 +1,7 @@
 <script setup lang="ts" vapor>
 import { computed } from "vue";
 
-import { BUTTON_FILL, BUTTON_RING, BUTTON_SIZE, type Prompt } from "../prompts";
+import { BUTTON_FILL, BUTTON_GLYPH, BUTTON_RING, BUTTON_SIZE, type Prompt } from "../prompts";
 
 /**
  * The row of `A` / `B` / `X` / `Y` prompts along the foot of a screen.
@@ -49,7 +49,11 @@ function bare(prompt: Prompt): boolean {
 
 function promptStyle(prompt: Prompt): Record<string, string> {
   if (bare(prompt)) return { "--fill": PALE_FILL, "--letter": PALE_LETTER };
-  return { "--fill": BUTTON_FILL[prompt.button], "--ring": BUTTON_RING[prompt.button] };
+  return {
+    "--fill": BUTTON_FILL[prompt.button],
+    "--ring": BUTTON_RING[prompt.button],
+    "--letter": BUTTON_GLYPH[prompt.button],
+  };
 }
 </script>
 
@@ -104,35 +108,22 @@ function promptStyle(prompt: Prompt): Record<string, string> {
   border-radius: 50%;
   background:
     radial-gradient(
-      ellipse 72% 44% at 50% 26%,
-      rgba(255, 255, 255, 0.46),
+      ellipse 70% 40% at 50% 24%,
+      rgba(255, 255, 255, 0.3),
       rgba(255, 255, 255, 0) 100%
     ),
-    radial-gradient(circle at 50% 112%, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0) 62%),
-    var(--fill);
+    radial-gradient(circle at 50% 42%, var(--fill) 0%, var(--fill) 38%, var(--ring) 100%);
   box-shadow: inset 0 0 0 2px var(--ring, rgba(0, 0, 0, 0.25));
   color: var(--letter, #fff);
-}
-
-/* The darker rim the badge is inset with, at 70% of the disc. */
-.disc::before {
-  content: "";
-  position: absolute;
-  inset: 15%;
-  border: 1px solid var(--ring);
-  border-radius: 50%;
-}
-
-.prompt[data-bare] .disc::before {
-  content: none;
 }
 
 /* Positioned so the letter paints over the rim, and the rim is its only backdrop. */
 .letter {
   position: relative;
   font-size: 15px;
-  font-weight: 700;
+  font-weight: 800;
   line-height: 1;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4);
 }
 
 .word {

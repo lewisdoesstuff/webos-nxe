@@ -55,7 +55,7 @@ import {
   type ItemRow,
   type Slab,
 } from "../guide";
-import { BUTTON_FILL, BUTTON_RING, type Prompt } from "../prompts";
+import { BUTTON_FILL, BUTTON_GLYPH, BUTTON_RING, type Prompt } from "../prompts";
 import { CANVAS_H, CANVAS_W } from "../ribbon";
 
 /**
@@ -234,7 +234,11 @@ function barStyle(): Record<string, string> {
 }
 
 function discStyle(prompt: Prompt): Record<string, string> {
-  return { "--fill": BUTTON_FILL[prompt.button], "--ring": BUTTON_RING[prompt.button] };
+  return {
+    "--fill": BUTTON_FILL[prompt.button],
+    "--ring": BUTTON_RING[prompt.button],
+    "--letter": BUTTON_GLYPH[prompt.button],
+  };
 }
 
 const PANEL: Box = { x: PANEL_X, y: PANEL_Y, width: PANEL_W, height: PANEL_H };
@@ -527,28 +531,21 @@ const CLOCK: Box = { x: CLOCK_X, y: CLOCK_Y, width: CLOCK_W, height: CLOCK_H };
   border-radius: 50%;
   background:
     radial-gradient(
-      ellipse 72% 44% at 50% 26%,
-      rgba(255, 255, 255, 0.46),
+      ellipse 70% 40% at 50% 24%,
+      rgba(255, 255, 255, 0.3),
       rgba(255, 255, 255, 0) 100%
     ),
-    radial-gradient(circle at 50% 112%, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0) 62%),
-    var(--fill);
+    radial-gradient(circle at 50% 42%, var(--fill) 0%, var(--fill) 38%, var(--ring) 100%);
   box-shadow: inset 0 0 0 2px var(--ring, rgba(0, 0, 0, 0.25));
-}
-
-.disc::before {
-  content: "";
-  position: absolute;
-  inset: 15%;
-  border: 1px solid var(--ring);
-  border-radius: 50%;
+  color: var(--letter, #fff);
 }
 
 .letter {
   position: relative;
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 800;
   line-height: 1;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4);
 }
 
 .prompt .word {

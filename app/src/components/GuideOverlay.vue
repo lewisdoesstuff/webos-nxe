@@ -112,6 +112,10 @@ const props = withDefaults(
 
 const bladeIds = BLADE_IDS;
 
+function title(id: string): string {
+  return id.charAt(0).toUpperCase() + id.slice(1);
+}
+
 /** The time as the Guide shows it, read when it opens. */
 const stamp = ref("");
 watch(
@@ -259,14 +263,14 @@ const CLOCK: Box = { x: CLOCK_X, y: CLOCK_Y, width: CLOCK_W, height: CLOCK_H };
           :data-offset="slab.d"
           :style="slabStyle(slab)"
         >
-          <span class="slab-label" :style="slabLabelStyle(slab)">{{ slab.id }}</span>
+          <span class="slab-label" :style="slabLabelStyle(slab)">{{ title(slab.id) }}</span>
         </div>
       </div>
 
       <div class="panel" :style="at(PANEL)" />
       <div class="tab" :style="at(TAB)" />
       <span class="spinner" :style="at(spinnerBox())" />
-      <span class="tab-label" :style="at(tabLabelBox())">{{ bladeIds[blade] }}</span>
+      <span class="tab-label" :style="at(tabLabelBox())">{{ title(bladeIds[blade] ?? "") }}</span>
 
       <div class="bar" :style="barStyle()" />
       <div
@@ -414,7 +418,6 @@ const CLOCK: Box = { x: CLOCK_X, y: CLOCK_Y, width: CLOCK_W, height: CLOCK_H };
   font-weight: 700;
   line-height: var(--line);
   white-space: nowrap;
-  text-transform: capitalize;
 }
 
 /*
@@ -453,7 +456,6 @@ const CLOCK: Box = { x: CLOCK_X, y: CLOCK_Y, width: CLOCK_W, height: CLOCK_H };
   transform: rotate(90deg);
   transform-origin: 0 0;
   text-align: center;
-  text-transform: capitalize;
   color: #fff;
   font-size: var(--tab-font);
   font-weight: 700;

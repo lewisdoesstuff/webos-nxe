@@ -7,5 +7,5 @@ deploy/
 __pycache__/
 *.pyc
 .DS_Store
-docs/refs/dashx360/
+docs/refs/
 .openchamber/

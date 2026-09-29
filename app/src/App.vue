@@ -69,11 +69,13 @@ const bootMode = ref<BootSpeed | "off">("full");
 /**
  * `auto` resolves to full on a cold start and short on a warm one, and to off
  * under a reduced-motion preference, since the whole sequence is a large moving
- * light. An explicit `full` or `short` would win over the preference, but there
- * is no setting for it yet.
+ * light. `?boot=off|full|short` in the URL overrides it, for development and
+ * `tools/compare.mjs`; there is no setting for it yet.
  */
 function chooseBootMode(): void {
-  bootMode.value = resolveBootMode("auto", { cold: true });
+  const asked = new URLSearchParams(window.location.search).get("boot");
+  const preference = asked === "off" || asked === "full" || asked === "short" ? asked : "auto";
+  bootMode.value = resolveBootMode(preference, { cold: true });
 }
 
 function onBootDone(payload: { reason: BootReason }): void {

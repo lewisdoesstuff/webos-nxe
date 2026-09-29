@@ -16,6 +16,8 @@ export interface Settings {
   defaultsRev: number;
   /** Empty means signed out, and the gamercard shows its caption instead. */
   gamertag: string;
+  /** Shown on the gamercard and the profile pane; set by hand, since nothing earns it. */
+  gamerscore: number;
   /** The channel the hub starts on, by section id. Apps when unset. */
   lastChannel: string;
   clock24h: boolean;
@@ -50,6 +52,7 @@ export interface Settings {
 export const SETTINGS_DEFAULTS: Settings = {
   defaultsRev: DEFAULTS_REV,
   gamertag: "Player",
+  gamerscore: 0,
   lastChannel: "apps",
   clock24h: true,
   showClock: true,
@@ -131,6 +134,7 @@ export function mergeSettings(stored: unknown): { settings: Settings; migrated: 
   const settings: Settings = {
     defaultsRev: DEFAULTS_REV,
     gamertag: stringOr(source["gamertag"], SETTINGS_DEFAULTS.gamertag),
+    gamerscore: numberOr(source["gamerscore"], SETTINGS_DEFAULTS.gamerscore),
     lastChannel: stringOr(source["lastChannel"], SETTINGS_DEFAULTS.lastChannel),
     clock24h: booleanOr(source["clock24h"], SETTINGS_DEFAULTS.clock24h),
     showClock: booleanOr(source["showClock"], SETTINGS_DEFAULTS.showClock),

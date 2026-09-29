@@ -17,6 +17,7 @@ import {
   type LevelDef,
   AVATAR_EDITOR_URL,
   BROWSER_APP,
+  parseGamerscore,
   profilePage,
 } from "./settingsScreen";
 
@@ -239,6 +240,7 @@ describe("profile menu", () => {
   it("offers the gamertag and the avatar", () => {
     expect(page.groups[0].items.map((item) => item.label)).toEqual([
       "Gamertag",
+      "Gamerscore",
       "Customize Avatar",
     ]);
     expect(settingsPageFor("profile", SETTINGS_DEFAULTS, [])).toEqual(page);
@@ -250,8 +252,24 @@ describe("profile menu", () => {
     expect(settingsDetail(page, at(0), settings, []).values).toEqual(["Matty"]);
   });
 
+  it("edits the gamerscore, showing it grouped", () => {
+    const settings = { ...SETTINGS_DEFAULTS, gamerscore: 12345 };
+    expect(settingsAction(page, at(1), settings, [])).toEqual({ kind: "edit", key: "gamerscore" });
+    expect(settingsDetail(page, at(1), settings, []).values).toEqual(["12,345"]);
+  });
+
+  it("reads a typed gamerscore, or refuses it", () => {
+    expect(parseGamerscore("12345")).toBe(12345);
+    expect(parseGamerscore(" 12,345 ")).toBe(12345);
+    expect(parseGamerscore("0")).toBe(0);
+    expect(parseGamerscore("")).toBeNull();
+    expect(parseGamerscore("-5")).toBeNull();
+    expect(parseGamerscore("12a")).toBeNull();
+    expect(parseGamerscore("99999999")).toBeNull();
+  });
+
   it("opens 360sona in the TV's browser", () => {
-    expect(settingsAction(page, at(1), SETTINGS_DEFAULTS, [])).toEqual({
+    expect(settingsAction(page, at(2), SETTINGS_DEFAULTS, [])).toEqual({
       kind: "launch",
       id: BROWSER_APP,
       params: { target: AVATAR_EDITOR_URL },

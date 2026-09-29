@@ -174,6 +174,7 @@ export function profilePage(): ListPage {
         title: "Profile",
         items: [
           { id: "gamertag", label: "Gamertag" },
+          { id: "gamerscore", label: "Gamerscore" },
           { id: "avatar", label: "Customize Avatar" },
         ],
       },
@@ -181,11 +182,33 @@ export function profilePage(): ListPage {
   };
 }
 
+/** The most a gamerscore can be typed as. */
+export const GAMERSCORE_MAX = 9_999_999;
+
+/** A gamerscore as the gamercard shows it, with thousands grouped. */
+export function formatGamerscore(score: number): string {
+  return Math.round(score).toLocaleString("en-US");
+}
+
+/** A typed gamerscore: digits, optionally grouped with commas or spaces, in range. Null otherwise. */
+export function parseGamerscore(text: string): number | null {
+  const digits = text.trim().replace(/[,\s]/g, "");
+  if (!/^\d{1,7}$/.test(digits)) return null;
+  const score = Number(digits);
+  return score <= GAMERSCORE_MAX ? score : null;
+}
+
 function profileDetail(id: string, settings: Settings): SettingDetail {
   if (id === "gamertag") {
     return {
       values: [settings.gamertag || "Player1"],
       description: "Press A and type a new gamertag.",
+    };
+  }
+  if (id === "gamerscore") {
+    return {
+      values: [formatGamerscore(settings.gamerscore)],
+      description: "Press A and type a new gamerscore.",
     };
   }
   if (id === "avatar") {
@@ -289,7 +312,7 @@ export function settingsWindow(count: number, focus: number, slots = SETTINGS_RO
 export type SettingsAction =
   | { readonly kind: "push"; readonly page: ListPage }
   | { readonly kind: "change"; readonly change: SettingChange }
-  | { readonly kind: "edit"; readonly key: "gamertag" }
+  | { readonly kind: "edit"; readonly key: "gamertag" | "gamerscore" }
   | {
       readonly kind: "launch";
       readonly id: string;
@@ -315,6 +338,7 @@ export function settingsAction(
   if (item === undefined) return null;
   if (page.id === "profile") {
     if (item.id === "gamertag") return { kind: "edit", key: "gamertag" };
+    if (item.id === "gamerscore") return { kind: "edit", key: "gamerscore" };
     if (item.id === "avatar") {
       return { kind: "launch", id: BROWSER_APP, params: { target: AVATAR_EDITOR_URL } };
     }

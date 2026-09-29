@@ -84,6 +84,8 @@ import { CHANNEL_ORDER, SECTIONS, startChannel } from "./sections";
 import type { Settings } from "./settings";
 import {
   AVATAR_DOWNLOAD,
+  formatGamerscore,
+  parseGamerscore,
   profilePage,
   settingsAction,
   settingsDetail,
@@ -177,6 +179,7 @@ const ROW_KEYS = [
   "appSection",
   "sortModes",
   "gamertag",
+  "gamerscore",
 ] as const;
 const rowSettings = computed((previous?: Settings) => {
   const next = settings.settings;
@@ -354,12 +357,27 @@ function openProfile(): void {
   settingsStack.value = push([], profilePage());
 }
 
-/** The gamertag being typed, or null. While it is set, keys belong to the entry. */
+/** What is being typed in the profile menu, or null. While it is set, keys belong to the entry. */
 const draft = ref<string | null>(null);
+const draftKey = ref<"gamertag" | "gamerscore">("gamertag");
 
+/** Keep a typed value. An empty gamertag or a gamerscore that is not a number is refused and kept open. */
 function commitDraft(value: string): void {
+  if (draftKey.value === "gamerscore") {
+    const score = parseGamerscore(value);
+    if (score === null) {
+      playSound("cancel");
+      return;
+    }
+    settings.applyChange({ kind: "level", key: "gamerscore", value: score });
+  } else {
+    if (value === "") {
+      playSound("cancel");
+      return;
+    }
+    settings.applyChange({ kind: "choice", key: "gamertag", value });
+  }
   draft.value = null;
-  if (value !== "") settings.applyChange({ kind: "choice", key: "gamertag", value });
   playSound("decide");
   refreshSettingsTop();
 }
@@ -387,7 +405,11 @@ function activateSettings(): void {
     return;
   }
   if (action.kind === "edit") {
-    draft.value = settings.settings.gamertag || "Player1";
+    draftKey.value = action.key;
+    draft.value =
+      action.key === "gamerscore"
+        ? String(settings.settings.gamerscore)
+        : settings.settings.gamertag || "Player1";
     return;
   }
   if (action.kind === "launch") {
@@ -933,7 +955,9 @@ function expose(): void {
     <span class="counter" :style="counterStyle">{{ counter }}</span>
     <header class="card" :style="cardStyle">
       <span class="tag">{{ settings.settings.gamertag || "Player1" }}</span>
-      <span class="score">0<i class="coin">G</i></span>
+      <span class="score"
+        >{{ formatGamerscore(settings.settings.gamerscore) }}<i class="coin">G</i></span
+      >
     </header>
     <div class="pic" :style="picStyle" />
     <div class="frame" data-frame :style="frameStyle">
@@ -988,6 +1012,7 @@ function expose(): void {
         :detail="settingsDetailShown"
         :rest="settingsRestBox"
         :draft="draft"
+        :numeric="draftKey === 'gamerscore'"
         @commit="commitDraft"
         @cancel="cancelDraft"
       />

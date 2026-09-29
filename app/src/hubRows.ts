@@ -30,6 +30,8 @@ export interface HubItem extends LaunchPoint {
   readonly settings?: true;
   /** The profile pane: the gamercard, with the avatar standing beside it. */
   readonly profile?: true;
+  /** The profile's gamerscore. */
+  readonly score?: number;
   /** The profile's recent apps, newest first. */
   readonly recent?: readonly LaunchPoint[];
 }
@@ -103,6 +105,7 @@ export function profilePane(settings: Settings, points: readonly Reported[] = []
     id: "xne:profile",
     title: settings.gamertag || "Player1",
     profile: true,
+    score: settings.gamerscore,
     recent: recentlyLaunched(points, settings, PROFILE_RECENT),
   };
 }

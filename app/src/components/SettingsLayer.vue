@@ -36,6 +36,8 @@ const props = defineProps<{
   rest?: Box;
   /** A value being typed in the detail column, with the TV's keyboard, or null. */
   draft?: string | null;
+  /** The draft is a number, so the keyboard offers digits. */
+  numeric?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -161,7 +163,8 @@ const withIcons = computed(() => items.value.some((item) => item.icon !== undefi
           v-if="draft != null"
           ref="entry"
           class="entry"
-          maxlength="15"
+          :maxlength="numeric ? 9 : 15"
+          :inputmode="numeric ? 'numeric' : 'text'"
           :value="draft"
           @keydown="onEntryKey"
         />

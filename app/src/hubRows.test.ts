@@ -61,7 +61,13 @@ describe("hubRow", () => {
   it("seats the profile second on Apps, launching nothing and never leaving", () => {
     const items = channelItems("apps", POINTS, { ...SETTINGS_DEFAULTS, gamertag: "Matty" });
     const pane = items[1];
-    expect(pane).toMatchObject({ id: "xne:profile", title: "Matty", profile: true, recent: [] });
+    expect(pane).toMatchObject({
+      id: "xne:profile",
+      title: "Matty",
+      profile: true,
+      score: 0,
+      recent: [],
+    });
     expect(isProfilePane(pane)).toBe(true);
     expect(isHideable(pane)).toBe(false);
     expect(pageItems(items)).not.toContain(pane);

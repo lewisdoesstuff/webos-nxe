@@ -4,6 +4,7 @@ import { computed } from "vue";
 import { shownArt, shownEcho, shownFloorFace, shownFloorPatch } from "../artCache";
 import { PANE_H, PANE_W } from "../hub";
 import { initialsFor, paneArt, type PaneItem } from "../panel";
+import { formatGamerscore } from "../settingsScreen";
 
 /**
  * One pane of the hub's row: one item's art and its name, in a box that never
@@ -24,6 +25,7 @@ const echo = computed(() => shownEcho(source.value));
 const floorPatch = computed(() => shownFloorPatch(source.value));
 const initial = computed(() => (props.item ? initialsFor(props.item.title) : ""));
 const profile = computed(() => props.item?.profile === true);
+const score = computed(() => formatGamerscore(props.item?.score ?? 0));
 const recent = computed(() =>
   (props.item?.recent ?? []).map((app) => ({
     id: app.id,
@@ -41,7 +43,7 @@ const rootStyle = { width: `${PANE_W}px`, height: `${PANE_H}px` };
       <div class="face" />
       <template v-if="profile">
         <span class="tag">{{ props.item?.title ?? "" }}</span>
-        <span class="score">0<i class="coin">G</i></span>
+        <span class="score">{{ score }}<i class="coin">G</i></span>
         <span class="recent">Recent Apps</span>
         <div class="recents">
           <span v-for="app in recent" :key="app.id" class="mini">

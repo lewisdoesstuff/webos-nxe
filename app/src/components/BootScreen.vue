@@ -74,6 +74,15 @@ let skipped = false;
 let frozen = false;
 let warmed = false;
 let drawn = -1;
+let released = 0;
+
+const RELEASE_SHARE = 0.5;
+const FADE_FROM = 0.35;
+
+function smooth(t: number): number {
+  const x = Math.min(1, Math.max(0, t));
+  return x * x * (3 - 2 * x);
+}
 
 function announce(next: BootState): void {
   for (let index = announced; index < next.entered.length; index++) {
@@ -89,11 +98,16 @@ function paint(ms: number): void {
   const element = canvas.value;
   if (element === undefined || renderer === null) return;
   const at = bootFrameAt(ms, timing.value);
-  element.style.opacity = at.id === "handover" ? `${1 - at.progress}` : "1";
+  const handing = at.id === "handover";
+  // The lockup dissolves into the bare field first, then the field fades off the dashboard.
+  const release = handing ? smooth(at.progress / RELEASE_SHARE) : 0;
+  const fade = handing ? smooth((at.progress - FADE_FROM) / (1 - FADE_FROM)) : 0;
+  element.style.opacity = `${1 - fade}`;
   const master = bootMasterFrame(ms, timing.value);
-  if (master === drawn) return;
+  if (master === drawn && release === released) return;
   drawn = master;
-  renderer.draw(master);
+  released = release;
+  renderer.draw(master, release);
 }
 
 function tick(now: number): void {

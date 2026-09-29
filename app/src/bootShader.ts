@@ -35,6 +35,7 @@ uniform vec4 uShape;
 uniform vec4 uGroove;
 uniform vec4 uGaps;
 uniform vec4 uStreak;
+uniform float uRelease;
 
 uniform vec3 cGreyTop;
 uniform vec3 cGreyEdge;
@@ -279,14 +280,14 @@ const MAIN_300 = `
 out vec4 outColor;
 void main() {
   vec2 p = vec2(gl_FragCoord.x, uRes.y - gl_FragCoord.y) * (1920.0 / uRes.x);
-  outColor = vec4(clamp(scene(p), 0.0, 1.0), 1.0);
+  outColor = vec4(clamp(mix(scene(p), field(p), uRelease), 0.0, 1.0), 1.0);
 }
 `;
 
 const MAIN_100 = `
 void main() {
   vec2 p = vec2(gl_FragCoord.x, uRes.y - gl_FragCoord.y) * (1920.0 / uRes.x);
-  gl_FragColor = vec4(clamp(scene(p), 0.0, 1.0), 1.0);
+  gl_FragColor = vec4(clamp(mix(scene(p), field(p), uRelease), 0.0, 1.0), 1.0);
 }
 `;
 

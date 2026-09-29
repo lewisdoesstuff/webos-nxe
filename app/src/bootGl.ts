@@ -280,7 +280,8 @@ export class BootRenderer {
   }
 
   /** Draw master frame `frame`. A no-op until `poll` has answered true. */
-  draw(frame: number): void {
+  /** `release` is how far the lockup has dissolved into the bare field, 0 to 1. */
+  draw(frame: number, release = 0): void {
     if (this.flat) {
       this.drawFlat();
       return;
@@ -296,6 +297,7 @@ export class BootRenderer {
     const scene: BootSceneFrame = bootScene(frame);
     for (const name of VEC4S) gl.uniform4fv(this.location(gl, name), scene[name]);
     const placed = lockupPlacement(this.theme, scene);
+    gl.uniform1f(this.location(gl, "uRelease"), release);
     gl.uniform4fv(this.location(gl, "uOrb"), placed.orb);
     gl.uniform4fv(this.location(gl, "uOrbDisc"), placed.orbDisc);
     gl.uniform4fv(this.location(gl, "uMarkT"), placed.markT);

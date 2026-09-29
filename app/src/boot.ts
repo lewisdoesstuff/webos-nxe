@@ -140,16 +140,17 @@ export const DASH_LOAD_MS = CONSOLE_TOTAL_MAX_MS - SETTLED_MS;
  * dashboard already mounted behind it.
  *
  * UNVERIFIED, because the bumper has no measured handover. The console's video
- * ends and the dashboard is there, so the source gives no fade to copy. 300 ms
- * is the Guide's own open time, `OPEN_MS` in `guide.ts`, so the app's one
- * full-screen takeover fades in the time its other full-screen takeover does.
+ * ends and the dashboard is there, so the source gives no fade to copy. The lockup
+ * dissolves into the bare field over the first half and the field fades off the
+ * dashboard over the rest, so the big orb and wordmark never ghost over the
+ * ribbon.
  *
  * The fade is a composited opacity on a full-frame layer over the dashboard's
  * full-frame layer: 2 x 7.91 MB of texture traffic against a measured 311 MB
  * budget per frame, about 5% of it, for this window only. It costs no
  * allocation, which is the invariant that matters.
  */
-export const HANDOVER_MS = 300;
+export const HANDOVER_MS = 500;
 
 /**
  * How long the launcher holds the settled logo before handing over, by default.

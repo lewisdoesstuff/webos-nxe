@@ -16,7 +16,7 @@ import { BUTTON_FILL, BUTTON_RING, BUTTON_SIZE, type Prompt } from "../prompts";
  */
 
 /** Left edge of the row, the measured x of the `A` badge. */
-const PROMPT_X = 102;
+const PROMPT_X = 100;
 
 /** Top edge of the discs, the measured y of the `A` badge. */
 const PROMPT_Y = 640;
@@ -39,7 +39,7 @@ const props = withDefaults(
 const rootStyle = computed((): Record<string, string> => ({
   left: `${PROMPT_X}px`,
   top: `${props.y}px`,
-  "--disc": `${BUTTON_SIZE}px`,
+  "--disc": `${BUTTON_SIZE + 4}px`,
 }));
 
 /** A prompt with no caption is a pale disc and no word, however it was spelled. */
@@ -79,7 +79,7 @@ function promptStyle(prompt: Prompt): Record<string, string> {
   gap: 20px;
   width: max-content;
   color: #fff;
-  font-size: 13px;
+  font-size: 19px;
   line-height: 1;
 }
 
@@ -90,7 +90,7 @@ function promptStyle(prompt: Prompt): Record<string, string> {
 .prompt {
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: 9px;
 }
 
 .disc {
@@ -122,7 +122,7 @@ function promptStyle(prompt: Prompt): Record<string, string> {
 /* Positioned so the letter paints over the rim, and the rim is its only backdrop. */
 .letter {
   position: relative;
-  font-size: 12px;
+  font-size: 15px;
   font-weight: 700;
   line-height: 1;
 }

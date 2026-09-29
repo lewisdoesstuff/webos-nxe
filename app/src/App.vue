@@ -479,31 +479,21 @@ function expose(): void {
 .orb::before {
   content: "";
   position: absolute;
-  left: -110px;
-  top: 30px;
-  width: 220px;
-  height: 56px;
-  border-radius: 50%;
-  background: radial-gradient(
-    ellipse 50% 50% at 50% 50%,
-    rgba(255, 255, 255, 0) 55%,
-    rgba(255, 255, 255, 0.4) 62%,
-    rgba(40, 46, 52, 0.35) 70%,
-    rgba(255, 255, 255, 0.3) 78%,
-    rgba(255, 255, 255, 0) 88%
-  );
+  left: -400px;
+  top: -80px;
+  width: 800px;
+  height: 240px;
+  background: url("./assets/hub/ripples.svg") no-repeat;
 }
 
 .orb::after {
   content: "";
   position: absolute;
-  left: -33px;
-  top: -33px;
-  width: 66px;
-  height: 66px;
-  border-radius: 50%;
-  background: radial-gradient(circle at 50% 30%, #fff 0%, #d5dadd 45%, #7f8a90 100%);
-  box-shadow: inset 0 0 0 3px rgba(60, 130, 20, 0.5);
+  left: -36px;
+  top: -36px;
+  width: 72px;
+  height: 72px;
+  background: url("./assets/hub/orb.png") center / 72px 72px no-repeat;
 }
 
 /* A channel label is a promoted box scaled about its left edge, so the list

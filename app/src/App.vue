@@ -503,6 +503,11 @@ function expose(): void {
     <div class="frame" data-frame :style="frameStyle">
       <PromptBar :prompts="promptsFor({ a: SELECT.label })" />
     </div>
+    <div class="ripples">
+      <i style="--i: 0" /><i style="--i: 1" /><i style="--i: 2" /><i style="--i: 3" /><i
+        style="--i: 4"
+      />
+    </div>
 
     <span
       v-for="(channel, index) in channels"
@@ -625,11 +630,54 @@ function expose(): void {
 .orb::before {
   content: "";
   position: absolute;
-  left: -400px;
-  top: -80px;
+  left: -34px;
+  top: 31px;
+  width: 68px;
+  height: 18px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.ripples {
+  position: absolute;
+  left: 1337px;
+  top: 872px;
   width: 800px;
-  height: 240px;
-  background: url("./assets/hub/ripples.svg") no-repeat;
+  height: 232px;
+  pointer-events: none;
+}
+
+.ripples i {
+  position: absolute;
+  inset: 0;
+  border: 1.5px solid rgba(235, 243, 250, 0.8);
+  border-radius: 50%;
+  opacity: 0;
+  will-change: transform, opacity;
+  animation: ripple 4.8s cubic-bezier(0.2, 0.5, 0.4, 1) infinite;
+  animation-delay: calc(var(--i) * -0.96s);
+}
+
+@keyframes ripple {
+  0% {
+    transform: scale(0.1);
+    opacity: 0;
+  }
+  12% {
+    opacity: 0.55;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ripples i {
+    animation: none;
+    opacity: 0.25;
+    transform: scale(0.5);
+  }
 }
 
 .orb::after {

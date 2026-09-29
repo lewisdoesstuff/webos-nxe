@@ -466,6 +466,13 @@ const pageRestBox = {
   height: PANE_H / 1.5,
 };
 
+const settingsRestBox = {
+  x: PANE_X / 1.5,
+  y: PANE_Y / 1.5,
+  width: PANE_W / 1.5,
+  height: PANE_H / 1.5,
+};
+
 const motion = {
   "--move-ms": `${MOVE_MS}ms`,
   "--move-ease": MOVE_EASE,
@@ -660,7 +667,7 @@ function expose(): void {
 </script>
 
 <template>
-  <main class="stage" :style="motion">
+  <main class="stage" :data-settings="settingsStack.length > 0 || undefined" :style="motion">
     <!--
       Everything static paints before anything promoted. Unpromoted content
       painted after an animating layer has to be squashed into a layer of its
@@ -705,12 +712,15 @@ function expose(): void {
 
     <div class="frame" data-page-frame :style="pageFrameStyle">
       <PageLayer :page="page" :focus="pageFocus" :open="pageOpen" :rest="pageRestBox" />
+    </div>
+
+    <div class="frame" data-settings-frame :style="frameStyle">
       <SettingsLayer
         :page="settingsPage"
         :focus="settingsFocus"
         :open="settingsStack.length > 0"
         :detail="settingsDetailShown"
-        :rest="pageRestBox"
+        :rest="settingsRestBox"
       />
     </div>
 
@@ -1010,6 +1020,27 @@ function expose(): void {
 }
 
 .frame[data-page-frame] {
+  z-index: 50;
+}
+
+/* The hub leaves once the settings panel has grown over it, and comes back at
+   once on close. Visibility, so no layer is created or resized by either. */
+.stage[data-settings] .label,
+.stage[data-settings] .bullet,
+.stage[data-settings] .counter,
+.stage[data-settings] .card,
+.stage[data-settings] .pic,
+.stage[data-settings] .row {
+  animation: hub-away 0s linear 300ms forwards;
+}
+
+@keyframes hub-away {
+  to {
+    visibility: hidden;
+  }
+}
+
+.frame[data-settings-frame] {
   z-index: 50;
 }
 

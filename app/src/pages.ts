@@ -154,16 +154,16 @@ function round(value: number): number {
   return Math.round(value * 1e6) / 1e6;
 }
 
-export function pageRest(hub: Box = HUB_PANEL_BOX): Rest {
-  const scaleX = hub.width / PAGE_W;
-  const scaleY = hub.height / PAGE_H;
-  const originX = hub.x + hub.width / 2 - PAGE_X;
-  const originY = hub.y + hub.height / 2 - PAGE_Y;
+export function pageRest(hub: Box = HUB_PANEL_BOX, open: Box = pageBox()): Rest {
+  const scaleX = hub.width / open.width;
+  const scaleY = hub.height / open.height;
+  const originX = hub.x + hub.width / 2 - open.x;
+  const originY = hub.y + hub.height / 2 - open.y;
   return {
     scaleX: round(scaleX),
     scaleY: round(scaleY),
-    dx: round(hub.x - PAGE_X - originX * (1 - scaleX)),
-    dy: round(hub.y - PAGE_Y - originY * (1 - scaleY)),
+    dx: round(hub.x - open.x - originX * (1 - scaleX)),
+    dy: round(hub.y - open.y - originY * (1 - scaleY)),
     originX: round(originX),
     originY: round(originY),
   };
@@ -204,6 +204,8 @@ export interface PageItem {
   readonly label: string;
   /** The second line. Absent rather than empty, since `exactOptionalPropertyTypes` is on. */
   readonly note?: string;
+  /** A picture drawn before the label, for the lists that carry one per row. */
+  readonly icon?: string;
 }
 
 export interface PageGroup {

@@ -15,7 +15,11 @@
  */
 
 import type { ListPage, Page, PageFocus } from "./pages";
+import { paneArt, type PaneItem } from "./panel";
 import type { FlagKeys, LevelKeys, SettingChange, Settings } from "./settings";
+
+/** An installed app as the screen reads it: its name, and any art for its row. */
+export type SettingsApp = PaneItem;
 
 /** One drill level between the root and the rows. */
 export interface SettingsCategory {
@@ -99,7 +103,7 @@ export const SHOW_ALL_LABEL = "Show All Apps";
 export function settingsCategoryPage(
   category: string,
   settings: Settings,
-  apps: readonly { readonly id: string; readonly title: string }[],
+  apps: readonly SettingsApp[],
 ): ListPage | null {
   if (category === "general") {
     return {
@@ -116,7 +120,7 @@ export function settingsCategoryPage(
     };
   }
   if (category === "hidden") {
-    const titles = new Map(apps.map((app) => [app.id, app.title]));
+    const byId = new Map(apps.map((app) => [app.id, app]));
     return {
       kind: "list",
       id: "settings:hidden",
@@ -126,10 +130,15 @@ export function settingsCategoryPage(
           id: "hidden",
           title: "Hidden Apps",
           items: [
-            ...settings.hiddenApps.map((id) => ({
-              id: `hidden:${id}`,
-              label: titles.get(id) ?? id,
-            })),
+            ...settings.hiddenApps.map((id) => {
+              const app = byId.get(id);
+              const art = app ? paneArt(app) : null;
+              return {
+                id: `hidden:${id}`,
+                label: app?.title ?? id,
+                ...(art ? { icon: art } : {}),
+              };
+            }),
             { id: SHOW_ALL_ID, label: SHOW_ALL_LABEL },
           ],
         },
@@ -143,7 +152,7 @@ export function settingsCategoryPage(
 export function settingsPageFor(
   id: string,
   settings: Settings,
-  apps: readonly { readonly id: string; readonly title: string }[],
+  apps: readonly SettingsApp[],
 ): ListPage | null {
   if (id === "settings") return settingsRoot();
   if (id.startsWith("settings:"))
@@ -186,7 +195,7 @@ export function settingsDetail(
   page: Page,
   focus: PageFocus,
   settings: Settings,
-  apps: readonly { readonly id: string; readonly title: string }[],
+  apps: readonly SettingsApp[],
 ): SettingDetail {
   if (page.kind !== "list") return { values: [], description: "" };
   const item = page.groups[focus.group]?.items[focus.item];
@@ -199,11 +208,29 @@ export function settingsDetail(
     return { values: [settingValue(def, settings)], description: def.description };
   }
   if (item.id === SHOW_ALL_ID) {
-    return { values: [], description: "Put every hidden app back on its channel." };
+    return {
+      values: [],
+      description:
+        settings.hiddenApps.length === 0
+          ? "No apps are hidden. Press X on an app in the dashboard to put it away."
+          : "Put every hidden app back on its channel.",
+    };
   }
   const titles = new Map(apps.map((app) => [app.id, app.title]));
   const id = item.id.startsWith("hidden:") ? item.id.slice("hidden:".length) : item.id;
   return { values: [], description: `Put ${titles.get(id) ?? id} back on its channel.` };
+}
+
+/** Rows the list column shows at once. */
+export const SETTINGS_ROWS = 10;
+
+/**
+ * The index of the first row shown. The window stays put until the focus
+ * would leave it, then follows it, and never runs past the last row.
+ */
+export function settingsWindow(count: number, focus: number, slots = SETTINGS_ROWS): number {
+  const last = Math.max(0, count - slots);
+  return Math.min(last, Math.max(0, focus - (slots - 1)));
 }
 
 /** What `A` does on the focused row: open a deeper page, or write one change. */
@@ -223,7 +250,7 @@ export function settingsAction(
   page: Page,
   focus: PageFocus,
   settings: Settings,
-  apps: readonly { readonly id: string; readonly title: string }[],
+  apps: readonly SettingsApp[],
 ): SettingsAction | null {
   if (page.kind !== "list") return null;
   const item = page.groups[focus.group]?.items[focus.item];

@@ -11,6 +11,7 @@ import {
   settingsDetail,
   settingsPageFor,
   settingsRoot,
+  settingsWindow,
   settingValue,
   SHOW_ALL_LABEL,
   type LevelDef,
@@ -195,5 +196,35 @@ describe("rebuilding pages", () => {
 
   it("opens a page with the focus at the first row", () => {
     expect(ROOT_FOCUS).toEqual({ group: 0, item: 0 });
+  });
+});
+
+describe("the list window", () => {
+  it("stays at the top until the focus leaves it", () => {
+    expect(settingsWindow(25, 0)).toBe(0);
+    expect(settingsWindow(25, 9)).toBe(0);
+    expect(settingsWindow(25, 10)).toBe(1);
+  });
+
+  it("never runs past the last row", () => {
+    expect(settingsWindow(25, 24)).toBe(15);
+    expect(settingsWindow(3, 2)).toBe(0);
+  });
+});
+
+describe("hidden app rows", () => {
+  it("carry the app's art when it has some", () => {
+    const apps = [{ id: "a", title: "A", icon: "/media/a.png" }, ...APPS];
+    const page = settingsCategoryPage("hidden", hidden("a", "youtube.leanback.v4"), apps);
+    const items = page?.groups[0].items ?? [];
+    expect(items[0]?.icon).toBe("hack/media/a.png");
+    expect(items[1]?.icon).toBeUndefined();
+  });
+
+  it("says nothing is hidden on the Show All row of an empty list", () => {
+    const page = settingsCategoryPage("hidden", SETTINGS_DEFAULTS, APPS);
+    if (!page) throw new Error("no page");
+    const detail = settingsDetail(page, focus(0, 0), SETTINGS_DEFAULTS, APPS);
+    expect(detail.description).toMatch(/No apps are hidden/);
   });
 });

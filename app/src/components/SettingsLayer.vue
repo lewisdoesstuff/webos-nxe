@@ -5,44 +5,25 @@ import {
   DRILL_EASE_IN,
   DRILL_EASE_OUT,
   DRILL_MS,
-  FOOT_H,
-  hasMoreBelow,
-  HEADER_H,
   HUB_PANEL_BOX,
-  LIST_H,
-  LIST_MS,
-  PAGE_H,
-  PAGE_W,
-  PAGE_X,
-  PAGE_Y,
   pageRest,
-  ROW_H,
-  rows,
-  trackOffset,
-  TRACK_H,
   type Page,
   type PageFocus,
-  type Row,
 } from "../pages";
-import { BUTTON_FILL } from "../prompts";
 import type { Box } from "../ribbon";
-import type { SettingDetail } from "../settingsScreen";
+import { SETTINGS_ROWS, settingsWindow, type SettingDetail } from "../settingsScreen";
 
 /**
- * One settings page, as a single surface mounted before it is opened.
+ * The dashboard's settings screen, in the layout of the retail settings
+ * screens: the title over the sky at the top left, one dark panel with the
+ * option list down its left and the focused row's detail down its right.
  *
- * The same contract as `PageLayer`, which this mirrors: always mounted, closed
- * at `opacity: 0` on the hub panel's box, and the drill changes one transform
- * and one opacity on a layer that is already there. Read that component's
- * comment for the whole of the allocation story; nothing here differs except
- * the interior.
- *
- * The interior follows the retail settings screens (the walkthrough's Console
- * Settings and Display frames): the title in the head strip, the option list
- * down the left with the green highlight and the chevron, and the focused
- * row's detail down the right: its current values over its description. There
- * is no `n of m` counter, because retail drew none on these screens. Every box
- * inside is static paint on the one promoted surface.
+ * Two surfaces, both mounted before the screen is opened and both resting at
+ * `opacity: 0.001`. The panel is authored at its open box and transformed onto
+ * the pane it grows from, so opening changes one transform and one opacity on a
+ * layer that already exists; its texture is the panel and nothing else. The
+ * title is a small layer of its own that only fades. Every box inside the panel
+ * is static paint on that one surface.
  */
 
 const props = defineProps<{
@@ -50,29 +31,25 @@ const props = defineProps<{
   focus: PageFocus;
   open: boolean;
   detail: SettingDetail;
-  /** The box a closed surface rests on. The hub panel, unless the shell says otherwise. */
+  /** The box a closed panel rests on, in the frame's 720p pixels. */
   rest?: Box;
 }>();
 
-const rest = computed(() => pageRest(props.rest ?? HUB_PANEL_BOX));
+/** The retail panel, measured off the 1280x720 settings frames. */
+const PANEL: Box = { x: 196, y: 111, width: 889, height: 481 };
 
-const style = computed((): Record<string, string> => {
+const rest = computed(() => pageRest(props.rest ?? HUB_PANEL_BOX, PANEL));
+
+const panelStyle = computed((): Record<string, string> => {
   const at = rest.value;
   return {
-    "--head-h": `${HEADER_H}px`,
-    "--list-h": `${LIST_H}px`,
-    "--foot-h": `${FOOT_H}px`,
-    "--row-h": `${ROW_H}px`,
-    "--track-h": `${TRACK_H}px`,
     "--drill-ms": `${DRILL_MS}ms`,
-    "--list-ms": `${LIST_MS}ms`,
     "--drill-in": DRILL_EASE_IN,
     "--drill-out": DRILL_EASE_OUT,
-    "--selection": BUTTON_FILL.a,
-    left: `${PAGE_X}px`,
-    top: `${PAGE_Y}px`,
-    width: `${PAGE_W}px`,
-    height: `${PAGE_H}px`,
+    left: `${PANEL.x}px`,
+    top: `${PANEL.y}px`,
+    width: `${PANEL.width}px`,
+    height: `${PANEL.height}px`,
     transformOrigin: `${at.originX}px ${at.originY}px`,
     transform: props.open
       ? "translate3d(0, 0, 0) scale(1, 1)"
@@ -80,173 +57,277 @@ const style = computed((): Record<string, string> => {
   };
 });
 
-const track = computed((): Record<string, string> => ({
-  transform: `translate3d(0, ${-trackOffset(props.page, props.focus)}px, 0)`,
-}));
+const titleStyle = {
+  "--drill-ms": `${DRILL_MS}ms`,
+  "--drill-out": DRILL_EASE_OUT,
+};
 
-function rowStyle(row: Row): Record<string, string> {
-  return { top: `${row.y}px` };
+interface Slot {
+  readonly index: number;
+  readonly label: string;
+  readonly icon: string;
+  readonly focused: boolean;
+  readonly y: number;
 }
 
-const list = computed(() => rows(props.page, props.focus));
-const more = computed(() => hasMoreBelow(props.page, props.focus));
+const ROW_PITCH = 45;
+
+const items = computed(() =>
+  props.page.kind === "list" ? (props.page.groups[props.focus.group]?.items ?? []) : [],
+);
+
+const slots = computed((): Slot[] => {
+  const list = items.value;
+  const first = settingsWindow(list.length, props.focus.item);
+  return Array.from({ length: SETTINGS_ROWS }, (_, slot) => {
+    const index = first + slot;
+    const item = list[index];
+    return {
+      index,
+      label: item?.label ?? "",
+      icon: item?.icon ?? "",
+      focused: item !== undefined && index === props.focus.item,
+      y: slot * ROW_PITCH,
+    };
+  });
+});
+
+const withIcons = computed(() => items.value.some((item) => item.icon !== undefined));
 </script>
 
 <template>
-  <div class="page" :data-page="page.id" :data-open="open || undefined" :style="style">
-    <div class="head">
-      <span class="title">{{ page.title }}</span>
-    </div>
+  <div class="settings" :data-page="page.id" :data-open="open || undefined">
+    <span class="title" :style="titleStyle">{{ page.title }}</span>
 
-    <div class="body">
-      <div class="list">
-        <div class="track" :style="track">
-          <div
-            v-for="row in list"
-            :key="row.index"
-            class="row"
-            :data-focused="row.focused || undefined"
-            :style="rowStyle(row)"
-          >
-            <span class="row-label">{{ row.label }}</span>
-          </div>
+    <div class="panel" :style="panelStyle">
+      <div class="list" :data-icons="withIcons || undefined">
+        <div
+          v-for="slot in slots"
+          :key="slot.index"
+          class="row"
+          :data-focused="slot.focused || undefined"
+          :data-empty="slot.label === '' || undefined"
+          :style="{ top: `${slot.y}px` }"
+        >
+          <span class="bar" />
+          <img v-if="slot.icon" class="icon" :src="slot.icon" alt="" />
+          <span class="label">{{ slot.label }}</span>
         </div>
-
-        <span class="more" :data-on="more || undefined" />
       </div>
 
       <div class="detail">
-        <span class="current">Current Setting</span>
+        <span v-if="detail.values.length > 0" class="current">Current Setting</span>
         <span v-for="value in detail.values" :key="value" class="value">{{ value }}</span>
-        <span class="about">{{ detail.description }}</span>
+        <span class="about" :data-after-values="detail.values.length > 0 || undefined">{{
+          detail.description
+        }}</span>
       </div>
     </div>
   </div>
 </template>
 
 <style scoped>
-.page {
+.settings {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  color: #fff;
+}
+
+.title {
+  position: absolute;
+  left: 97px;
+  top: 46px;
+  font-size: 35px;
+  letter-spacing: 0.7px;
+  line-height: 44px;
+  white-space: nowrap;
+  text-shadow: 0 2px 3px rgba(0, 0, 0, 0.5);
+  opacity: 0.001;
+  will-change: opacity;
+  transition: opacity var(--drill-ms) var(--drill-out);
+}
+
+.settings[data-open] .title {
+  opacity: 1;
+}
+
+.panel {
   position: absolute;
   z-index: 1;
-  border-radius: 7px;
-  overflow: hidden;
-  background: linear-gradient(165deg, #2b3038, #14181d 72%);
-  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.55);
-  color: #f2f5f7;
-  opacity: 0;
+  box-sizing: border-box;
+  border: 1px solid;
+  border-color: rgba(150, 178, 188, 0.55) rgba(90, 112, 120, 0.5) rgba(96, 112, 120, 0.9)
+    rgba(90, 112, 120, 0.5);
+  border-radius: 2px;
+  background: linear-gradient(
+    180deg,
+    #445c68 0%,
+    #203843 18%,
+    #162b36 39%,
+    #091e29 60%,
+    #00131f 80%,
+    #001421 100%
+  );
+  opacity: 0.001;
   will-change: transform, opacity;
   transition:
     transform var(--drill-ms) var(--drill-out),
     opacity var(--drill-ms) var(--drill-out);
 }
 
-.page[data-open] {
+.settings[data-open] .panel {
   opacity: 1;
   transition-timing-function: var(--drill-in);
 }
 
-.head {
-  display: flex;
-  align-items: center;
-  height: var(--head-h);
-  padding: 0 20px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
-}
-
-.title {
-  font-size: 20px;
-  font-weight: 700;
-}
-
-.body {
-  display: flex;
-  height: calc(var(--list-h) + var(--foot-h));
-}
-
 .list {
-  position: relative;
-  width: 264px;
-  flex: 0 0 auto;
-  height: 100%;
-  overflow: hidden;
-  border-right: 1px solid rgba(255, 255, 255, 0.12);
+  position: absolute;
+  top: 19px;
+  left: 14px;
+  width: 423px;
+  height: 450px;
 }
 
-.track {
+.list::before {
+  content: "";
   position: absolute;
   top: 0;
-  left: 0;
-  width: 100%;
-  height: var(--track-h);
-  will-change: transform;
-  transition: transform var(--list-ms) var(--drill-in);
+  left: 5px;
+  right: 5px;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.16);
 }
 
 .row {
   position: absolute;
   left: 0;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
   width: 100%;
-  height: var(--row-h);
-  padding: 0 20px;
-  font-size: 15px;
-  line-height: 1.15;
+  height: 45px;
+  color: #c9d5db;
+  font-size: 22px;
+  letter-spacing: 0.6px;
+  line-height: 45px;
+  white-space: nowrap;
+}
+
+.row::after {
+  content: "";
+  position: absolute;
+  left: 5px;
+  right: 5px;
+  bottom: 0;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.row[data-empty]::after {
+  content: none;
+}
+
+.label {
+  position: absolute;
+  left: 12px;
+  right: 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.list[data-icons] .label {
+  left: 62px;
+}
+
+.icon {
+  position: absolute;
+  left: 22px;
+  top: 9px;
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+}
+
+.bar {
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  left: 0;
+  right: 0;
+  border-radius: 3px;
+  background: linear-gradient(
+    180deg,
+    #b9e87a 0%,
+    #8cc93a 14%,
+    #64a80a 34%,
+    #58a300 52%,
+    #62ab00 72%,
+    #86c21e 96%,
+    #a0d040 100%
+  );
+  box-shadow: inset 0 0 0 1px rgba(184, 232, 110, 0.55);
+  opacity: 0;
+}
+
+.list[data-icons] .bar {
+  background:
+    linear-gradient(90deg, rgba(160, 190, 150, 0) 45%, rgba(170, 196, 160, 0.7) 100%),
+    linear-gradient(
+      180deg,
+      #b9e87a 0%,
+      #8cc93a 14%,
+      #64a80a 34%,
+      #58a300 52%,
+      #62ab00 72%,
+      #86c21e 96%,
+      #a0d040 100%
+    );
 }
 
 .row[data-focused] {
-  background: var(--selection);
-  color: #08150a;
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0, 40, 0, 0.45);
 }
 
-.more {
-  position: absolute;
-  right: 18px;
-  bottom: 10px;
-  width: 9px;
-  height: 9px;
-  border-right: 2px solid rgba(255, 255, 255, 0.7);
-  border-bottom: 2px solid rgba(255, 255, 255, 0.7);
-  opacity: 0;
-  transform: rotate(45deg);
-  transition: opacity 120ms linear;
-}
-
-.more[data-on] {
+.row[data-focused] .bar {
   opacity: 1;
 }
 
 .detail {
+  position: absolute;
+  top: 21px;
+  left: 462px;
+  width: 400px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding: 12px 20px;
-  overflow: hidden;
+  font-size: 23px;
+  letter-spacing: 0.5px;
+  line-height: 30px;
 }
 
 .current {
-  font-size: 13px;
-  font-weight: 700;
-  color: rgba(255, 255, 255, 0.85);
+  color: #fff;
+  font-size: 25px;
 }
 
 .value {
-  font-size: 15px;
-  color: #fff;
+  padding-left: 8px;
+  color: #eef4f6;
 }
 
 .about {
-  margin-top: 8px;
-  font-size: 12px;
-  line-height: 1.4;
-  color: rgba(255, 255, 255, 0.68);
+  padding-left: 8px;
+  width: 372px;
+  color: #e2eaee;
+}
+
+.about[data-after-values] {
+  margin-top: 58px;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .page,
-  .track,
-  .more {
+  .title,
+  .panel {
     transition: none;
   }
 }

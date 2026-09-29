@@ -20,6 +20,7 @@ import {
 } from "../boot";
 import { BootRenderer } from "../bootGl";
 import { XBOX_THEME } from "../bootTheme";
+import { bootSound } from "../sound";
 
 /**
  * The boot screen: the 2005 pre-Kinect Xbox 360 bumper, drawn by one fragment
@@ -73,6 +74,10 @@ let origin = 0;
 let skipped = false;
 let frozen = false;
 let warmed = false;
+let finished = false;
+
+/** The audio is the master's own track, so it only plays at the master's speed. */
+const sounded = computed(() => props.mode === "full");
 
 function announce(next: BootState): void {
   for (let index = announced; index < next.entered.length; index++) {
@@ -111,12 +116,16 @@ function tick(now: number): void {
     frame = requestAnimationFrame(tick);
     return;
   }
-  if (origin === 0) origin = now - state.value.ms;
+  if (origin === 0) {
+    origin = now - state.value.ms;
+    if (sounded.value) bootSound.start(() => performance.now() - origin);
+  }
   const next = bootAdvance(state.value, now - origin, timing.value);
   state.value = next;
   announce(next);
   paint(next.ms);
   if (bootDone(next, timing.value)) {
+    finished = true;
     renderer?.release();
     emit("done", { reason: skipped ? "skipped" : "played", elapsedMs: next.ms });
     return;
@@ -164,6 +173,7 @@ function skip(): void {
   origin = performance.now() - next.ms;
   announce(next);
   skipped = true;
+  bootSound.fadeOut();
   paint(next.ms);
   play();
 }
@@ -194,6 +204,7 @@ function onKeyDown(event: KeyboardEvent): void {
 
 onMounted(() => {
   const element = canvas.value;
+  if (sounded.value) bootSound.preload();
   if (element !== undefined) renderer = new BootRenderer(element, XBOX_THEME);
   window.addEventListener("keydown", onKeyDown, true);
   const asked = new URLSearchParams(window.location.search).get("at");
@@ -212,13 +223,20 @@ onMounted(() => {
 onUnmounted(() => {
   window.removeEventListener("keydown", onKeyDown, true);
   pause();
+  if (!finished) bootSound.stop();
   renderer?.release();
   renderer = null;
 });
 
 watch(
   () => props.play,
-  (on) => (on ? play() : pause()),
+  (on) => {
+    if (on) play();
+    else {
+      pause();
+      bootSound.stop();
+    }
+  },
 );
 
 watch(timing, () => {
@@ -226,6 +244,7 @@ watch(timing, () => {
   skipped = false;
   announced = 1;
   pause();
+  bootSound.stop();
   if (props.play) play();
 });
 </script>

@@ -1,5 +1,5 @@
 <script setup lang="ts" vapor>
-import { computed } from "vue";
+import { computed, nextTick, ref, watch } from "vue";
 
 import {
   DRILL_EASE_IN,
@@ -34,7 +34,39 @@ const props = defineProps<{
   detail: SettingDetail;
   /** The box a closed panel rests on, in the frame's 720p pixels. */
   rest?: Box;
+  /** A value being typed in the detail column, with the TV's keyboard, or null. */
+  draft?: string | null;
 }>();
+
+const emit = defineEmits<{
+  commit: [value: string];
+  cancel: [];
+}>();
+
+const entry = ref<HTMLInputElement>();
+
+watch(
+  () => props.draft ?? null,
+  (draft, before) => {
+    if (draft === null || before !== null) return;
+    void nextTick(() => {
+      entry.value?.focus();
+      entry.value?.select();
+    });
+  },
+);
+
+/** Enter keeps the value; Escape and the remote's Back throw it away. */
+function onEntryKey(event: KeyboardEvent): void {
+  event.stopPropagation();
+  if (event.keyCode === 13) {
+    event.preventDefault();
+    emit("commit", (event.target as HTMLInputElement).value.trim());
+  } else if (event.keyCode === 27 || event.keyCode === 461) {
+    event.preventDefault();
+    emit("cancel");
+  }
+}
 
 /** The retail panel, measured off the 1280x720 settings frames. */
 const PANEL: Box = { x: 196, y: 111, width: 889, height: 481 };
@@ -125,7 +157,17 @@ const withIcons = computed(() => items.value.some((item) => item.icon !== undefi
 
       <div class="detail">
         <span v-if="detail.values.length > 0" class="current">Current Setting</span>
-        <span v-for="value in detail.values" :key="value" class="value">{{ value }}</span>
+        <input
+          v-if="draft != null"
+          ref="entry"
+          class="entry"
+          maxlength="15"
+          :value="draft"
+          @keydown="onEntryKey"
+        />
+        <template v-else>
+          <span v-for="value in detail.values" :key="value" class="value">{{ value }}</span>
+        </template>
         <span class="about" :data-after-values="detail.values.length > 0 || undefined">{{
           detail.description
         }}</span>
@@ -312,6 +354,18 @@ const withIcons = computed(() => items.value.some((item) => item.icon !== undefi
 .value {
   padding-left: 8px;
   color: #eef4f6;
+}
+
+.entry {
+  width: 360px;
+  margin: 2px 0 0 8px;
+  padding: 2px 8px;
+  border: 0;
+  border-radius: 3px;
+  outline: 2px solid #8cc218;
+  background: #eef4f6;
+  color: #1d2328;
+  font: inherit;
 }
 
 .about {

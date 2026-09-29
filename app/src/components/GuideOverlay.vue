@@ -105,6 +105,8 @@ const props = withDefaults(
     items?: readonly string[];
     /** The Guide's clock, already formatted by the caller. */
     clock?: string;
+    /** The gamer picture, when there is one to replace the default. */
+    pic?: string;
   }>(),
   { open: false, blade: 4, item: 0, clock: "" },
 );
@@ -252,7 +254,10 @@ const CLOCK: Box = { x: CLOCK_X, y: CLOCK_Y, width: CLOCK_W, height: CLOCK_H };
     <div class="dim" />
 
     <div class="chrome">
-      <div class="gamerpic" :style="at(PIC)" />
+      <div
+        class="gamerpic"
+        :style="pic ? { ...at(PIC), backgroundImage: `url(${pic})` } : at(PIC)"
+      />
 
       <div class="clock" :style="at(CLOCK)">{{ clock || stamp }}</div>
 

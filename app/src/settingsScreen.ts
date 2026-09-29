@@ -148,6 +148,56 @@ export function settingsCategoryPage(
   return null;
 }
 
+/** The TV's browser, which Customize Avatar opens on 360sona. */
+export const BROWSER_APP = "com.webos.app.beanbrowser";
+export const AVATAR_EDITOR_URL = "https://360sona.com";
+
+/**
+ * Where a new avatar is picked up: an export saved to the TV's Downloads under
+ * 360sona's default name replaces the bundled model on the next launch.
+ */
+export const AVATAR_DOWNLOAD = "/media/internal/downloads/MyAvatar.glb";
+
+/**
+ * The profile's menu, opened by A on the profile pane, as retail's avatar menu
+ * was: the gamertag, typed with the TV's keyboard, and the avatar, edited on
+ * 360sona in the TV's browser.
+ */
+export function profilePage(): ListPage {
+  return {
+    kind: "list",
+    id: "profile",
+    title: "Profile",
+    groups: [
+      {
+        id: "profile",
+        title: "Profile",
+        items: [
+          { id: "gamertag", label: "Gamertag" },
+          { id: "avatar", label: "Customize Avatar" },
+        ],
+      },
+    ],
+  };
+}
+
+function profileDetail(id: string, settings: Settings): SettingDetail {
+  if (id === "gamertag") {
+    return {
+      values: [settings.gamertag || "Player1"],
+      description: "Press A and type a new gamertag.",
+    };
+  }
+  if (id === "avatar") {
+    return {
+      values: [],
+      description:
+        "Opens 360sona in the browser. Export your avatar as MyAvatar.glb into Downloads and it stands on the dashboard from the next launch.",
+    };
+  }
+  return { values: [], description: "" };
+}
+
 /** Any settings page by its id, for pushing and for rebuilding after a change. */
 export function settingsPageFor(
   id: string,
@@ -155,6 +205,7 @@ export function settingsPageFor(
   apps: readonly SettingsApp[],
 ): ListPage | null {
   if (id === "settings") return settingsRoot();
+  if (id === "profile") return profilePage();
   if (id.startsWith("settings:"))
     return settingsCategoryPage(id.slice("settings:".length), settings, apps);
   return null;
@@ -199,6 +250,7 @@ export function settingsDetail(
 ): SettingDetail {
   if (page.kind !== "list") return { values: [], description: "" };
   const item = page.groups[focus.group]?.items[focus.item];
+  if (page.id === "profile") return profileDetail(item?.id ?? "", settings);
   if (page.id === "settings" || item === undefined) {
     return categoryDetail(item?.id ?? "");
   }
@@ -236,7 +288,13 @@ export function settingsWindow(count: number, focus: number, slots = SETTINGS_RO
 /** What `A` does on the focused row: open a deeper page, or write one change. */
 export type SettingsAction =
   | { readonly kind: "push"; readonly page: ListPage }
-  | { readonly kind: "change"; readonly change: SettingChange };
+  | { readonly kind: "change"; readonly change: SettingChange }
+  | { readonly kind: "edit"; readonly key: "gamertag" }
+  | {
+      readonly kind: "launch";
+      readonly id: string;
+      readonly params: Readonly<Record<string, unknown>>;
+    };
 
 /**
  * The `A` press resolved, or null where there is nothing to do.
@@ -255,6 +313,13 @@ export function settingsAction(
   if (page.kind !== "list") return null;
   const item = page.groups[focus.group]?.items[focus.item];
   if (item === undefined) return null;
+  if (page.id === "profile") {
+    if (item.id === "gamertag") return { kind: "edit", key: "gamertag" };
+    if (item.id === "avatar") {
+      return { kind: "launch", id: BROWSER_APP, params: { target: AVATAR_EDITOR_URL } };
+    }
+    return null;
+  }
   if (page.id === "settings") {
     const next = settingsPageFor(`settings:${item.id}`, settings, apps);
     return next === null ? null : { kind: "push", page: next };

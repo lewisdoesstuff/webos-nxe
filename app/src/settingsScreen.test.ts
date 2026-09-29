@@ -15,6 +15,9 @@ import {
   settingValue,
   SHOW_ALL_LABEL,
   type LevelDef,
+  AVATAR_EDITOR_URL,
+  BROWSER_APP,
+  profilePage,
 } from "./settingsScreen";
 
 const APPS = [
@@ -226,5 +229,32 @@ describe("hidden app rows", () => {
     if (!page) throw new Error("no page");
     const detail = settingsDetail(page, focus(0, 0), SETTINGS_DEFAULTS, APPS);
     expect(detail.description).toMatch(/No apps are hidden/);
+  });
+});
+
+describe("profile menu", () => {
+  const page = profilePage();
+  const at = (item: number): PageFocus => ({ ...ROOT_FOCUS, item });
+
+  it("offers the gamertag and the avatar", () => {
+    expect(page.groups[0].items.map((item) => item.label)).toEqual([
+      "Gamertag",
+      "Customize Avatar",
+    ]);
+    expect(settingsPageFor("profile", SETTINGS_DEFAULTS, [])).toEqual(page);
+  });
+
+  it("edits the gamertag, showing the current one", () => {
+    const settings = { ...SETTINGS_DEFAULTS, gamertag: "Matty" };
+    expect(settingsAction(page, at(0), settings, [])).toEqual({ kind: "edit", key: "gamertag" });
+    expect(settingsDetail(page, at(0), settings, []).values).toEqual(["Matty"]);
+  });
+
+  it("opens 360sona in the TV's browser", () => {
+    expect(settingsAction(page, at(1), SETTINGS_DEFAULTS, [])).toEqual({
+      kind: "launch",
+      id: BROWSER_APP,
+      params: { target: AVATAR_EDITOR_URL },
+    });
   });
 });

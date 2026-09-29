@@ -21,6 +21,7 @@ import {
   Timer,
   Vector3,
   WebGLRenderer,
+  WebGLRenderTarget,
   ZeroFactor,
   type AnimationAction,
   type Material,
@@ -60,6 +61,9 @@ export interface AvatarOptions {
 
 /** A held prop's mesh. Retail's hub avatar stands empty-handed. */
 const CARRYABLE = /^carryable:/;
+
+/** The portrait's framing: the share of the figure it spans, and where the head's top sits in it. */
+const PORTRAIT = { span: 0.36, top: 0.42 } as const;
 
 /** Seconds a clip takes to blend into the next. */
 const BLEND_S = 0.35;
@@ -145,6 +149,7 @@ export class AvatarRenderer {
   private readonly fade = new Scene();
   private readonly flat = new OrthographicCamera(-1, 1, 1, -1, 0, 1);
   private shadow: Mesh | null = null;
+  private bounds: Box3 | null = null;
   private floor = 0;
   private readonly timer = new Timer();
   private readonly interval: number;
@@ -249,6 +254,7 @@ export class AvatarRenderer {
     this.scene.add(shadow);
     this.shadow = shadow;
     this.floor = box.min.y;
+    this.bounds = box;
   }
 
   private advance(): void {
@@ -269,6 +275,62 @@ export class AvatarRenderer {
       to.play();
     }
     this.onClip?.(next.clip);
+  }
+
+  /**
+   * A gamer picture of the avatar as it stands now: head and shoulders on the
+   * default picture's green, as retail's Take Picture made one. Drawn at twice
+   * its size off screen and scaled down, which smooths its edges. Null before
+   * the model has loaded.
+   */
+  portrait(size = 128): string | null {
+    const box = this.bounds;
+    if (box === null) return null;
+    const tall = box.max.y - box.min.y;
+    const span = tall * PORTRAIT.span;
+    const centre = box.getCenter(new Vector3());
+    const camera = new PerspectiveCamera(AVATAR_VIEW.fov, 1, 0.05, 50);
+    const distance = span / (2 * Math.tan((AVATAR_VIEW.fov * Math.PI) / 360));
+    const y = box.max.y - span * PORTRAIT.top;
+    camera.position.set(centre.x, y, centre.z + distance);
+    camera.lookAt(centre.x, y, centre.z);
+
+    const side = size * 2;
+    const target = new WebGLRenderTarget(side, side);
+    target.texture.colorSpace = SRGBColorSpace;
+    const renderer = this.renderer;
+    if (this.shadow !== null) this.shadow.visible = false;
+    renderer.setRenderTarget(target);
+    renderer.clear();
+    renderer.render(this.scene, camera);
+    const pixels = new Uint8Array(side * side * 4);
+    renderer.readRenderTargetPixels(target, 0, 0, side, side, pixels);
+    renderer.setRenderTarget(null);
+    target.dispose();
+    if (this.shadow !== null) this.shadow.visible = true;
+
+    const shot = document.createElement("canvas");
+    shot.width = side;
+    shot.height = side;
+    const image = new ImageData(side, side);
+    const row = side * 4;
+    for (let line = 0; line < side; line++) {
+      image.data.set(pixels.subarray(line * row, (line + 1) * row), (side - 1 - line) * row);
+    }
+    shot.getContext("2d")?.putImageData(image, 0, 0);
+
+    const out = document.createElement("canvas");
+    out.width = size;
+    out.height = size;
+    const context = out.getContext("2d");
+    if (context === null) return null;
+    const ground = context.createLinearGradient(0, 0, 0, size);
+    ground.addColorStop(0, "#9ccb2c");
+    ground.addColorStop(1, "#2f6a08");
+    context.fillStyle = ground;
+    context.fillRect(0, 0, size, size);
+    context.drawImage(shot, 0, 0, size, size);
+    return out.toDataURL("image/png");
   }
 
   /**

@@ -5,7 +5,7 @@ import pictureIcon from "./assets/system/picture.svg?inline";
 import settingsIcon from "./assets/system/settings.svg?inline";
 import soundIcon from "./assets/system/sound.svg?inline";
 import type { ListPage } from "./pages";
-import { type Reported, type SectionId, SECTIONS, sectionRows } from "./sections";
+import { recentlyLaunched, type Reported, type SectionId, SECTIONS, sectionRows } from "./sections";
 import type { Settings } from "./settings";
 import type { LaunchPoint } from "./types";
 
@@ -30,6 +30,8 @@ export interface HubItem extends LaunchPoint {
   readonly settings?: true;
   /** The profile pane: the gamercard, with the avatar standing beside it. */
   readonly profile?: true;
+  /** The profile's recent apps, newest first. */
+  readonly recent?: readonly LaunchPoint[];
 }
 
 const SETTINGS_APP = "com.palm.app.settings";
@@ -88,12 +90,21 @@ export const XNE_SETTINGS_PANE: HubItem = {
 /**
  * The profile, second on Apps, the home channel, as it was second on My Xbox
  * (t062): the gamertag and gamerscore on the pane's face, the avatar standing
- * beside it.
+ * beside it, and the apps launched last under "Recent Apps" as retail's
+ * card listed the latest games.
  * It launches nothing; retail's A opened the avatar's menu, which is not
  * built.
  */
-export function profilePane(settings: Settings): HubItem {
-  return { id: "xne:profile", title: settings.gamertag || "Player1", profile: true };
+/** As many as fit left of the avatar. */
+export const PROFILE_RECENT = 3;
+
+export function profilePane(settings: Settings, points: readonly Reported[] = []): HubItem {
+  return {
+    id: "xne:profile",
+    title: settings.gamertag || "Player1",
+    profile: true,
+    recent: recentlyLaunched(points, settings, PROFILE_RECENT),
+  };
 }
 
 export function isProfilePane(item: HubItem | null | undefined): boolean {
@@ -155,7 +166,8 @@ export function channelItems(
 ): HubItem[] {
   const rows: HubItem[] = sectionRows(channel, points, settings);
   if (channel === "system") return [...SYSTEM_PANES, XNE_SETTINGS_PANE, ...rows];
-  if (channel === "apps") return [...rows.slice(0, 1), profilePane(settings), ...rows.slice(1)];
+  if (channel === "apps")
+    return [...rows.slice(0, 1), profilePane(settings, points), ...rows.slice(1)];
   return rows;
 }
 

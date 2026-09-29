@@ -16,6 +16,8 @@ export interface PaneItem {
   readonly iconColor?: string;
   /** The profile pane, which draws the gamercard instead of art. */
   readonly profile?: true;
+  /** The profile's recent apps, drawn small under its heading. */
+  readonly recent?: readonly PaneItem[];
 }
 
 /**

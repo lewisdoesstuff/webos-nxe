@@ -83,6 +83,8 @@ import { ringImage, ripplePattern } from "./ripples";
 import { CHANNEL_ORDER, SECTIONS, startChannel } from "./sections";
 import type { Settings } from "./settings";
 import {
+  AVATAR_DOWNLOAD,
+  profilePage,
   settingsAction,
   settingsDetail,
   settingsPageFor,
@@ -290,11 +292,17 @@ function onGuideKey(event: KeyboardEvent): boolean {
       openSettings();
       return true;
     }
-    const target = launchTarget(row);
-    void apps.launch(target.id, { ...target.params });
+    launchItem(row);
     return true;
   }
   return false;
+}
+
+/** Launch a pane's item. A real app goes to the top of the profile's Recent Apps. */
+function launchItem(item: HubItem): void {
+  const target = launchTarget(item);
+  if (isHideable(item)) settings.noteLaunch(item.id);
+  void apps.launch(target.id, { ...target.params });
 }
 
 function openPage(): void {
@@ -323,8 +331,7 @@ function launchListed(): void {
   const item = pageLatch.value.items[pageFocus.value.item] as HubItem | undefined;
   if (!item) return;
   playSound("decide");
-  const target = launchTarget(item);
-  void apps.launch(target.id, { ...target.params });
+  launchItem(item);
 }
 
 /**
@@ -339,6 +346,27 @@ const settingsStack = ref<PageStack>([]);
 function openSettings(): void {
   pageOpen.value = false;
   settingsStack.value = push([], settingsRoot());
+}
+
+/** The profile's menu, opened by A on the profile pane, in the settings screen's layout. */
+function openProfile(): void {
+  pageOpen.value = false;
+  settingsStack.value = push([], profilePage());
+}
+
+/** The gamertag being typed, or null. While it is set, keys belong to the entry. */
+const draft = ref<string | null>(null);
+
+function commitDraft(value: string): void {
+  draft.value = null;
+  if (value !== "") settings.applyChange({ kind: "choice", key: "gamertag", value });
+  playSound("decide");
+  refreshSettingsTop();
+}
+
+function cancelDraft(): void {
+  draft.value = null;
+  playSound("cancel");
 }
 
 function stepSettings(delta: number): void {
@@ -356,6 +384,14 @@ function activateSettings(): void {
   playSound("decide");
   if (action.kind === "push") {
     settingsStack.value = push(settingsStack.value, action.page);
+    return;
+  }
+  if (action.kind === "edit") {
+    draft.value = settings.settings.gamertag || "Player1";
+    return;
+  }
+  if (action.kind === "launch") {
+    void apps.launch(action.id, { ...action.params });
     return;
   }
   settings.applyChange(action.change);
@@ -584,8 +620,12 @@ const avatarPlaying = computed(() => {
   );
 });
 
-/** The model loads once the boot is over, so its parse and upload never land in the boot's frames. */
-const avatarSrc = computed(() => (booting.value ? "" : avatarUrl));
+/**
+ * The model loads once the boot is over, so its parse and upload never land in
+ * the boot's frames. A 360sona export saved to the TV's Downloads wins over the
+ * one shipped with the app.
+ */
+const avatarSrc = computed(() => (booting.value ? "" : `hack${AVATAR_DOWNLOAD}`));
 
 function labelStyle(index: number): Record<string, string> {
   const slot = labelSlot(hub.value.channel - index);
@@ -617,12 +657,16 @@ const cardStyle = {
   top: `${CARD_PIC_Y}px`,
 };
 
-const picStyle = {
+/** The avatar's own gamer picture, taken once it has loaded; the default until then. */
+const gamerpic = ref("");
+
+const picStyle = computed(() => ({
   left: `${CARD_PIC_X}px`,
   top: `${CARD_PIC_Y}px`,
   width: `${CARD_PIC}px`,
   height: `${CARD_PIC}px`,
-};
+  ...(gamerpic.value ? { backgroundImage: `url(${gamerpic.value})` } : {}),
+}));
 
 /** The 720p frame's own size, which the prompt row and the Guide are authored in. */
 const frameStyle = {
@@ -705,8 +749,12 @@ function navigate(move: HubMove): void {
  * else: pressing A on it does nothing, the way B does nothing at the hub root. */
 function activate(): void {
   const item = rows.value[hub.value.channel]?.[hub.value.item];
-  if (!item || isEmptyPane(item) || isProfilePane(item)) return;
+  if (!item || isEmptyPane(item)) return;
   playSound("decide");
+  if (isProfilePane(item)) {
+    openProfile();
+    return;
+  }
   if (isSettingsPane(item)) {
     openSettings();
     return;
@@ -715,8 +763,7 @@ function activate(): void {
     openPage();
     return;
   }
-  const target = launchTarget(item);
-  void apps.launch(target.id, { ...target.params });
+  launchItem(item);
 }
 
 /**
@@ -743,6 +790,7 @@ const YELLOW = 405;
 const BLUE = 406;
 
 function onKeyDown(event: KeyboardEvent): void {
+  if (draft.value !== null) return;
   if (guide.value) {
     if (onGuideKey(event)) {
       event.preventDefault();
@@ -917,7 +965,13 @@ function expose(): void {
       />
     </div>
 
-    <AvatarFigure :src="avatarSrc" :playing="avatarPlaying" :style="avatarStyle" />
+    <AvatarFigure
+      :src="avatarSrc"
+      :fallback="avatarUrl"
+      :playing="avatarPlaying"
+      @portrait="gamerpic = $event"
+      :style="avatarStyle"
+    />
 
     <PageLayer
       :title="pageLatch.title"
@@ -933,11 +987,20 @@ function expose(): void {
         :open="settingsStack.length > 0"
         :detail="settingsDetailShown"
         :rest="settingsRestBox"
+        :draft="draft"
+        @commit="commitDraft"
+        @cancel="cancelDraft"
       />
     </div>
 
     <div class="frame" data-guide :style="frameStyle">
-      <GuideOverlay :open="guide" :blade="guideBlade" :item="guideItem" :items="guideItems" />
+      <GuideOverlay
+        :open="guide"
+        :blade="guideBlade"
+        :item="guideItem"
+        :items="guideItems"
+        :pic="gamerpic"
+      />
     </div>
 
     <!--

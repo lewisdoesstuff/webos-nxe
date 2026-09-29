@@ -16,17 +16,21 @@ const props = withDefaults(
   defineProps<{
     /** The model: a 360sona GLB. Empty until it should load. */
     src: string;
+    /** Loaded instead when `src` is missing or unreadable. */
+    fallback?: string;
     playing?: boolean;
     renderScale?: number;
     fps?: number;
   }>(),
-  { playing: true, renderScale: 1, fps: 30 },
+  { fallback: "", playing: true, renderScale: 1, fps: 30 },
 );
 
 const emit = defineEmits<{
   loaded: [];
   failed: [cause: unknown];
   clip: [name: string];
+  /** A gamer picture of the avatar, as a data URL, once it has loaded. */
+  portrait: [url: string];
 }>();
 
 const canvas = ref<HTMLCanvasElement>();
@@ -58,14 +62,25 @@ async function begin(): Promise<void> {
   try {
     await own.load(props.src);
   } catch (cause: unknown) {
-    console.error("[xne] avatar failed to load", cause);
-    emit("failed", cause);
-    return;
+    if (props.fallback === "") {
+      console.error("[xne] avatar failed to load", cause);
+      emit("failed", cause);
+      return;
+    }
+    try {
+      await own.load(props.fallback);
+    } catch (again: unknown) {
+      console.error("[xne] avatar failed to load", again);
+      emit("failed", again);
+      return;
+    }
   }
   if (renderer !== own) return;
   ready = true;
   sync();
   emit("loaded");
+  const portrait = own.portrait();
+  if (portrait !== null) emit("portrait", portrait);
 }
 
 onMounted(() => void begin());

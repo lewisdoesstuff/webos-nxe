@@ -24,6 +24,13 @@ const echo = computed(() => shownEcho(source.value));
 const floorPatch = computed(() => shownFloorPatch(source.value));
 const initial = computed(() => (props.item ? initialsFor(props.item.title) : ""));
 const profile = computed(() => props.item?.profile === true);
+const recent = computed(() =>
+  (props.item?.recent ?? []).map((app) => ({
+    id: app.id,
+    art: paneArt(app),
+    initial: initialsFor(app.title),
+  })),
+);
 
 const rootStyle = { width: `${PANE_W}px`, height: `${PANE_H}px` };
 </script>
@@ -36,6 +43,12 @@ const rootStyle = { width: `${PANE_W}px`, height: `${PANE_H}px` };
         <span class="tag">{{ props.item?.title ?? "" }}</span>
         <span class="score">0<i class="coin">G</i></span>
         <span class="recent">Recent Apps</span>
+        <div class="recents">
+          <span v-for="app in recent" :key="app.id" class="mini">
+            <img v-if="app.art" :src="app.art" alt="" />
+            <span v-else>{{ app.initial }}</span>
+          </span>
+        </div>
       </template>
       <template v-else>
         <div class="tile">
@@ -233,5 +246,34 @@ const rootStyle = { width: `${PANE_W}px`, height: `${PANE_H}px` };
   font-size: 26px;
   line-height: 32px;
   opacity: 0.8;
+}
+.recents {
+  position: absolute;
+  top: 262px;
+  left: 21px;
+  display: flex;
+  gap: 14px;
+}
+
+.mini {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 84px;
+  height: 84px;
+  overflow: hidden;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.14);
+  box-shadow:
+    0 4px 10px rgba(20, 50, 0, 0.35),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.35);
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 40px;
+}
+
+.mini img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 </style>

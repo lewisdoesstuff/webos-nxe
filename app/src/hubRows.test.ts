@@ -11,6 +11,7 @@ import {
   isSettingsPane,
   launchTarget,
   pageItems,
+  PROFILE_RECENT,
   SYSTEM_PANES,
   withAllPane,
 } from "./hubRows";
@@ -60,12 +61,24 @@ describe("hubRow", () => {
   it("seats the profile second on Apps, launching nothing and never leaving", () => {
     const items = channelItems("apps", POINTS, { ...SETTINGS_DEFAULTS, gamertag: "Matty" });
     const pane = items[1];
-    expect(pane).toEqual({ id: "xne:profile", title: "Matty", profile: true });
+    expect(pane).toMatchObject({ id: "xne:profile", title: "Matty", profile: true, recent: [] });
     expect(isProfilePane(pane)).toBe(true);
     expect(isHideable(pane)).toBe(false);
     expect(pageItems(items)).not.toContain(pane);
     expect(channelItems("apps", POINTS, { ...SETTINGS_DEFAULTS, gamertag: "" })[1]?.title).toBe(
       "Player1",
+    );
+  });
+
+  it("lists the profile's recent apps, newest first, as many as fit", () => {
+    const points = Array.from({ length: 7 }, (_, n) => ({ id: `app.${n}`, title: `App ${n}` }));
+    const settings = { ...SETTINGS_DEFAULTS, recentApps: ["app.6", "gone", "app.2", "app.0"] };
+    const row = channelItems("apps", points, settings);
+    const recent = row.find(isProfilePane)?.recent ?? [];
+    expect(recent.map((point) => point.id)).toEqual(["app.6", "app.2", "app.0"]);
+    const all = { ...SETTINGS_DEFAULTS, recentApps: points.map((point) => point.id) };
+    expect(channelItems("apps", points, all).find(isProfilePane)?.recent).toHaveLength(
+      PROFILE_RECENT,
     );
   });
 

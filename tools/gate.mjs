@@ -22,9 +22,10 @@
  *
  * Needs a real compositor, so it will not run against old headless Chrome, which
  * builds no layer tree at all and makes this exit 2 rather than pass;
- * `--headless=new` has one, and AGENTS.md has the flags. It is built for the TV, which has one and a CDP endpoint on :9998. Coverage measured
- * locally is about seven times faster than the TV's and means nothing; the
- * layer set and its byte counts are geometry and do carry over.
+ * `--headless=new` has one, and AGENTS.md has the flags. It is built for the
+ * TV, which has one and a CDP endpoint on :9998. Coverage measured locally is
+ * about seven times faster than the TV's and means nothing; the layer set and
+ * its byte counts are geometry and do carry over.
  *
  * Exits 0 on pass, 1 on fail, 2 if the run cannot be trusted. Needs Node >= 22.
  */

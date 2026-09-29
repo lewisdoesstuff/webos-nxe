@@ -675,6 +675,7 @@ function expose(): void {
     -->
     <div class="sky" />
     <div class="floor" />
+    <div class="pool" />
     <div class="orb" />
     <span class="bullet" :style="bulletStyle" />
     <span class="counter" :style="counterStyle">{{ counter }}</span>
@@ -687,7 +688,7 @@ function expose(): void {
       <PromptBar :prompts="prompts" />
     </div>
     <div class="ripples">
-      <i v-for="n in 6" :key="n" :class="`r${n}`" />
+      <i v-for="n in 3" :key="n" :class="`r${n}`" />
     </div>
 
     <span
@@ -821,97 +822,96 @@ function expose(): void {
 .orb::before {
   content: "";
   position: absolute;
-  left: -36px;
-  top: 44px;
-  width: 72px;
+  left: -38px;
+  top: 46px;
+  width: 76px;
   height: 22px;
   border-radius: 50%;
   background: radial-gradient(
     ellipse 50% 50% at 50% 50%,
-    rgba(20, 24, 30, 0.5) 0%,
-    rgba(20, 24, 30, 0.3) 55%,
+    rgba(8, 10, 14, 0.55) 0%,
+    rgba(8, 10, 14, 0.35) 55%,
     rgba(20, 24, 30, 0) 100%
   );
 }
 
+.pool {
+  position: absolute;
+  left: 700px;
+  top: 640px;
+  width: 1220px;
+  height: 440px;
+  background:
+    url("./assets/hub/rings.svg") 260px 190px no-repeat,
+    radial-gradient(
+      ellipse 640px 300px at 1037px 380px,
+      rgba(28, 35, 40, 0.94) 0%,
+      rgba(34, 42, 48, 0.8) 38%,
+      rgba(44, 52, 58, 0.4) 70%,
+      rgba(50, 58, 64, 0) 100%
+    );
+}
+
 .ripples {
   position: absolute;
-  left: 1297px;
-  top: 880px;
-  width: 880px;
-  height: 250px;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
   pointer-events: none;
 }
 
 .ripples i {
   position: absolute;
-  inset: 0;
-  border: 2px solid rgba(240, 246, 252, 0.9);
+  border: 2px solid rgba(214, 224, 232, 0.9);
   border-radius: 50%;
-  opacity: 0;
+  opacity: 0.001;
   will-change: transform, opacity;
-  animation: ripple 7s cubic-bezier(0.2, 0.5, 0.4, 1) infinite;
+  animation: ripple 16s linear infinite;
 }
 
 .ripples .r1 {
-  --a: 0.8;
-  animation-duration: 5.3s;
-  animation-delay: -1.1s;
+  left: 1547px;
+  top: 963px;
+  width: 380px;
+  height: 90px;
+  animation-delay: -3s;
 }
 
 .ripples .r2 {
-  --a: 0.5;
-  animation-duration: 6.7s;
-  animation-delay: -4.4s;
+  left: 1437px;
+  top: 949px;
+  width: 600px;
+  height: 140px;
+  animation-delay: -9s;
 }
 
 .ripples .r3 {
-  --a: 0.68;
-  animation-duration: 7.9s;
-  animation-delay: -2.3s;
-}
-
-.ripples .r4 {
-  --a: 0.4;
-  animation-duration: 9.1s;
-  animation-delay: -7.6s;
-}
-
-.ripples .r5 {
-  --a: 0.75;
-  animation-duration: 11.3s;
-  animation-delay: -5.2s;
-}
-
-.ripples .r6 {
-  --a: 0.45;
-  animation-duration: 13.7s;
-  animation-delay: -10.9s;
+  left: 1337px;
+  top: 935px;
+  width: 800px;
+  height: 190px;
+  animation-delay: -14s;
 }
 
 @keyframes ripple {
   0% {
-    transform: scale(0.08);
-    opacity: 0;
+    transform: scale(0.6);
+    opacity: 0.001;
   }
-  6% {
-    opacity: var(--a);
-  }
-  78% {
-    transform: scale(1);
-    opacity: 0;
+  20% {
+    opacity: 0.32;
   }
   100% {
     transform: scale(1);
-    opacity: 0;
+    opacity: 0.001;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .ripples i {
     animation: none;
-    opacity: 0.22;
-    transform: scale(0.5);
+    opacity: 0.001;
   }
 }
 

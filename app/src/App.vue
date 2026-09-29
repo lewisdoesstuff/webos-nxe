@@ -576,9 +576,8 @@ function expose(): void {
 
 .pic {
   position: absolute;
-  border-radius: 3px;
-  background: linear-gradient(160deg, #6d747c, #3a4047);
-  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.45);
+  background: url("./assets/hub/gamerpic.svg") center / 100% 100% no-repeat;
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.8);
 }
 
 /* The prompt row and the Guide are authored in the 720p frame's own pixels

@@ -72,6 +72,7 @@ let frame = 0;
 let origin = 0;
 let skipped = false;
 let frozen = false;
+let warmed = false;
 
 function announce(next: BootState): void {
   for (let index = announced; index < next.entered.length; index++) {
@@ -99,6 +100,15 @@ function tick(now: number): void {
   }
   if (frozen) {
     paint(state.value.ms);
+    return;
+  }
+  // The first draw is where the driver links the program and uploads the
+  // textures, 300 to 450ms on the TV. Draw the black lead-in once and start
+  // the clock on the frame after it, so that stall is not taken off the run.
+  if (!warmed) {
+    warmed = true;
+    paint(state.value.ms);
+    frame = requestAnimationFrame(tick);
     return;
   }
   if (origin === 0) origin = now - state.value.ms;

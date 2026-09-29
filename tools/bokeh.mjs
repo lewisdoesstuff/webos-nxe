@@ -30,19 +30,19 @@ function rng(seed) {
 
 const f = (n) => Math.round(n * 10) / 10;
 
-function ring(rand, x, y, r, tone, alpha, out) {
+function ring(rand, x, y, r, tone, alpha, into) {
   const rings = 1 + Math.floor(rand() * 3);
   for (let i = 0; i < rings; i++) {
     const rr = r * (1 - i * (0.22 + rand() * 0.12));
     if (rr < 2) break;
-    out.push(
+    into.push(
       `<circle cx="${f(x)}" cy="${f(y)}" r="${f(rr)}" stroke="rgba(${tone},${f(alpha * (0.6 + rand() * 0.5))})" stroke-width="${f(1 + rand() * 1.6)}"/>`,
     );
   }
 }
 
-function dot(rand, x, y, r, tone, alpha, out) {
-  out.push(`<circle cx="${f(x)}" cy="${f(y)}" r="${f(r)}" fill="rgba(${tone},${f(alpha)})"/>`);
+function dot(rand, x, y, r, tone, alpha, into) {
+  into.push(`<circle cx="${f(x)}" cy="${f(y)}" r="${f(r)}" fill="rgba(${tone},${f(alpha)})"/>`);
 }
 
 function sky() {

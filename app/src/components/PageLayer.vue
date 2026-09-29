@@ -59,11 +59,6 @@ function artStyle(pane: PooledPane): Record<string, string> {
   return { background: `linear-gradient(180deg, ${tint.top}, ${tint.bottom})` };
 }
 
-function detail(pane: PooledPane): string {
-  const id = itemOf(pane)?.id ?? "";
-  return id.includes(".") ? id : "";
-}
-
 const paneBox = { width: `${PAGE_PANE_W}px`, height: `${PAGE_PANE_H}px` };
 
 const titleStyle = computed((): Record<string, string> => ({
@@ -90,7 +85,6 @@ const titleStyle = computed((): Record<string, string> => ({
           />
           <span v-else class="initial">{{ initialsFor(itemOf(pane)?.title ?? "") }}</span>
         </div>
-        <p class="body">{{ detail(pane) }}</p>
       </div>
       <div class="go" :style="focusStyle(pane, 1)"><span>Launch</span></div>
       <div class="mirror" :style="focusStyle(pane, 0.24)">
@@ -209,20 +203,6 @@ const titleStyle = computed((): Record<string, string> => ({
   justify-content: center;
   font-size: 110px;
   color: rgba(255, 255, 255, 0.9);
-}
-
-.body {
-  position: absolute;
-  top: 366px;
-  left: 51px;
-  right: 51px;
-  margin: 0;
-  overflow: hidden;
-  font-size: 23px;
-  line-height: 32px;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  color: rgba(255, 255, 255, 0.55);
 }
 
 .go {

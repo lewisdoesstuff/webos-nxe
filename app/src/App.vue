@@ -690,7 +690,6 @@ function expose(): void {
     <div class="sky" />
     <div class="floor" />
     <div class="pool" />
-    <div class="orb" />
     <span class="bullet" :style="bulletStyle" />
     <span class="counter" :style="counterStyle">{{ counter }}</span>
     <header class="card" :style="cardStyle">
@@ -704,6 +703,8 @@ function expose(): void {
     <div class="ripples">
       <i v-for="(ring, index) in rings" :key="index" :style="ring" />
     </div>
+    <!-- Over its rings, so promoted at rest like anything painted above a moving layer. -->
+    <div class="orb" />
 
     <span
       v-for="(channel, index) in channels"
@@ -847,6 +848,7 @@ function expose(): void {
     rgba(8, 10, 14, 0.35) 55%,
     rgba(20, 24, 30, 0) 100%
   );
+  will-change: transform;
 }
 
 .pool {
@@ -912,6 +914,7 @@ function expose(): void {
   width: 72px;
   height: 72px;
   background: url("./assets/hub/orb.png") center / 72px 72px no-repeat;
+  will-change: transform;
 }
 
 /* A channel label is a promoted box scaled about its left edge, so the list

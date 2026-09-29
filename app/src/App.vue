@@ -37,10 +37,11 @@ import {
   type PooledPane,
   stepHub,
 } from "./hub";
+import { channelItems, launchTarget } from "./hubRows";
 import { paneArt } from "./panel";
 import { SELECT, promptsFor } from "./prompts";
 import { CANVAS_H, CANVAS_W } from "./ribbon";
-import { CHANNEL_ORDER, SECTIONS, sectionRows, START_CHANNEL } from "./sections";
+import { CHANNEL_ORDER, SECTIONS, START_CHANNEL } from "./sections";
 import { useAppsStore } from "./stores/apps";
 import { useSettingsStore } from "./stores/settings";
 
@@ -117,7 +118,7 @@ const channels = CHANNEL_ORDER.map(
 );
 
 const rows = computed(() =>
-  channels.map((channel) => sectionRows(channel.id, apps.launchPoints, settings.settings)),
+  channels.map((channel) => channelItems(channel.id, apps.launchPoints, settings.settings)),
 );
 
 const counts = computed(() => rows.value.map((row) => row.length));
@@ -261,7 +262,8 @@ function navigate(move: HubMove): void {
 function activate(): void {
   const item = rows.value[hub.value.channel]?.[hub.value.item];
   if (!item) return;
-  void apps.launch(item.id);
+  const target = launchTarget(item);
+  void apps.launch(target.id, { ...target.params });
 }
 
 /**

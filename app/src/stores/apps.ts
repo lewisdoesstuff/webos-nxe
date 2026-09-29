@@ -151,10 +151,10 @@ export const useAppsStore = defineStore("apps", () => {
     }
   }
 
-  async function launch(id: string): Promise<void> {
+  async function launch(id: string, params: Record<string, unknown> = {}): Promise<void> {
     error.value = null;
     try {
-      await callLuna(LAUNCH, { id, params: {} });
+      await callLuna(LAUNCH, { id, params });
     } catch (cause) {
       error.value = describe(cause);
       return;

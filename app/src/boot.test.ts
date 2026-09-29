@@ -147,9 +147,9 @@ describe("the stage sequence", () => {
     }
   });
 
-  it("is 6.3 s in full and 1.7 s in short", () => {
+  it("is 6.5 s in full and 1.75 s in short", () => {
     expect(bootTotalMs(FULL)).toBeCloseTo(SETTLED_MS + HANDOVER_MS, 6);
-    expect(bootTotalMs(SHORT)).toBeCloseTo(1700, 6);
+    expect(bootTotalMs(SHORT)).toBeCloseTo(1750, 6);
   });
 
   it("puts the handover at the end of the clip, plus whatever the hold is", () => {
@@ -169,9 +169,9 @@ describe("the stage sequence", () => {
     for (let index = 1; index < full.length; index++) {
       expect(at(short, index).durationMs).toBeCloseTo(at(full, index).durationMs / WARM_RATE, 9);
     }
-    // 6.3 s of bumper and handover against 1.7 s of it.
-    expect(bootTotalMs(FULL)).toBeCloseTo(6300, 6);
-    expect(bootTotalMs(SHORT)).toBeCloseTo(1700, 6);
+    // 6.5 s of bumper and handover against 1.75 s of it.
+    expect(bootTotalMs(FULL)).toBeCloseTo(6500, 6);
+    expect(bootTotalMs(SHORT)).toBeCloseTo(1750, 6);
   });
 
   it("holds on the settled logo for as long as the parent asks", () => {
@@ -179,7 +179,7 @@ describe("the stage sequence", () => {
     const stages = bootStages(held);
     const handover = at(stages, stages.length - 1);
     expect(handover.fromMs).toBeCloseTo(6000 + 1400, 6);
-    expect(bootTotalMs(held)).toBeCloseTo(7700, 6);
+    expect(bootTotalMs(held)).toBeCloseTo(7900, 6);
     // The hold is the parent's own work, so the mode does not compress it.
     expect(at(stages, stages.length - 2).durationMs).toBeCloseTo(2433.3333, 3);
   });
@@ -226,7 +226,7 @@ describe("the clock", () => {
     expect(bootFrameAt(6000, FULL).done).toBe(false);
     expect(bootFrameAt(6200, FULL).done).toBe(false);
     expect(bootFrameAt(6299.9, FULL).done).toBe(false);
-    expect(bootFrameAt(6300, FULL).done).toBe(true);
+    expect(bootFrameAt(6500, FULL).done).toBe(true);
     expect(bootFrameAt(1e9, FULL).done).toBe(true);
   });
 

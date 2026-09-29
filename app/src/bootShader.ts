@@ -35,6 +35,7 @@ uniform vec4 uShape;
 uniform vec4 uGroove;
 uniform vec4 uGaps;
 uniform vec4 uStreak;
+uniform float uRelease;
 
 uniform vec3 cGreyTop;
 uniform vec3 cGreyEdge;
@@ -91,9 +92,10 @@ vec3 shell(vec3 n, float px) {
   float d1 = abs(e1);
   float d2 = abs(e2);
   float theta = acos(clamp(q.z, -1.0, 1.0));
-  float front = smoothstep(-0.35, -0.05, q.z);
+  float grooveOff = 1.0 - smoothstep(234.0, 238.0, uExtra.w);
+  float front = smoothstep(-0.35, -0.05, q.z) * grooveOff;
 
-  float open = uMark.w;
+  float open = uMark.w * grooveOff;
   float on = step(0.001, open);
   float base = uShape.y * open * (1.0 + uGroove.x * clamp(1.0 - q.z, 0.0, 1.0));
   float away = smoothstep(0.05, 0.7, theta);
@@ -279,14 +281,14 @@ const MAIN_300 = `
 out vec4 outColor;
 void main() {
   vec2 p = vec2(gl_FragCoord.x, uRes.y - gl_FragCoord.y) * (1920.0 / uRes.x);
-  outColor = vec4(clamp(scene(p), 0.0, 1.0), 1.0);
+  outColor = vec4(clamp(mix(scene(p), field(p), uRelease), 0.0, 1.0), 1.0);
 }
 `;
 
 const MAIN_100 = `
 void main() {
   vec2 p = vec2(gl_FragCoord.x, uRes.y - gl_FragCoord.y) * (1920.0 / uRes.x);
-  gl_FragColor = vec4(clamp(scene(p), 0.0, 1.0), 1.0);
+  gl_FragColor = vec4(clamp(mix(scene(p), field(p), uRelease), 0.0, 1.0), 1.0);
 }
 `;
 

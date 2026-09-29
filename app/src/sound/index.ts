@@ -11,6 +11,7 @@
  * reason in `status()`, never in a broken menu.
  */
 
+import bootUrl from "../assets/sounds/boot.ogg";
 import cancelUrl from "../assets/sounds/cancel.ogg";
 import categoryUrl from "../assets/sounds/category.ogg";
 import cursorUrl from "../assets/sounds/cursor.ogg";
@@ -18,6 +19,7 @@ import decideUrl from "../assets/sounds/decide.ogg";
 import optionUrl from "../assets/sounds/option.ogg";
 import { SETTINGS_DEFAULTS, type Settings } from "../settings";
 import { useSettingsStore } from "../stores/settings";
+import { createBootSound } from "./bootSound";
 import { createSoundEngine } from "./engine";
 import { createMusicPlayer } from "./music";
 import type { SoundStatus } from "./status";
@@ -36,6 +38,22 @@ const engine = createSoundEngine({
   },
 });
 const music = createMusicPlayer();
+const boot = createBootSound(bootUrl);
+
+/**
+ * The boot's audio, as one handle. Every call is a no-op with `navSound` off, so
+ * no audio context is made for a boot that is meant to be silent.
+ */
+export const bootSound = {
+  preload(): void {
+    if (stored().navSound) boot.preload();
+  },
+  start(atMs: () => number): void {
+    if (stored().navSound) boot.start(atMs);
+  },
+  fadeOut: () => boot.fadeOut(),
+  stop: () => boot.stop(),
+};
 
 /** Decode the clips once the shell has mounted, so no key press waits on them. */
 export function preloadSounds(): void {

@@ -101,9 +101,9 @@ export const XBOX_THEME: BootTheme = {
     greyTop: hex(0xa4a4a4),
     greyEdge: hex(0x3a3a3a),
     pale: hex(0xe2e6e1),
-    settledEdge: hex(0x8aa088),
+    settledEdge: hex(0x8fa680),
     settledMid: hex(0xa3bd8a),
-    settledGlow: hex(0xcbeaa0),
+    settledGlow: hex(0xd8f4a8),
   },
   sphere: {
     base: hex(0x9aa198),

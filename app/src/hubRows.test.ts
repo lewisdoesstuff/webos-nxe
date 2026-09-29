@@ -57,27 +57,28 @@ describe("hubRow", () => {
     expect(isHideable(undefined)).toBe(false);
   });
 
-  it("seats the profile second on System, launching nothing and never leaving", () => {
-    const items = channelItems("system", POINTS, { ...SETTINGS_DEFAULTS, gamertag: "Matty" });
+  it("seats the profile second on Apps, launching nothing and never leaving", () => {
+    const items = channelItems("apps", POINTS, { ...SETTINGS_DEFAULTS, gamertag: "Matty" });
     const pane = items[1];
     expect(pane).toEqual({ id: "xne:profile", title: "Matty", profile: true });
     expect(isProfilePane(pane)).toBe(true);
     expect(isHideable(pane)).toBe(false);
     expect(pageItems(items)).not.toContain(pane);
-    expect(channelItems("system", POINTS, { ...SETTINGS_DEFAULTS, gamertag: "" })[1]?.title).toBe(
+    expect(channelItems("apps", POINTS, { ...SETTINGS_DEFAULTS, gamertag: "" })[1]?.title).toBe(
       "Player1",
     );
   });
 
-  it("puts the settings panes on System after the profile, ahead of system apps", () => {
+  it("puts the settings panes on System, ahead of system apps", () => {
     const items = channelItems("system", POINTS, SETTINGS_DEFAULTS);
-    expect(items.slice(2, 2 + SYSTEM_PANES.length)).toEqual(SYSTEM_PANES);
+    expect(items.slice(0, SYSTEM_PANES.length)).toEqual(SYSTEM_PANES);
+    expect(items.some(isProfilePane)).toBe(false);
     expect(channelItems("apps", POINTS, SETTINGS_DEFAULTS)).not.toContain(SYSTEM_PANES[0]);
   });
 
-  it("leads System with the dashboard's own settings, opened and never launched", () => {
+  it("seats the dashboard's own settings beside the TV's, opened and never launched", () => {
     const items = channelItems("system", POINTS, SETTINGS_DEFAULTS);
-    const pane = items[0];
+    const pane = items[SYSTEM_PANES.length];
     expect(pane?.id).toBe("xne:settings");
     expect(isSettingsPane(pane)).toBe(true);
     expect(isHideable(pane)).toBe(false);
@@ -97,13 +98,16 @@ describe("hubRow", () => {
 });
 
 describe("pages", () => {
-  it("lists the row without its All pane, its settings pane or the profile", () => {
+  it("lists the row without its All pane or its settings pane", () => {
     const row = hubRow("system", POINTS, SETTINGS_DEFAULTS);
     const items = pageItems(row);
-    expect(items).toHaveLength(row.length - 3);
+    expect(items).toHaveLength(row.length - 2);
     expect(
       items.some((item) => isAllPane(item) || isSettingsPane(item) || isProfilePane(item)),
     ).toBe(false);
+    const apps = hubRow("apps", POINTS, SETTINGS_DEFAULTS);
+    expect(pageItems(apps)).toHaveLength(apps.length - 2);
+    expect(pageItems(apps).some(isProfilePane)).toBe(false);
     const page = channelPage("system", items);
     expect(page.title).toBe("All System");
     expect(page.groups[0].items.map((item) => item.id)).toEqual(items.map((item) => item.id));

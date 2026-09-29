@@ -86,9 +86,9 @@ export const XNE_SETTINGS_PANE: HubItem = {
 };
 
 /**
- * The profile, second on System as it was second on My Xbox (t062), after
- * the dashboard's own settings as retail's came after Open Tray: the
- * gamertag and gamerscore on the pane's face, the avatar standing beside it.
+ * The profile, second on Apps, the home channel, as it was second on My Xbox
+ * (t062): the gamertag and gamerscore on the pane's face, the avatar standing
+ * beside it.
  * It launches nothing; retail's A opened the avatar's menu, which is not
  * built.
  */
@@ -154,9 +154,8 @@ export function channelItems(
   settings: Settings,
 ): HubItem[] {
   const rows: HubItem[] = sectionRows(channel, points, settings);
-  if (channel === "system") {
-    return [XNE_SETTINGS_PANE, profilePane(settings), ...SYSTEM_PANES, ...rows];
-  }
+  if (channel === "system") return [...SYSTEM_PANES, XNE_SETTINGS_PANE, ...rows];
+  if (channel === "apps") return [...rows.slice(0, 1), profilePane(settings), ...rows.slice(1)];
   return rows;
 }
 

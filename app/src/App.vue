@@ -531,7 +531,7 @@ function paneStyle(pane: PooledPane): Record<string, string> {
 /**
  * The avatar stands beside the profile pane and moves with it, on the pane's
  * own transition, at the pane's depth so nearer panes cover it. Away from
- * System it rests hidden where it last stood, so its layer keeps its texture.
+ * Apps it rests hidden where it last stood, so its layer keeps its texture.
  */
 const avatarPane = computed(() => pool.value.find((pane) => isProfilePane(paneItem(pane))));
 let avatarRest = "translate3d(0px, 0px, 0) scale(1)";

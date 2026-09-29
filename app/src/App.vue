@@ -783,8 +783,8 @@ function expose(): void {
   background: #2c3a1a;
 }
 
-/* Lime sky lit from the right horizon, over a grey reflective floor whose
-   horizon is the measured y 585. Everything here is static paint. */
+/* Lime sky, darkest at the top left and top right, a pale glow at the left
+   horizon and a yellow-white one toward the right. Static paint. */
 .sky {
   position: absolute;
   inset: 0 0 auto 0;
@@ -792,19 +792,10 @@ function expose(): void {
   background:
     url("./assets/hub/bokeh.svg") 0 0 / 1920px 620px no-repeat,
     radial-gradient(
-      circle 60px at 1130px 150px,
-      transparent 0 34px,
-      rgba(255, 255, 255, 0.1) 35px 38px,
-      transparent 39px
+      ellipse 16% 34% at 0% 100%,
+      rgba(226, 246, 240, 0.95) 0%,
+      rgba(226, 246, 240, 0) 100%
     ),
-    radial-gradient(
-      circle 60px at 1400px 90px,
-      transparent 0 40px,
-      rgba(255, 255, 255, 0.09) 41px 45px,
-      transparent 46px
-    ),
-    radial-gradient(circle 40px at 860px 350px, rgba(255, 255, 255, 0.1) 0 26px, transparent 27px),
-    radial-gradient(circle 40px at 1450px 360px, rgba(255, 255, 255, 0.1) 0 24px, transparent 25px),
     radial-gradient(
       ellipse 34% 60% at 96% 100%,
       rgba(250, 250, 150, 0.95) 0%,
@@ -812,14 +803,22 @@ function expose(): void {
       rgba(230, 240, 90, 0) 100%
     ),
     radial-gradient(
-      ellipse 42% 60% at 80% 60%,
-      rgba(226, 234, 226, 1) 0%,
-      rgba(226, 234, 226, 0) 100%
+      ellipse 46% 50% at 62% 78%,
+      rgba(236, 248, 110, 0.85) 0%,
+      rgba(236, 248, 110, 0) 100%
     ),
-    radial-gradient(ellipse 75% 85% at 0% 0%, rgba(14, 52, 4, 0.95) 0%, rgba(14, 52, 4, 0) 100%),
+    radial-gradient(
+      ellipse 42% 45% at 60% 45%,
+      rgba(190, 210, 190, 0.5) 0%,
+      rgba(190, 210, 190, 0) 100%
+    ),
+    radial-gradient(ellipse 34% 55% at 100% 0%, rgba(4, 12, 6, 0.9) 0%, rgba(4, 12, 6, 0) 100%),
+    radial-gradient(ellipse 75% 85% at 0% 0%, rgba(8, 40, 0, 0.95) 0%, rgba(8, 40, 0, 0) 100%),
     linear-gradient(180deg, #2f6a08 0%, #7db510 45%, #b4d64a 100%);
 }
 
+/* The floor's horizon is lit and its top is dark slate, brightest a third of
+   the way down, then falling off to the foot. */
 .floor {
   position: absolute;
   top: 585px;
@@ -828,18 +827,23 @@ function expose(): void {
   bottom: 0;
   border-radius: 50% 50% 0 0 / 60px 60px 0 0;
   background:
-    radial-gradient(
-      ellipse 45% 22% at 42% 8%,
-      rgba(232, 240, 248, 0.95) 0%,
-      rgba(232, 240, 248, 0) 100%
-    ),
-    radial-gradient(ellipse 50% 40% at 100% 0%, rgba(40, 46, 50, 0.7) 0%, rgba(40, 46, 50, 0) 100%),
+    radial-gradient(ellipse 50% 40% at 100% 0%, rgba(30, 36, 40, 0.7) 0%, rgba(30, 36, 40, 0) 100%),
     radial-gradient(
       ellipse 60% 60% at 50% 115%,
-      rgba(20, 24, 28, 0.55) 0%,
+      rgba(20, 24, 28, 0.4) 0%,
       rgba(20, 24, 28, 0) 100%
     ),
-    linear-gradient(180deg, #6f7880 0%, #8b949c 25%, #b9c3cc 55%, #7d8791 100%);
+    linear-gradient(
+      180deg,
+      #56646e 0%,
+      #3f4d57 5%,
+      #38444f 20%,
+      #55616e 33%,
+      #8e9cab 52%,
+      #a3b0be 68%,
+      #6d7880 86%,
+      #586269 100%
+    );
 }
 
 .orb {

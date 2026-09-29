@@ -1,7 +1,7 @@
 <script setup lang="ts" vapor>
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 
-import { prepareArt } from "./artCache";
+import { prepareArt, prepareFloor } from "./artCache";
 import { type BootReason, type BootSpeed, resolveBootMode } from "./boot";
 import BootScreen from "./components/BootScreen.vue";
 import GuideOverlay from "./components/GuideOverlay.vue";
@@ -76,6 +76,7 @@ import { paneArt, type PaneItem } from "./panel";
 import { CANVAS_H, CANVAS_W } from "./ribbon";
 import { ringImage, ripplePattern } from "./ripples";
 import { CHANNEL_ORDER, SECTIONS, startChannel } from "./sections";
+import type { Settings } from "./settings";
 import {
   settingsAction,
   settingsDetail,
@@ -161,8 +162,15 @@ const channels = CHANNEL_ORDER.map(
   (id) => SECTIONS.find((section) => section.id === id) ?? SECTIONS[0],
 );
 
+/** The settings the rows read. A write to any other setting keeps this identity, so it rebuilds no row. */
+const ROW_KEYS = ["hiddenApps", "recentApps", "appOrder", "appSection", "sortModes"] as const;
+const rowSettings = computed((previous?: Settings) => {
+  const next = settings.settings;
+  return previous && ROW_KEYS.every((key) => previous[key] === next[key]) ? previous : next;
+});
+
 const rows = computed(() =>
-  channels.map((channel) => hubRow(channel.id, apps.launchPoints, settings.settings)),
+  channels.map((channel) => hubRow(channel.id, apps.launchPoints, rowSettings.value)),
 );
 
 /** The "All" page over the hub. Always mounted; opening it changes one transform and opacity. */
@@ -391,6 +399,7 @@ const counter = computed(() =>
 );
 
 /** Every pane's art, scaled to the size it is shown as soon as the apps load (`artCache.ts`). */
+void prepareFloor();
 watch(
   () => apps.launchPoints,
   (points) => {
@@ -540,6 +549,14 @@ async function changeChannel(): Promise<void> {
   if (mine === generation) phase.value = "rest";
 }
 
+/** The last channel is stored once the change has settled, so the write lands outside the transition. */
+let rememberTimer: ReturnType<typeof setTimeout> | undefined;
+function rememberChannel(id: string): void {
+  clearTimeout(rememberTimer);
+  const settle = CHANNEL_OUT_MS + CHANNEL_IN_MS + DEAL_MS + DEAL_STAGGER_MS * POOL_SIZE;
+  rememberTimer = setTimeout(() => settings.updateSetting("lastChannel", id), settle);
+}
+
 function navigate(move: HubMove): void {
   const next = stepHub(hub.value, move, counts.value);
   if (next === hub.value) return;
@@ -547,7 +564,7 @@ function navigate(move: HubMove): void {
   hub.value = next;
   playSound(channelChanged ? "category" : "cursor");
   if (channelChanged) {
-    settings.updateSetting("lastChannel", CHANNEL_ORDER[next.channel] ?? "apps");
+    rememberChannel(CHANNEL_ORDER[next.channel] ?? "apps");
     void changeChannel();
     return;
   }

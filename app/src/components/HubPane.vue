@@ -1,7 +1,7 @@
 <script setup lang="ts" vapor>
 import { computed } from "vue";
 
-import { shownArt } from "../artCache";
+import { shownArt, shownEcho, shownFloorFace, shownFloorPatch } from "../artCache";
 import { PANE_H, PANE_W } from "../hub";
 import { initialsFor, paneArt, type PaneItem } from "../panel";
 
@@ -10,13 +10,18 @@ import { initialsFor, paneArt, type PaneItem } from "../panel";
  * changes size. The row moves it by transform only, so its texture is
  * allocated once and a focus change never resizes it. The mirror below is
  * paint overflow of the same box, so it moves with the pane and adds no layer.
+ * The echo and the mirror are baked images (`artCache.ts`), so a new item
+ * repaints no mask.
  */
 const props = defineProps<{
   /** The item this pane shows, or null while it is parked empty. */
   item: PaneItem | null;
 }>();
 
-const art = computed(() => (props.item ? shownArt(paneArt(props.item)) : null));
+const source = computed(() => (props.item ? paneArt(props.item) : null));
+const art = computed(() => shownArt(source.value));
+const echo = computed(() => shownEcho(source.value));
+const floorPatch = computed(() => shownFloorPatch(source.value));
 const initial = computed(() => (props.item ? initialsFor(props.item.title) : ""));
 
 const rootStyle = { width: `${PANE_W}px`, height: `${PANE_H}px` };
@@ -30,18 +35,12 @@ const rootStyle = { width: `${PANE_W}px`, height: `${PANE_H}px` };
         <img v-if="art" class="art" :src="art" alt="" />
         <span v-else class="initial">{{ initial }}</span>
       </div>
-      <div class="echo"><img v-if="art" class="art" :src="art" alt="" /></div>
+      <img v-if="echo" class="echo" :src="echo" alt="" />
       <span class="name">{{ props.item?.title ?? "" }}</span>
     </div>
     <div class="mirror">
-      <div class="clip flip">
-        <div class="face" />
-        <div class="tile">
-          <img v-if="art" class="art" :src="art" alt="" />
-          <span v-else class="initial">{{ initial }}</span>
-        </div>
-        <div class="echo"><img v-if="art" class="art" :src="art" alt="" /></div>
-      </div>
+      <img v-if="shownFloorFace()" class="floor" :src="shownFloorFace()!" alt="" />
+      <img v-if="floorPatch" class="patch" :src="floorPatch" alt="" />
     </div>
   </div>
 </template>
@@ -69,14 +68,22 @@ const rootStyle = { width: `${PANE_W}px`, height: `${PANE_H}px` };
   left: 0;
   width: 630px;
   height: 144px;
-  overflow: hidden;
-  opacity: 0.34;
-  -webkit-mask-image: linear-gradient(180deg, #000 0%, transparent 100%);
-  mask-image: linear-gradient(180deg, #000 0%, transparent 100%);
 }
 
-.flip {
-  transform: scaleY(-1);
+.floor {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 630px;
+  height: 144px;
+}
+
+.patch {
+  position: absolute;
+  top: 26px;
+  left: 195px;
+  width: 240px;
+  height: 118px;
 }
 
 .face {
@@ -123,16 +130,6 @@ const rootStyle = { width: `${PANE_W}px`, height: `${PANE_H}px` };
   left: 195px;
   width: 240px;
   height: 120px;
-  overflow: hidden;
-  opacity: 0.6;
-  -webkit-mask-image: linear-gradient(180deg, #000 0%, rgba(0, 0, 0, 0.5) 35%, transparent 100%);
-  mask-image: linear-gradient(180deg, #000 0%, rgba(0, 0, 0, 0.5) 35%, transparent 100%);
-}
-
-.echo .art {
-  height: 240px;
-  border-radius: 34px;
-  transform: scaleY(-1);
 }
 
 .tile::after {

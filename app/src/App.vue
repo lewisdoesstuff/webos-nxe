@@ -374,10 +374,15 @@ const shownRow = computed(() => rows.value[shown.value.channel] ?? []);
 
 const pool = computed(() => placePool(shown.value.item, shownRow.value.length));
 
+/** The row rests hidden until the first load resolves, so an empty hub is never seen. */
+const loaded = computed(() => apps.status === "ready" || apps.status === "error");
+
 const counter = computed(() =>
-  pageOpen.value
-    ? pageCounterText(page.value, pageFocus.value)
-    : counterText(shown.value.item, shownRow.value.length),
+  !loaded.value
+    ? ""
+    : pageOpen.value
+      ? pageCounterText(page.value, pageFocus.value)
+      : counterText(shown.value.item, shownRow.value.length),
 );
 
 /**
@@ -409,7 +414,7 @@ const moveTransition = `transform ${MOVE_MS}ms ${MOVE_EASE}, opacity ${MOVE_MS}m
 function paneStyle(pane: PooledPane): Record<string, string> {
   let { x, y, scale, opacity } = pane.slot;
   let transition = moveTransition;
-  if (pageOpen.value) {
+  if (pageOpen.value || !loaded.value) {
     opacity = HIDDEN;
     transition = `opacity ${CHANNEL_OUT_MS}ms linear`;
   } else if (phase.value === "out") {

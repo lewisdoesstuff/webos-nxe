@@ -44,7 +44,7 @@ const props = withDefaults(
   defineProps<{
     /** `full` plays the measured six seconds, `short` plays it at a quarter. */
     mode?: BootSpeed;
-    /** False holds the playhead where it is. */
+    /** False holds the playhead where it is; before the run starts, on the black lead-in. */
     play?: boolean;
     /** Milliseconds to hold the settled logo before the handover, not compressed by the mode. */
     holdMs?: number;
@@ -124,7 +124,22 @@ function tick(now: number): void {
   frame = requestAnimationFrame(tick);
 }
 
+/** Link the program and draw the black lead-in once, without starting the clock. */
+function warm(): void {
+  frame = 0;
+  if (renderer !== null && !renderer.poll()) {
+    frame = requestAnimationFrame(warm);
+    return;
+  }
+  warmed = true;
+  paint(state.value.ms);
+}
+
 function play(): void {
+  if (frame !== 0 && !warmed) {
+    cancelAnimationFrame(frame);
+    frame = 0;
+  }
   if (frame !== 0) return;
   if (bootDone(state.value, timing.value)) return;
   origin = 0;
@@ -191,6 +206,7 @@ onMounted(() => {
     return;
   }
   if (props.play) play();
+  else frame = requestAnimationFrame(warm);
 });
 
 onUnmounted(() => {

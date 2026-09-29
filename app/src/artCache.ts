@@ -85,7 +85,7 @@ function canvas(w: number, h: number): [HTMLCanvasElement, CanvasRenderingContex
   const element = document.createElement("canvas");
   element.width = w;
   element.height = h;
-  const context = element.getContext("2d");
+  const context = element.getContext("2d", { willReadFrequently: true });
   return context ? [element, context] : null;
 }
 
@@ -115,57 +115,63 @@ async function keep(element: HTMLCanvasElement): Promise<string | null> {
   return copy.src;
 }
 
-/** Fill a canvas with alpha stops, top to bottom, that multiply what is already drawn. */
-function fade(context: CanvasRenderingContext2D, h: number, stops: readonly [number, number][]) {
-  const gradient = context.createLinearGradient(0, 0, 0, h);
+/** Multiply what is drawn by alpha stops that run top to bottom from `top` over `h`. */
+function fade(
+  context: CanvasRenderingContext2D,
+  top: number,
+  h: number,
+  stops: readonly [number, number][],
+): void {
+  const gradient = context.createLinearGradient(0, top, 0, top + h);
   for (const [at, alpha] of stops) gradient.addColorStop(at, `rgba(0, 0, 0, ${alpha})`);
   context.globalCompositeOperation = "destination-in";
   context.fillStyle = gradient;
-  context.fillRect(0, 0, context.canvas.width, h);
+  context.fillRect(0, 0, context.canvas.width, context.canvas.height);
   context.globalCompositeOperation = "source-over";
 }
 
-let bokeh: Promise<HTMLImageElement | null> | null = null;
+const MIRROR_FADE: readonly [number, number][] = [
+  [0, MIRROR.opacity],
+  [1, 0],
+];
 
-/** The card's lower face, as `HubPane.vue`'s `.face` draws it; its top band and highlight never reach the mirror. */
-async function drawCard(echo: HTMLCanvasElement | null): Promise<HTMLCanvasElement | null> {
-  const made = canvas(CARD_W, CARD_H);
-  if (!made) return null;
-  const [element, context] = made;
-  context.beginPath();
-  context.roundRect(0, 0, CARD_W, CARD_H, CARD_RADIUS);
-  context.clip();
-  const gradient = context.createLinearGradient(0, 0, 0, CARD_H);
-  for (const [at, color] of FACE_STOPS) gradient.addColorStop(at, color);
-  context.fillStyle = gradient;
-  context.fillRect(0, 0, CARD_W, CARD_H);
-  bokeh ??= decoded(cardBokeh);
-  const dots = await bokeh;
-  if (dots) context.drawImage(dots, 0, 0, CARD_W, CARD_H);
-  if (echo) context.drawImage(echo, ECHO.x, ECHO.y);
-  return element;
+let bareCard: Promise<HTMLCanvasElement | null> | null = null;
+
+/** The card's face, as `HubPane.vue`'s `.face` draws it below its top band and highlight, which never reach the mirror. Drawn once. */
+function drawCard(): Promise<HTMLCanvasElement | null> {
+  bareCard ??= (async () => {
+    const made = canvas(CARD_W, CARD_H);
+    if (!made) return null;
+    const [element, context] = made;
+    context.beginPath();
+    context.roundRect(0, 0, CARD_W, CARD_H, CARD_RADIUS);
+    context.clip();
+    const gradient = context.createLinearGradient(0, 0, 0, CARD_H);
+    for (const [at, color] of FACE_STOPS) gradient.addColorStop(at, color);
+    context.fillStyle = gradient;
+    context.fillRect(0, 0, CARD_W, CARD_H);
+    const dots = await decoded(cardBokeh);
+    if (dots) context.drawImage(dots, 0, 0, CARD_W, CARD_H);
+    return element;
+  })();
+  return bareCard;
 }
 
-/** The card flipped under itself and faded out, as the floor shows it. */
-function drawMirror(card: HTMLCanvasElement): HTMLCanvasElement | null {
-  const made = canvas(CARD_W, MIRROR.h);
+/** A region of the floor mirror: the card flipped under itself with an echo on it, faded out. */
+function drawMirror(
+  card: HTMLCanvasElement,
+  echo: HTMLCanvasElement | null,
+  region: { x: number; y: number; w: number; h: number },
+): HTMLCanvasElement | null {
+  const made = canvas(region.w, region.h);
   if (!made) return null;
   const [element, context] = made;
-  context.setTransform(1, 0, 0, -1, 0, CARD_H);
+  context.setTransform(1, 0, 0, -1, -region.x, CARD_H - region.y);
   context.drawImage(card, 0, 0);
+  if (echo) context.drawImage(echo, ECHO.x, ECHO.y);
   context.setTransform(1, 0, 0, 1, 0, 0);
-  fade(context, MIRROR.h, [
-    [0, MIRROR.opacity],
-    [1, 0],
-  ]);
+  fade(context, -region.y, MIRROR.h, MIRROR_FADE);
   return element;
-}
-
-function cut(mirror: HTMLCanvasElement): HTMLCanvasElement | null {
-  const made = canvas(PATCH.w, PATCH.h);
-  if (!made) return null;
-  made[1].drawImage(mirror, PATCH.x, PATCH.y, PATCH.w, PATCH.h, 0, 0, PATCH.w, PATCH.h);
-  return made[0];
 }
 
 let facing: Promise<void> | null = null;
@@ -173,9 +179,9 @@ let facing: Promise<void> | null = null;
 /** Draw the bare card's mirror once. */
 export function prepareFloor(): Promise<void> {
   facing ??= (async () => {
-    const card = await drawCard(null);
-    const mirror = card && drawMirror(card);
-    const patch = mirror && cut(mirror);
+    const card = await drawCard();
+    const mirror = card && drawMirror(card, null, { x: 0, y: 0, w: CARD_W, h: MIRROR.h });
+    const patch = card && drawMirror(card, null, PATCH);
     if (!mirror || !patch) return;
     mirror.getContext("2d")?.clearRect(PATCH.x, PATCH.y, PATCH.w, PATCH.h);
     const [face, patchUrl] = await Promise.all([keep(mirror), keep(patch)]);
@@ -187,10 +193,10 @@ export function prepareFloor(): Promise<void> {
 /** Scale one source and bake its reflections, and leave the source in place if anything refuses. */
 export async function prepareArt(url: string): Promise<void> {
   if (baked.has(url)) return;
-  const source = await decoded(url);
+  const [source, card] = await Promise.all([decoded(url), drawCard()]);
   const scaledCanvas = canvas(ART_PX, ART_PX);
   const echoCanvas = canvas(ECHO.w, ECHO.h);
-  if (!source || !scaledCanvas || !echoCanvas) return;
+  if (!source || !card || !scaledCanvas || !echoCanvas) return;
 
   const [scaled, context] = scaledCanvas;
   const fit = Math.min(ART_PX / source.naturalWidth, ART_PX / source.naturalHeight);
@@ -206,15 +212,13 @@ export async function prepareArt(url: string): Promise<void> {
   echoContext.setTransform(1, 0, 0, -1, 0, ECHO.h);
   echoContext.drawImage(scaled, 0, ECHO.h - ART_PX);
   echoContext.setTransform(1, 0, 0, 1, 0, 0);
-  fade(echoContext, ECHO.h, [
+  fade(echoContext, 0, ECHO.h, [
     [0, ECHO.opacity],
     [0.35, ECHO.opacity * 0.5],
     [1, 0],
   ]);
 
-  const card = await drawCard(echo);
-  const mirror = card && drawMirror(card);
-  const patch = mirror && cut(mirror);
+  const patch = drawMirror(card, echo, PATCH);
   if (!patch) return;
   const [art, echoUrl, floor] = await Promise.all([keep(scaled), keep(echo), keep(patch)]);
   if (art && echoUrl && floor) baked.set(url, { art, echo: echoUrl, floor });

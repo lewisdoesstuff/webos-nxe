@@ -398,16 +398,47 @@ const counter = computed(() =>
       : counterText(shown.value.item, shownRow.value.length),
 );
 
-/** Every pane's art, scaled to the size it is shown as soon as the apps load (`artCache.ts`). */
-void prepareFloor();
+function artOf(items: readonly HubItem[]): Set<string> {
+  return new Set(items.map((item) => paneArt(item)).filter((url) => url !== null));
+}
+
+/**
+ * The boot waits on black until the channel it hands over to has its art
+ * scaled and its reflections baked (`artCache.ts`), so that work and the row's
+ * first paint land before the run rather than in its frames. Capped, so a slow
+ * Luna never holds the boot for long.
+ */
+const BOOT_WAIT_MS = 4000;
+const bootReady = ref(false);
+setTimeout(() => (bootReady.value = true), BOOT_WAIT_MS);
+
+async function prepareShown(): Promise<void> {
+  await prepareFloor();
+  for (const url of artOf(rows.value[hub.value.channel] ?? [])) await prepareArt(url);
+  await nextFrame();
+  await nextFrame();
+  bootReady.value = true;
+}
+
+watch(loaded, (is) => is && void prepareShown(), { immediate: true });
+
+/** Every other channel's art, once the boot has finished, one a frame. */
+let baking = 0;
+async function bakeArt(): Promise<void> {
+  const mine = ++baking;
+  await prepareFloor();
+  for (const url of artOf(rows.value.flat())) {
+    if (mine !== baking) return;
+    await prepareArt(url);
+    await nextFrame();
+  }
+}
 watch(
-  () => apps.launchPoints,
-  (points) => {
-    for (const point of points) {
-      const url = paneArt(point);
-      if (url) void prepareArt(url);
-    }
+  [() => apps.launchPoints, booting],
+  ([, busy]) => {
+    if (!busy) void bakeArt();
   },
+  { immediate: true },
 );
 
 /**
@@ -819,6 +850,7 @@ function expose(): void {
       v-if="booting && bootMode !== 'off'"
       :key="boot"
       :mode="bootMode"
+      :play="bootReady"
       @done="onBootDone"
     />
   </main>

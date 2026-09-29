@@ -7,6 +7,8 @@ import GuideOverlay from "./components/GuideOverlay.vue";
 import HubPane from "./components/HubPane.vue";
 import PageLayer from "./components/PageLayer.vue";
 import PromptBar from "./components/PromptBar.vue";
+import { stepFocus } from "./focus/row";
+import { BLADE_COUNT, BLADE_IDS } from "./guide";
 import {
   BULLET_SIZE,
   BULLET_X,
@@ -134,8 +136,60 @@ const listed = computed(() => pageItems(rows.value[hub.value.channel] ?? []));
 
 const page = computed(() => channelPage(CHANNEL_ORDER[hub.value.channel] ?? "apps", listed.value));
 
-/** The Guide names the current channel's items, not its "All" pane. */
-const guideItems = computed(() => listed.value.map((row) => row.title));
+/**
+ * The Guide's blades, mapped onto this TV: Settings is the System channel,
+ * Games and Media are those channels, Marketplace is LG's store, and the
+ * gamertag blade, the scene data's `home`, is the Apps channel. It opens on
+ * Settings.
+ */
+const guideBlade = ref(BLADE_IDS.indexOf("settings"));
+const guideItem = ref(0);
+
+function channelItems(id: string) {
+  return pageItems(rows.value[CHANNEL_ORDER.indexOf(id as (typeof CHANNEL_ORDER)[number])] ?? []);
+}
+
+const guideRows = computed(() => {
+  switch (BLADE_IDS[guideBlade.value]) {
+    case "settings":
+      return channelItems("system");
+    case "games":
+      return channelItems("games");
+    case "media":
+      return channelItems("media");
+    case "marketplace":
+      return channelItems("apps").filter((row) => row.id === "com.webos.app.discovery");
+    default:
+      return channelItems("apps");
+  }
+});
+
+const guideItems = computed(() => guideRows.value.map((row) => row.title));
+
+function onGuideKey(event: KeyboardEvent): boolean {
+  const code = event.keyCode;
+  if (code === 37 || code === 39) {
+    guideBlade.value = (guideBlade.value + (code === 39 ? 1 : -1) + BLADE_COUNT) % BLADE_COUNT;
+    guideItem.value = 0;
+    playSound("cursor");
+    return true;
+  }
+  if (code === 38 || code === 40) {
+    guideItem.value = stepFocus(guideItem.value, code === 40 ? 1 : -1, guideRows.value.length);
+    playSound("cursor");
+    return true;
+  }
+  if (code === 13 || code === 404) {
+    const row = guideRows.value[guideItem.value];
+    if (!row) return true;
+    guide.value = false;
+    playSound("decide");
+    const target = launchTarget(row);
+    void apps.launch(target.id, { ...target.params });
+    return true;
+  }
+  return false;
+}
 
 function openPage(): void {
   pageFocus.value = ROOT_FOCUS;
@@ -347,6 +401,10 @@ const YELLOW = 405;
 
 function onKeyDown(event: KeyboardEvent): void {
   if (guide.value) {
+    if (onGuideKey(event)) {
+      event.preventDefault();
+      return;
+    }
     if (
       event.keyCode === 89 ||
       event.keyCode === 71 ||
@@ -471,7 +529,7 @@ function expose(): void {
     </div>
 
     <div class="frame" data-guide :style="frameStyle">
-      <GuideOverlay :open="guide" :blade="hub.channel" :items="guideItems" />
+      <GuideOverlay :open="guide" :blade="guideBlade" :item="guideItem" :items="guideItems" />
     </div>
 
     <!--

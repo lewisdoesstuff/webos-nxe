@@ -330,7 +330,8 @@ const CLOCK: Box = { x: CLOCK_X, y: CLOCK_Y, width: CLOCK_W, height: CLOCK_H };
   position: absolute;
   inset: 0;
   background: rgba(0, 0, 0, var(--dim));
-  opacity: 0;
+  /* Not 0: a layer at 0 drops its texture and is rebuilt mid-open (PERF-STATUS). */
+  opacity: 0.001;
   will-change: opacity;
   transition: opacity var(--open-ms) cubic-bezier(0.215, 0.61, 0.355, 1);
 }
@@ -349,7 +350,7 @@ const CLOCK: Box = { x: CLOCK_X, y: CLOCK_Y, width: CLOCK_W, height: CLOCK_H };
   left: var(--chrome-x);
   width: var(--chrome-w);
   height: var(--chrome-h);
-  opacity: 0;
+  opacity: 0.001;
   transform: translate3d(0, var(--rise), 0);
   will-change: transform, opacity;
   transition:
@@ -425,8 +426,11 @@ const CLOCK: Box = { x: CLOCK_X, y: CLOCK_Y, width: CLOCK_W, height: CLOCK_H };
  * siblings of the rows rather than their parent so that every box in the chrome
  * is placed in one coordinate space.
  */
+/* Promoted at rest: it paints over the animating slabs, so the compositor
+   would otherwise split it into a layer of its own mid-open. */
 .panel {
   position: absolute;
+  will-change: transform;
   border-radius: 6px;
   background: linear-gradient(180deg, #24364b 0%, #1b2a3b 100%);
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.55);

@@ -10,3 +10,4 @@ __pycache__/
 docs/refs/
 .openchamber/
 .claude/worktrees/
+app/src/avatar/local/

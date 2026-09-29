@@ -50,6 +50,9 @@ export interface AvatarOptions {
   readonly onClip?: (clip: string) => void;
 }
 
+/** A held prop's mesh. Retail's hub avatar stands empty-handed. */
+const CARRYABLE = /^carryable:/;
+
 /** Seconds a clip takes to blend into the next. */
 const BLEND_S = 0.35;
 
@@ -134,12 +137,15 @@ export class AvatarRenderer {
     const gltf = await new GLTFLoader().loadAsync(url);
     if (this.released) return;
     const model = gltf.scene;
+    const props: Object3D[] = [];
     model.traverse((node) => {
+      if (CARRYABLE.test(node.name)) props.push(node);
       if (!(node instanceof Mesh)) return;
       node.frustumCulled = false;
       const materials: Material[] = Array.isArray(node.material) ? node.material : [node.material];
       materials.forEach(unmetal);
     });
+    for (const prop of props) prop.removeFromParent();
     this.scene.add(model);
 
     this.mixer = new AnimationMixer(model);
@@ -171,7 +177,7 @@ export class AvatarRenderer {
     this.camera.position.set(centre.x, place.height, centre.z + place.distance);
     this.camera.lookAt(centre.x, place.height, centre.z);
 
-    const width = Math.max(size.x, size.z) * 1.1;
+    const width = Math.max(size.x, size.z) * 0.8;
     const shadow = new Mesh(
       new PlaneGeometry(width, width * 0.45),
       new MeshBasicMaterial({ map: shadowTexture(), transparent: true, depthWrite: false }),

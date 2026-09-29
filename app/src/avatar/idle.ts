@@ -3,12 +3,29 @@
  *
  * Retail stands the avatar in one resting loop and, every few loops, plays one
  * of the console's idle clips once before settling back: it looks around,
- * shifts its weight, checks its hand, waves. The clip names are the console's
- * own keys, which a 360sona export carries through as the glTF animation
- * names, sometimes with a prefix or suffix, so they are matched by substring.
+ * shifts its weight, checks its hand, waves. A 360sona export names its clips
+ * by the photo booth's captions ("Just... standing around"), and other tools
+ * by the console's keys ("GenericStand5"), so both are matched: a caption
+ * exactly, a key anywhere in the name. A prop's own clip ("Prop: Snow Golem")
+ * is never an idle.
  *
  * Pure: the renderer asks what to play next and plays it.
  */
+
+/** The photo booth's caption for each key, from 360sona's `photobooth-animations.json`. */
+export const CAPTIONS: Readonly<Record<string, readonly string[]>> = {
+  GenericStand5: ["Just... standing around"],
+  GenericStand6: ["What's that down there?"],
+  GenericStand7: ["Ahhh..."],
+  GenericWave: ["Hello there!"],
+  IdleLooksAround: ["Look around"],
+  IdleShiftsWeight: ["..."],
+  IdleChecksHand: ["Bling check"],
+  IdleFixesShoe: ["Stretch", "Shoes!"],
+  Yawn: ["*Yawn*"],
+};
+
+const PROP = /^Prop:/;
 
 /** The resting loop, best first. */
 export const REST_KEYS = ["GenericStand5", "GenericStand", "Stand"] as const;
@@ -41,11 +58,16 @@ export interface IdleStep {
 }
 
 function find(names: readonly string[], key: string): string | undefined {
-  return names.find((name) => name === key) ?? names.find((name) => name.includes(key));
+  const captions = CAPTIONS[key] ?? [];
+  return (
+    names.find((name) => name === key || captions.includes(name)) ??
+    names.find((name) => name.includes(key))
+  );
 }
 
 /** Pick the rest loop and the idles out of whatever clips the model carries. */
-export function planIdle(names: readonly string[]): IdlePlan | null {
+export function planIdle(all: readonly string[]): IdlePlan | null {
+  const names = all.filter((name) => !PROP.test(name));
   if (names.length === 0) return null;
   let rest: string | undefined;
   for (const key of REST_KEYS) {

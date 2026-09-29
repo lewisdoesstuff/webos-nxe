@@ -22,6 +22,27 @@ describe("planIdle", () => {
     expect(plan).toEqual({ rest: "anim_GenericStand5_m", idles: ["anim_GenericWave_m"] });
   });
 
+  it("reads a 360sona export's captions", () => {
+    const names = [
+      "Prop: Snow Golem",
+      "Hello there!",
+      "Just... standing around",
+      "Ahhh...",
+      "...",
+      "Look around",
+      "Hahaha!",
+    ];
+    expect(planIdle(names)).toEqual({
+      rest: "Just... standing around",
+      idles: ["Look around", "...", "Ahhh...", "Hello there!"],
+    });
+  });
+
+  it("never rests or idles on a prop's clip", () => {
+    expect(planIdle(["Prop: Snow Golem", "a"])).toEqual({ rest: "a", idles: [] });
+    expect(planIdle(["Prop: Snow Golem"])).toBeNull();
+  });
+
   it("falls back to the first clip and the others when nothing is known", () => {
     expect(planIdle(["a", "b", "c"])).toEqual({ rest: "a", idles: ["b", "c"] });
   });

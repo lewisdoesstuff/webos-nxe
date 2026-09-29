@@ -10,6 +10,7 @@ import {
   type Page,
   type PageFocus,
 } from "../pages";
+import { PARKED, useParked } from "../parked";
 import type { Box } from "../ribbon";
 import { SETTINGS_ROWS, settingsWindow, type SettingDetail } from "../settingsScreen";
 
@@ -37,6 +38,8 @@ const props = defineProps<{
 
 /** The retail panel, measured off the 1280x720 settings frames. */
 const PANEL: Box = { x: 196, y: 111, width: 889, height: 481 };
+
+const parked = useParked(() => props.open, DRILL_MS);
 
 const rest = computed(() => pageRest(props.rest ?? HUB_PANEL_BOX, PANEL));
 
@@ -96,7 +99,12 @@ const withIcons = computed(() => items.value.some((item) => item.icon !== undefi
 </script>
 
 <template>
-  <div class="settings" :data-page="page.id" :data-open="open || undefined">
+  <div
+    class="settings"
+    :data-page="page.id"
+    :data-open="open || undefined"
+    :style="{ transform: parked ? PARKED : 'none' }"
+  >
     <span class="title" :style="titleStyle">{{ page.title }}</span>
 
     <div class="panel" :style="panelStyle">
@@ -146,7 +154,7 @@ const withIcons = computed(() => items.value.some((item) => item.icon !== undefi
   white-space: nowrap;
   text-shadow: 0 2px 3px rgba(0, 0, 0, 0.5);
   opacity: 0.001;
-  will-change: opacity;
+  will-change: transform, opacity;
   transition: opacity var(--drill-ms) var(--drill-out);
 }
 

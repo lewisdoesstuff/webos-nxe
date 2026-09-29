@@ -11,6 +11,7 @@ import {
   TITLE_X,
 } from "../pageRow";
 import { artTint, initialsFor, paneArt, type PaneItem } from "../panel";
+import { PARKED, useParked } from "../parked";
 
 /**
  * A drilled page: its title and a row of panes receding like the hub's.
@@ -27,6 +28,8 @@ const props = defineProps<{
   focus: number;
   open: boolean;
 }>();
+
+const parked = useParked(() => props.open, 150);
 
 const pool = computed(() => placePool(props.focus, props.items.length, pageSlot, PAGE_POOL_SIZE));
 
@@ -72,7 +75,7 @@ const titleStyle = computed((): Record<string, string> => ({
 </script>
 
 <template>
-  <div class="page" :data-open="open || undefined">
+  <div class="page" :data-open="open || undefined" :style="{ transform: parked ? PARKED : 'none' }">
     <span class="title" :style="titleStyle">{{ title }}</span>
     <div class="pane" v-for="pane in pool" :key="pane.element" :style="[paneBox, paneStyle(pane)]">
       <div class="clip">
@@ -106,7 +109,8 @@ const titleStyle = computed((): Record<string, string> => ({
 }
 
 /* Text alone at rest opacity is never drawn, so it would allocate on first open;
-   a background too faint to see keeps its texture from the start. */
+   a background too faint to see keeps its texture from the start, and
+   will-change: transform keeps it rastered while the page is parked. */
 .title {
   position: absolute;
   color: #fff;
@@ -114,7 +118,7 @@ const titleStyle = computed((): Record<string, string> => ({
   white-space: nowrap;
   text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.5);
   background: rgba(0, 0, 0, 0.004);
-  will-change: opacity;
+  will-change: transform, opacity;
   transition: opacity 150ms linear;
 }
 

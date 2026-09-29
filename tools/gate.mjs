@@ -21,8 +21,8 @@
  * coverage number is a consequence of passing, not the thing to assert.
  *
  * Needs a real compositor, so it will not run against old headless Chrome, which
- * builds no layer tree at all (`--headless=new` has one; AGENTS.md has the flags) and makes this exit 2 rather than pass. It is built
- * for the TV, which has one and a CDP endpoint on :9998. Coverage measured
+ * builds no layer tree at all and makes this exit 2 rather than pass;
+ * `--headless=new` has one, and AGENTS.md has the flags. It is built for the TV, which has one and a CDP endpoint on :9998. Coverage measured
  * locally is about seven times faster than the TV's and means nothing; the
  * layer set and its byte counts are geometry and do carry over.
  *

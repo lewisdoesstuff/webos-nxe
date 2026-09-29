@@ -803,23 +803,23 @@ function expose(): void {
     ),
     radial-gradient(
       ellipse 34% 60% at 96% 100%,
-      rgba(250, 250, 150, 0.95) 0%,
-      rgba(230, 240, 90, 0.6) 45%,
-      rgba(230, 240, 90, 0) 100%
+      rgba(228, 242, 190, 0.85) 0%,
+      rgba(200, 225, 130, 0.45) 45%,
+      rgba(200, 225, 130, 0) 100%
     ),
     radial-gradient(
-      ellipse 46% 50% at 62% 78%,
-      rgba(236, 248, 110, 0.85) 0%,
-      rgba(236, 248, 110, 0) 100%
+      ellipse 40% 45% at 52% 82%,
+      rgba(204, 232, 120, 0.7) 0%,
+      rgba(204, 232, 120, 0) 100%
     ),
     radial-gradient(
-      ellipse 42% 45% at 60% 45%,
-      rgba(190, 210, 190, 0.5) 0%,
-      rgba(190, 210, 190, 0) 100%
+      ellipse 58% 72% at 72% 58%,
+      rgba(122, 162, 132, 0.95) 0%,
+      rgba(122, 162, 132, 0) 100%
     ),
     radial-gradient(ellipse 34% 55% at 100% 0%, rgba(4, 12, 6, 0.9) 0%, rgba(4, 12, 6, 0) 100%),
-    radial-gradient(ellipse 75% 85% at 0% 0%, rgba(8, 40, 0, 0.95) 0%, rgba(8, 40, 0, 0) 100%),
-    linear-gradient(180deg, #2f6a08 0%, #7db510 45%, #b4d64a 100%);
+    radial-gradient(ellipse 62% 75% at 0% 0%, rgba(8, 40, 0, 0.9) 0%, rgba(8, 40, 0, 0) 100%),
+    linear-gradient(180deg, #3a7a0a 0%, #8cc218 45%, #b4d64a 100%);
 }
 
 /* The floor's horizon is lit and its top is dark slate, brightest a third of

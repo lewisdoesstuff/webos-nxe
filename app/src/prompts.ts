@@ -26,19 +26,27 @@ export interface Prompt {
   readonly label: string | null;
 }
 
-/** The Xbox face-button colours, from the 2005-2008 dashboard. */
+/** The face-button colours, measured off retail 9199 (t062, t066, t144). */
 export const BUTTON_FILL: Readonly<Record<Button, string>> = {
-  a: "#5EAE4C",
-  b: "#DA2229",
-  x: "#1E6FBF",
-  y: "#E8C22C",
+  a: "#5DBB0C",
+  b: "#D41010",
+  x: "#1468E0",
+  y: "#FFE000",
 };
 
 export const BUTTON_RING: Readonly<Record<Button, string>> = {
-  a: "#2C6E28",
-  b: "#8C1A1E",
-  x: "#12457A",
-  y: "#96770E",
+  a: "#2A6A06",
+  b: "#8A0C10",
+  x: "#0F428F",
+  y: "#A08000",
+};
+
+/** The embossed letter, a deep shade of the badge's own hue. */
+export const BUTTON_GLYPH: Readonly<Record<Button, string>> = {
+  a: "#0F3000",
+  b: "#3A0004",
+  x: "#04204F",
+  y: "#4A3800",
 };
 
 /** Glyph disc diameter, 720p. The Guide's `B` disc measured about 22px. */

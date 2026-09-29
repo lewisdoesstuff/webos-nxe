@@ -1,6 +1,18 @@
 import { describe, expect, it } from "vitest";
 
-import { initialsFor, paneArt } from "./panel";
+import { artTint, initialsFor, paneArt } from "./panel";
+
+describe("artTint", () => {
+  it("washes a hued colour", () => {
+    expect(artTint("#4faa6e").top).toBe("rgba(79, 170, 110, 0.38)");
+  });
+  it("stays neutral for missing, white, black and junk", () => {
+    const neutral = artTint(undefined);
+    expect(artTint("#FFFFFF")).toEqual(neutral);
+    expect(artTint("#000000")).toEqual(neutral);
+    expect(artTint("red")).toEqual(neutral);
+  });
+});
 
 describe("paneArt", () => {
   it("prefers the largest icon", () => {

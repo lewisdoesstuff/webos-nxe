@@ -26,7 +26,7 @@ const GUIDE: Record<Button, string> = {
 
 /** A fill and a ring, and the hue the research says each button's is. */
 const HUES: readonly (readonly [Button, number])[] = [
-  ["a", 109],
+  ["a", 92],
   ["b", 358],
   ["x", 210],
   ["y", 48],

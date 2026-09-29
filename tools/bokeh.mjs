@@ -82,17 +82,17 @@ function card() {
       const r = 4 + rand() * rMax;
       if (!free(x, y, r)) continue;
       const tone = rand() < 0.3 ? "255,255,120" : "255,255,255";
-      if (rand() < 0.35) dot(rand, x, y, r * 0.6, tone, 0.1 + rand() * 0.08, parts);
-      else ring(rand, x, y, r, tone, 0.14 + rand() * 0.1, parts);
+      if (rand() < 0.35) dot(rand, x, y, r * 0.6, tone, 0.07 + rand() * 0.06, parts);
+      else ring(rand, x, y, r, tone, 0.1 + rand() * 0.07, parts);
     }
   };
-  cluster(80, 420, 200, 130, 34, 18);
-  cluster(550, 260, 160, 420, 60, 16);
-  cluster(60, 90, 130, 130, 10, 26);
-  cluster(520, 60, 170, 110, 12, 22);
-  cluster(315, 420, 300, 90, 14, 12);
-  ring(rand, 60, 380, 62, "255,255,255", 0.2, parts);
-  ring(rand, 585, 330, 44, "255,255,255", 0.16, parts);
+  cluster(80, 420, 200, 130, 20, 18);
+  cluster(550, 260, 160, 420, 34, 16);
+  cluster(60, 90, 130, 130, 6, 26);
+  cluster(520, 60, 170, 110, 7, 22);
+  cluster(315, 420, 300, 90, 8, 12);
+  ring(rand, 60, 380, 62, "255,255,255", 0.16, parts);
+  ring(rand, 585, 330, 44, "255,255,255", 0.13, parts);
   ring(rand, 585, 60, 40, "255,255,200", 0.18, parts);
   return `<svg xmlns="http://www.w3.org/2000/svg" width="630" height="480" viewBox="0 0 630 480" fill="none">\n${parts.join("\n")}\n</svg>\n`;
 }

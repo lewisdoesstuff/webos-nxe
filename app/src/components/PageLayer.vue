@@ -147,7 +147,7 @@ const group = computed(() => groupTitle(props.page, props.focus));
           v-for="row in list"
           :key="row.index"
           class="row"
-          :data-focused="row.focused"
+          :data-focused="row.focused || undefined"
           :style="rowStyle(row)"
         >
           <span class="row-label">{{ row.label }}</span>

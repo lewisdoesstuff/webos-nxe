@@ -39,6 +39,7 @@ const handlers: Record<string, (params: LunaParams) => unknown> = {
   "com.webos.applicationManager/launch": (params) => ({
     returnValue: true,
     appId: params["id"],
+    params: params["params"] ?? {},
   }),
 };
 

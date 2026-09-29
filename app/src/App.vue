@@ -972,9 +972,13 @@ function expose(): void {
 
 .counter {
   position: absolute;
-  color: rgba(255, 255, 255, 0.85);
-  font-size: 24px;
-  line-height: 30px;
+  color: #56626c;
+  font-size: 30px;
+  line-height: 36px;
+}
+
+.stage[data-page] .counter {
+  color: rgba(236, 241, 245, 0.9);
 }
 
 .card {
@@ -983,33 +987,33 @@ function expose(): void {
   flex-direction: column;
   align-items: flex-end;
   color: #fff;
-  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.45);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 
 .tag {
-  font-size: 40px;
-  line-height: 48px;
+  font-size: 45px;
+  line-height: 52px;
 }
 
 .score {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 34px;
-  line-height: 40px;
+  gap: 9px;
+  font-size: 42px;
+  line-height: 48px;
 }
 
 .coin {
   display: inline-block;
-  width: 33px;
-  height: 33px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
-  background: radial-gradient(circle at 50% 30%, #fff 0%, #c9cfd3 60%, #8d979d 100%);
+  background: radial-gradient(circle at 50% 30%, #fff 0%, #f0f3f4 60%, #cfd6da 100%);
   color: #4a5258;
-  font-size: 21px;
+  font-size: 24px;
   font-style: normal;
   font-weight: 700;
-  line-height: 33px;
+  line-height: 36px;
   text-align: center;
   text-shadow: none;
 }

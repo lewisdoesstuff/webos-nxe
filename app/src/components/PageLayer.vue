@@ -10,7 +10,7 @@ import {
   TITLE_CENTRE_Y,
   TITLE_X,
 } from "../pageRow";
-import { initialsFor, paneArt, type PaneItem } from "../panel";
+import { artTint, initialsFor, paneArt, type PaneItem } from "../panel";
 
 /**
  * A drilled page: its title and a row of panes receding like the hub's.
@@ -46,6 +46,24 @@ function paneStyle(pane: PooledPane): Record<string, string> {
   };
 }
 
+function focused(pane: PooledPane): boolean {
+  return props.open && pane.item !== null && pane.item === props.focus;
+}
+
+function focusStyle(pane: PooledPane, shown: number): Record<string, string> {
+  return { opacity: `${focused(pane) ? shown : HIDDEN}` };
+}
+
+function artStyle(pane: PooledPane): Record<string, string> {
+  const tint = artTint(itemOf(pane)?.iconColor);
+  return { background: `linear-gradient(180deg, ${tint.top}, ${tint.bottom})` };
+}
+
+function detail(pane: PooledPane): string {
+  const id = itemOf(pane)?.id ?? "";
+  return id.includes(".") ? id : "";
+}
+
 const paneBox = { width: `${PAGE_PANE_W}px`, height: `${PAGE_PANE_H}px` };
 
 const titleStyle = computed((): Record<string, string> => ({
@@ -62,13 +80,21 @@ const titleStyle = computed((): Record<string, string> => ({
   <div class="page" :data-open="open || undefined">
     <span class="title" :style="titleStyle">{{ title }}</span>
     <div class="pane" v-for="pane in pool" :key="pane.element" :style="[paneBox, paneStyle(pane)]">
-      <span class="name">{{ itemOf(pane)?.title ?? "" }}</span>
-      <div class="art">
-        <img v-if="itemOf(pane) && paneArt(itemOf(pane)!)" :src="paneArt(itemOf(pane)!)!" alt="" />
-        <span v-else class="initial">{{ initialsFor(itemOf(pane)?.title ?? "") }}</span>
+      <div class="clip">
+        <span class="name">{{ itemOf(pane)?.title ?? "" }}</span>
+        <div class="art" :style="artStyle(pane)">
+          <img v-if="itemOf(pane) && paneArt(itemOf(pane)!)" :src="paneArt(itemOf(pane)!)!" alt="" />
+          <span v-else class="initial">{{ initialsFor(itemOf(pane)?.title ?? "") }}</span>
+        </div>
+        <p class="body">{{ detail(pane) }}</p>
       </div>
-      <p class="body">{{ itemOf(pane) ? `Opens ${itemOf(pane)!.title} on this TV.` : "" }}</p>
-      <div class="go"><span>Launch</span></div>
+      <div class="go" :style="focusStyle(pane, 1)"><span>Launch</span></div>
+      <div class="mirror" :style="focusStyle(pane, 0.24)">
+        <div class="flip" :style="paneBox">
+          <div class="skin" />
+          <div class="go static" />
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -95,6 +121,15 @@ const titleStyle = computed((): Record<string, string> => ({
   position: absolute;
   top: 0;
   left: 0;
+  color: #fff;
+  transform-origin: 0 0;
+  will-change: transform, opacity;
+}
+
+.clip,
+.skin {
+  position: absolute;
+  inset: 0;
   overflow: hidden;
   border-radius: 3px;
   background: linear-gradient(
@@ -105,12 +140,9 @@ const titleStyle = computed((): Record<string, string> => ({
     #142833 80%,
     #10212d 100%
   );
-  color: #fff;
-  transform-origin: 0 0;
-  will-change: transform, opacity;
 }
 
-.pane::after {
+.clip::after {
   content: "";
   position: absolute;
   inset: 0;
@@ -136,20 +168,33 @@ const titleStyle = computed((): Record<string, string> => ({
   top: 108px;
   left: 51px;
   right: 51px;
-  height: 180px;
+  height: 236px;
   overflow: hidden;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.03));
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.16);
+}
+
+.art::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    172deg,
+    rgba(255, 255, 255, 0.16) 0%,
+    rgba(255, 255, 255, 0.04) 46%,
+    rgba(255, 255, 255, 0) 47%
+  );
 }
 
 .art img {
   position: absolute;
-  top: 12px;
+  top: 24px;
   left: 50%;
-  width: 156px;
-  height: 156px;
-  margin-left: -78px;
-  border-radius: 24px;
+  width: 188px;
+  height: 188px;
+  margin-left: -94px;
+  border-radius: 30px;
   object-fit: cover;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.45);
 }
 
 .initial {
@@ -164,13 +209,16 @@ const titleStyle = computed((): Record<string, string> => ({
 
 .body {
   position: absolute;
-  top: 318px;
+  top: 366px;
   left: 51px;
   right: 51px;
   margin: 0;
-  font-size: 28px;
-  line-height: 39px;
-  color: rgba(255, 255, 255, 0.92);
+  overflow: hidden;
+  font-size: 23px;
+  line-height: 32px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: rgba(255, 255, 255, 0.55);
 }
 
 .go {
@@ -181,6 +229,8 @@ const titleStyle = computed((): Record<string, string> => ({
   height: 70px;
   overflow: hidden;
   border-radius: 3px;
+  will-change: opacity;
+  transition: opacity 150ms linear;
   background: linear-gradient(
     180deg,
     #a9d07f 0%,
@@ -189,6 +239,33 @@ const titleStyle = computed((): Record<string, string> => ({
     #57a308 78%,
     #72b71d 100%
   );
+}
+
+.go.static {
+  bottom: 32px;
+  will-change: auto;
+  transition: none;
+}
+
+.mirror {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  height: 110px;
+  margin-top: 3px;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(180deg, #000 0%, transparent 100%);
+  mask-image: linear-gradient(180deg, #000 0%, transparent 100%);
+  will-change: opacity;
+  transition: opacity 150ms linear;
+}
+
+.flip {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform: scaleY(-1);
 }
 
 .go::before {

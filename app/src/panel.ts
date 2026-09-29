@@ -34,3 +34,20 @@ export function paneArt(item: PaneItem): string | null {
 export function initialsFor(title: string): string {
   return title.trim().slice(0, 1).toUpperCase();
 }
+
+/**
+ * The colours of a page pane's art frame, from the item's `iconColor`: a dim
+ * wash of that hue over the slate, lighter at the top. Neutral when the colour
+ * is missing, unparsable, white or black, since those carry no hue.
+ */
+export function artTint(color: string | undefined): { top: string; bottom: string } {
+  const neutral = { top: "rgba(255, 255, 255, 0.12)", bottom: "rgba(255, 255, 255, 0.03)" };
+  const hex = /^#([0-9a-f]{6})$/i.exec((color ?? "").trim());
+  if (!hex) return neutral;
+  const n = parseInt(hex[1]!, 16);
+  const r = (n >> 16) & 255;
+  const g = (n >> 8) & 255;
+  const b = n & 255;
+  if (Math.max(r, g, b) - Math.min(r, g, b) < 24) return neutral;
+  return { top: `rgba(${r}, ${g}, ${b}, 0.38)`, bottom: `rgba(${r}, ${g}, ${b}, 0.1)` };
+}

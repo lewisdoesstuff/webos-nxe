@@ -888,10 +888,10 @@ function expose(): void {
     transform: scale(var(--from));
     opacity: 0.001;
   }
-  30% {
+  12% {
     opacity: var(--peak);
   }
-  60% {
+  75% {
     opacity: var(--peak);
   }
   100% {

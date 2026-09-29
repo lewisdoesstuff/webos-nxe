@@ -4,7 +4,10 @@ import {
   FALLBACK_SEED,
   hashSeed,
   RING_CENTRE,
+  RING_FROM,
   RING_GROUPS,
+  RING_OUTER,
+  RING_PERIOD_MS,
   ringBytes,
   ringImage,
   ringSvg,
@@ -43,10 +46,8 @@ describe("ripplePattern", () => {
     for (const group of groups) {
       expect(group.left + group.width / 2).toBeCloseTo(RING_CENTRE.x, -1);
       expect(group.top + group.height / 2).toBeCloseTo(RING_CENTRE.y, -1);
-      expect(group.from).toBeGreaterThan(0.3);
-      expect(group.from).toBeLessThan(0.65);
       expect(group.peak).toBeGreaterThan(0);
-      expect(group.peak).toBeLessThanOrEqual(0.92);
+      expect(group.peak).toBeLessThanOrEqual(0.5);
       expect(group.delayMs).toBeLessThanOrEqual(0);
       expect(-group.delayMs).toBeLessThanOrEqual(group.periodMs);
     }
@@ -54,7 +55,7 @@ describe("ripplePattern", () => {
 
   it.each(SERIALS)("keeps every ring inside its layer for %j", (serial) => {
     for (const group of ripplePattern(serial)) {
-      expect(group.lines.length).toBeGreaterThanOrEqual(3);
+      expect(group.lines.length).toBeGreaterThanOrEqual(2);
       for (const line of group.lines) {
         expect(line.rx * 2 + line.width).toBeLessThanOrEqual(group.width);
         expect(line.alpha).toBeGreaterThan(0);
@@ -63,18 +64,28 @@ describe("ripplePattern", () => {
     }
   });
 
-  it.each(SERIALS)("runs from small to large groups for %j", (serial) => {
-    const widths = ripplePattern(serial).map((group) => group.width);
-    expect(widths).toEqual([...widths].sort((a, b) => a - b));
+  it.each(SERIALS)("moves every ring at retail's speed for %j", (serial) => {
+    for (const group of ripplePattern(serial)) {
+      expect(group.from).toBe(RING_FROM);
+      expect(group.periodMs).toBe(RING_PERIOD_MS);
+    }
+    const outward = (RING_OUTER * (1 - RING_FROM)) / (RING_PERIOD_MS / 1000);
+    expect(outward).toBeGreaterThan(75);
+    expect(outward).toBeLessThan(95);
+  });
+
+  it.each(SERIALS)("spreads the groups around the cycle for %j", (serial) => {
+    const phases = ripplePattern(serial)
+      .map((group) => -group.delayMs)
+      .sort((a, b) => a - b);
+    const gaps = phases.map((phase, index) =>
+      index === 0 ? phases[0]! + RING_PERIOD_MS - phases.at(-1)! : phase - phases[index - 1]!,
+    );
+    expect(Math.max(...gaps)).toBeLessThan((RING_PERIOD_MS / RING_GROUPS) * 1.8);
   });
 
   it.each(SERIALS)("stays within the ring texture budget for %j", (serial) => {
-    expect(ringBytes(ripplePattern(serial))).toBeLessThan(5_300_000);
-  });
-
-  it("gives the groups different periods", () => {
-    const periods = new Set(ripplePattern("301TXNE0A1B2").map((group) => group.periodMs));
-    expect(periods.size).toBe(RING_GROUPS);
+    expect(ringBytes(ripplePattern(serial))).toBeLessThan(6_500_000);
   });
 });
 

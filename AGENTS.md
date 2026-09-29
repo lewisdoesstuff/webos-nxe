@@ -13,17 +13,20 @@ deploy — and `../weboshome-web/PLAN.md` before that.
 
 ## Read first
 
-- [`docs/STATUS.md`](./docs/STATUS.md) — **where this is, what is verified and
-  what is not, and what to do next.** Start here.
+- [`docs/STATUS.md`](./docs/STATUS.md) — **where this is and what is verified.**
+  Start here.
+- [`docs/PLAN.md`](./docs/PLAN.md) — **what is left**, split into small feature
+  tasks and design tasks.
+- [`docs/REFERENCES.md`](./docs/REFERENCES.md) — the retail frames and what they
+  settle. `tools/refs.sh` rebuilds them; `tools/compare.mjs` compares against
+  them. **Check every visual change against a frame.**
 - [`docs/PERF.md`](./docs/PERF.md) — the measured bandwidth ceiling and the rules
   that follow from it. **The design rests on this; read it before touching the
   DOM.**
-- [`docs/DESIGN-HUB.md`](./docs/DESIGN-HUB.md) — the pane, the channel column and
-  the spill, specified and not yet implemented. The art is the biggest remaining
-  gap and this is the spec that closes it.
-- [`docs/research/NXE-XUI.md`](./docs/research/NXE-XUI.md) — every layout number,
-  read out of retail build 9199's scene graphs. **Section 1a is the correction;
-  section 1 above it is superseded and will mislead you.**
+- [`docs/research/NXE-XUI.md`](./docs/research/NXE-XUI.md) — numbers read out of
+  retail build 9199's scene graphs. **`GuideMain.xui` is the Guide overlay, not
+  the hub**; the hub is measured off frames (REFERENCES.md). `DESIGN-HUB.md`
+  predates that finding: its surface ideas hold, its geometry does not.
 - [`docs/research/NXE-EXISTING.md`](./docs/research/NXE-EXISTING.md) — where
   those numbers came from, the corroborating recreations, and the licensing
   position.
@@ -69,7 +72,10 @@ deploy — and `../weboshome-web/PLAN.md` before that.
 
 ```
 app/src/
-  App.vue              the shell: hub ribbon, panel, keyboard
+  App.vue              the shell: channel list, pane row, page, Guide, keys
+  hub.ts               hub geometry and navigation, pure
+  hubRows.ts           synthetic rows: System settings panes, "All" panes
+  boot*.ts             the WebGL boot: timing, keyframes, shader, theme
   paths.ts             the `hack` prefix, for reaching outside the app directory
   luna.ts, mock/       the typed Luna wrapper and its desktop mock
   stores/              apps (launch points) and persisted settings
@@ -83,7 +89,9 @@ tools/
   layers.mjs           compositor layer tree, sizes, per-element histogram
   trace.mjs            Chromium timeline
   eval.mjs             run an expression in the page over CDP
-  capture.mjs          screenshot with key presses
+  capture.mjs          screenshot the TV with key presses
+  compare.mjs          screenshot the dev build beside a reference frame
+  refs.sh              rebuild docs/refs/ from the source videos
   deploy.sh            build and sync into the installed dir
   restart.sh           closeByAppId and launch
 ```
@@ -147,6 +155,9 @@ node tools/capture.mjs --keys 39 --state --shot /tmp/s.png
 
 ## Test locally
 
-`bun run dev`, then open the dev URL. Arrow keys move along the ribbon, Enter
-selects. The design is a fixed 1280x720, so a preview window that is not 16:9
-will crop it — that is the window's shape, not a layout bug.
+`bun run dev`, then open `http://localhost:5173/?boot=off` (`?boot=full` plays
+the boot; `?boot=full&at=<ms>` freezes it). Up/down change channel, left/right
+move along the row, Page Up/Down page, Enter is A, Esc/Backspace is B, `G` opens
+the Guide, `Y` replays the boot. The mock serves the TV's real launch points and
+icons from `mock-tv/`. The stage is 1920x1080; a window that is not 16:9 crops
+it.

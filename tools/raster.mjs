@@ -112,11 +112,6 @@ await sleep(400);
 const { result } = await send("LayerTree.getLayerTree");
 const layers = cached.length ? cached : (result?.layers ?? []);
 
-const probes = layers.filter((l) => {
-  if (l.drawsContent === false || !l.backendNodeId) return false;
-  return true;
-});
-
 console.log(`\n  dpr ${info.dpr}${forcedDpr ? ` (forced from ${flag("dpr", "?")})` : ""}`);
 console.log(
   `  inner ${info.inner.join("x")}  outer ${info.outer.join("x")}  screen ${info.screen.join("x")}`,

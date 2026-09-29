@@ -421,6 +421,20 @@ export function bootFrameAt(ms: number, timing: BootTiming): BootFrame {
   };
 }
 
+/**
+ * The master frame a clock reading draws, as a fraction of a frame.
+ *
+ * The lead-in runs at the master's own rate whatever the mode, and every frame
+ * after it at `timing.rate` times that, so the short boot is the same frames
+ * faster. Clamped to the settled frame, which is what the hold and the handover
+ * show. At full rate, master frame N is at N * 1000 / 60 ms.
+ */
+export function bootMasterFrame(ms: number, timing: BootTiming): number {
+  const at = Math.max(Number.isFinite(ms) ? ms : 0, 0);
+  if (at < LEAD_IN_MS) return at / FRAME_MS;
+  return Math.min(SETTLED_FRAME, FIRST_LIGHT_FRAME + ((at - LEAD_IN_MS) * timing.rate) / FRAME_MS);
+}
+
 /** Where the playhead is, and which stages it has actually entered. */
 export interface BootState {
   /** Milliseconds from the start of the run. Never decreases. */

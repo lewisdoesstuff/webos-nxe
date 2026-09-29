@@ -52,9 +52,13 @@ const browser = spawn(
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-function finish(code) {
+async function finish(code) {
   browser.kill();
-  rmSync(profile, { recursive: true, force: true });
+  await new Promise((resolve) => {
+    if (browser.exitCode !== null) resolve();
+    else browser.once("exit", resolve);
+  });
+  rmSync(profile, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
   process.exit(code);
 }
 

@@ -1,0 +1,111 @@
+/**
+ * Everything brand-specific about the boot, in one object.
+ *
+ * The shader draws a sphere, a mark cut into its face, the light that comes
+ * out of the mark, a field behind it and a settled lockup of two textures. It
+ * knows nothing about Xbox: the colours, the sphere's material, the mark's
+ * geometry and the two textures all come from here, so a re-theme is a second
+ * object of this shape and no GLSL.
+ *
+ * Colours are linear 0..1 RGB triples, sampled off the timing master
+ * (`dkKAW_GXXZk`) where a frame shows them clean.
+ */
+
+import markUrl from "./assets/boot/mark.png?inline";
+import orbUrl from "./assets/boot/orb.png?inline";
+
+export type Rgb = readonly [number, number, number];
+
+/** A texture and where its subject sits inside it, in texture units. */
+export interface BootTexture {
+  readonly url: string;
+  /** Pixel size of the image, so the aspect is known before it loads. */
+  readonly width: number;
+  readonly height: number;
+}
+
+/** The settled orb is a disc cut out of a square image. */
+export interface BootOrbTexture extends BootTexture {
+  /** The disc's centre and radius, in texture pixels. */
+  readonly cx: number;
+  readonly cy: number;
+  readonly r: number;
+}
+
+export interface BootTheme {
+  /** The backdrop through each phase of the run. */
+  readonly field: {
+    /** The grey studio the sphere is lit in, bright at the top and dark below. */
+    readonly greyTop: Rgb;
+    readonly greyEdge: Rgb;
+    /** The pale wash the camera pulls back into. */
+    readonly pale: Rgb;
+    /** The settled field: the corners and the glow behind the lockup. */
+    readonly settledEdge: Rgb;
+    readonly settledMid: Rgb;
+    readonly settledGlow: Rgb;
+  };
+  /** The sphere's shell. */
+  readonly sphere: {
+    readonly base: Rgb;
+    readonly shadow: Rgb;
+    readonly specular: Rgb;
+    /** The light on the limb while it is backlit. */
+    readonly rim: Rgb;
+    /** Strength of the brushed grain, 0 for a smooth shell. */
+    readonly grain: number;
+  };
+  /**
+   * The mark cut into the sphere's face: two grooves on great circles through
+   * the pole, at `angle` degrees either side of the vertical, each `width`
+   * wide at the pole and `flare` wider at the equator.
+   */
+  readonly mark: {
+    readonly angle: number;
+    readonly width: number;
+    readonly flare: number;
+    /** The groove's light, from its walls to its hot core. */
+    readonly wall: Rgb;
+    readonly core: Rgb;
+  };
+  /** The accent the rings and the field's light beams are drawn in. */
+  readonly accent: Rgb;
+  /** The settled orb, which the sphere hands over to once it faces the camera. */
+  readonly orb: BootOrbTexture;
+  /** The wordmark beneath it: RGB is its colour and alpha its shape. */
+  readonly wordmark: BootTexture;
+}
+
+const hex = (value: number): Rgb => [
+  ((value >> 16) & 255) / 255,
+  ((value >> 8) & 255) / 255,
+  (value & 255) / 255,
+];
+
+export const XBOX_THEME: BootTheme = {
+  field: {
+    greyTop: hex(0xa4a4a4),
+    greyEdge: hex(0x3a3a3a),
+    pale: hex(0xe2e6e1),
+    settledEdge: hex(0x8aa088),
+    settledMid: hex(0x9aad93),
+    settledGlow: hex(0xd4f0a8),
+  },
+  sphere: {
+    base: hex(0x9aa198),
+    shadow: hex(0x1c201c),
+    specular: hex(0xf4fff0),
+    rim: hex(0xc8e8b8),
+    grain: 0.05,
+  },
+  mark: {
+    angle: 45,
+    width: 0.03,
+    flare: 0.1,
+    wall: hex(0x2fa313),
+    core: hex(0xf6ffc8),
+  },
+  accent: hex(0x8ef070),
+  orb: { url: orbUrl, width: 480, height: 480, cx: 247, cy: 255, r: 214 },
+  wordmark: { url: markUrl, width: 1192, height: 252 },
+};

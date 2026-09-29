@@ -22,6 +22,12 @@ uniform vec4 uStar;
 uniform vec4 uRing;
 uniform vec4 uRingB;
 uniform vec4 uExtra;
+uniform vec4 uOrb;
+uniform vec4 uOrbDisc;
+uniform vec4 uMarkT;
+uniform vec4 uMarkB;
+uniform sampler2D tOrb;
+uniform sampler2D tMark;
 uniform vec4 uField;
 uniform vec4 uShape;
 
@@ -61,7 +67,7 @@ vec3 field(vec2 p) {
   vec3 grey = mix(cGreyEdge, cGreyTop, t * t * (3.0 - 2.0 * t));
   vec3 c = grey * uField.x;
   c = mix(c, cPale, uField.y);
-  float g = clamp(1.0 - length((p - vec2(960.0, 560.0)) / vec2(620.0, 520.0)), 0.0, 1.0);
+  float g = clamp(1.0 - length((p - vec2(960.0, 620.0)) / vec2(620.0, 820.0)), 0.0, 1.0);
   vec3 settled = mix(cSetEdge, cSetMid, smoothstep(0.0, 0.4, g));
   settled = mix(settled, cSetGlow, smoothstep(0.25, 1.0, g));
   c = mix(c, c * vec3(0.78, 1.0, 0.7) + cAccent * 0.08, uField.w);
@@ -126,7 +132,8 @@ float ring(vec2 p, float scale) {
   v = vec2(ca * v.x + sa * v.y, -sa * v.x + ca * v.y);
   float e = length(v / (uRing.zw * scale));
   float dist = (e - 1.0) * min(uRing.z, uRing.w) * scale;
-  return exp(-dist * dist / (uRingB.y * uRingB.y)) + 0.25 * exp(-abs(dist) / (uRingB.y * 5.0));
+  float fill = 0.12 * smoothstep(1.0, 0.5, e);
+  return exp(-dist * dist / (uRingB.y * uRingB.y)) + 0.25 * exp(-abs(dist) / (uRingB.y * 5.0)) + fill;
 }
 
 vec3 bokeh(vec2 p) {
@@ -172,7 +179,20 @@ vec3 scene(vec2 p) {
   }
   if (uRingB.z > 0.0) {
     float r = ring(p, 1.0) + 0.7 * ring(p, 1.0 + uRingB.w);
-    c += cAccent * r * uRingB.z;
+    c = mix(c, min(cAccent * 1.3, 1.0), clamp(r * uRingB.z, 0.0, 1.0));
+  }
+  if (uOrb.w > 0.0) {
+    vec2 uv = (p - uOrb.xy) / uOrb.z;
+    vec2 e = (uv - uOrbDisc.xy) / uOrbDisc.zw;
+    float inside = step(0.0, uv.x) * step(uv.x, 1.0) * step(0.0, uv.y) * step(uv.y, 1.0);
+    float mask = smoothstep(1.0, 0.985, length(e)) * inside;
+    c = mix(c, TEX(tOrb, uv, 0.0).rgb, mask * uOrb.w);
+  }
+  if (uMarkT.w > 0.0) {
+    vec2 uv = (p - uMarkT.xy) / vec2(uMarkT.z, uMarkT.z * uMarkB.y);
+    float inside = step(0.0, uv.x) * step(uv.x, 1.0) * step(0.0, uv.y) * step(uv.y, 1.0);
+    vec4 m = TEX(tMark, uv, uMarkB.x);
+    c = mix(c, m.rgb, m.a * inside * uMarkT.w);
   }
   return c * uLight.w;
 }
@@ -193,10 +213,10 @@ void main() {
 }
 `;
 
-export const FRAGMENT_300 = `#version 300 es\nprecision highp float;\n${BODY}${MAIN_300}`;
+export const FRAGMENT_300 = `#version 300 es\nprecision highp float;\n#define TEX texture\n${BODY}${MAIN_300}`;
 
 export const VERTEX_100 = `attribute vec2 aPos;
 void main() { gl_Position = vec4(aPos, 0.0, 1.0); }
 `;
 
-export const FRAGMENT_100 = `precision highp float;\n${BODY}${MAIN_100}`;
+export const FRAGMENT_100 = `precision highp float;\n#define TEX texture2D\n${BODY}${MAIN_100}`;

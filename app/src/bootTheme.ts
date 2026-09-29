@@ -24,12 +24,25 @@ export interface BootTexture {
   readonly height: number;
 }
 
-/** The settled orb is a disc cut out of a square image. */
+/** The settled orb is an ellipse cut out of a square image. */
 export interface BootOrbTexture extends BootTexture {
-  /** The disc's centre and radius, in texture pixels. */
+  /** The ellipse's centre and radii, in texture pixels. */
   readonly cx: number;
   readonly cy: number;
-  readonly r: number;
+  readonly rx: number;
+  readonly ry: number;
+}
+
+/** Where the settled lockup sits in the 1920x1080 frame. */
+export interface BootLockup {
+  /** The orb's centre and vertical radius. */
+  readonly orbX: number;
+  readonly orbY: number;
+  readonly orbRy: number;
+  /** The wordmark texture's top left corner and drawn width. */
+  readonly markX: number;
+  readonly markY: number;
+  readonly markWidth: number;
 }
 
 export interface BootTheme {
@@ -74,6 +87,7 @@ export interface BootTheme {
   readonly orb: BootOrbTexture;
   /** The wordmark beneath it: RGB is its colour and alpha its shape. */
   readonly wordmark: BootTexture;
+  readonly lockup: BootLockup;
 }
 
 const hex = (value: number): Rgb => [
@@ -88,8 +102,8 @@ export const XBOX_THEME: BootTheme = {
     greyEdge: hex(0x3a3a3a),
     pale: hex(0xe2e6e1),
     settledEdge: hex(0x8aa088),
-    settledMid: hex(0x9aad93),
-    settledGlow: hex(0xd4f0a8),
+    settledMid: hex(0xa3bd8a),
+    settledGlow: hex(0xcbeaa0),
   },
   sphere: {
     base: hex(0x9aa198),
@@ -106,6 +120,7 @@ export const XBOX_THEME: BootTheme = {
     core: hex(0xf6ffc8),
   },
   accent: hex(0x8ef070),
-  orb: { url: orbUrl, width: 480, height: 480, cx: 247, cy: 255, r: 214 },
+  orb: { url: orbUrl, width: 480, height: 480, cx: 247.5, cy: 252.5, rx: 214, ry: 189 },
   wordmark: { url: markUrl, width: 1192, height: 252 },
+  lockup: { orbX: 977.5, orbY: 441.5, orbRy: 144, markX: 536, markY: 595, markWidth: 882 },
 };

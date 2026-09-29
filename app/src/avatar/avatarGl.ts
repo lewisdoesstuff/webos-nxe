@@ -21,6 +21,7 @@ import {
 } from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 
+import { fetchBytes } from "../sound/engine";
 import { AVATAR_VIEW, frameAvatar } from "./framing";
 import { firstIdle, nextIdle, planIdle, type IdlePlan, type IdleStep } from "./idle";
 
@@ -132,9 +133,14 @@ export class AvatarRenderer {
     this.scene.add(key);
   }
 
-  /** Load the model, frame it and pose it on its first frame. Draws once. */
+  /**
+   * Load the model, frame it and pose it on its first frame. Draws once. Read
+   * over XMLHttpRequest, because `fetch` cannot read the TV's `file://`.
+   */
   async load(url: string): Promise<void> {
-    const gltf = await new GLTFLoader().loadAsync(url);
+    const bytes = await fetchBytes(url);
+    if (this.released) return;
+    const gltf = await new GLTFLoader().parseAsync(bytes, "");
     if (this.released) return;
     const model = gltf.scene;
     const props: Object3D[] = [];

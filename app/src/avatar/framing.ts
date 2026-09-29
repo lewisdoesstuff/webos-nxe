@@ -35,9 +35,16 @@ export function frameAvatar(bottom: number, tall: number, view: AvatarView): Cam
 }
 
 /**
- * The canvas, in stage pixels. Retail's figure stands about 290px tall in the
- * 720p frame (t062, t122), 435px here; at `fill` that is a 520px canvas, and
- * 300px across leaves room for a wave. A 0.62MB layer.
+ * The canvas, in stage pixels, at the size the figure stands when its pane is
+ * focused: 432px tall in the 720p frame (t122), 648px here, which at `fill` is
+ * a 771px canvas. 420px across leaves room for a wave. A 1.3MB layer, scaled
+ * down by transform in the spill.
  */
-export const AVATAR_W = 300;
-export const AVATAR_H = 520;
+export const AVATAR_W = 420;
+export const AVATAR_H = 771;
+
+/** Where the figure's centre and feet fall in the canvas. */
+export const AVATAR_CANVAS = {
+  centre: AVATAR_W / 2,
+  feet: AVATAR_H * (1 - AVATAR_VIEW.foot),
+} as const;

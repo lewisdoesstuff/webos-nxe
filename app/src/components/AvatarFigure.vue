@@ -8,12 +8,13 @@ import { AVATAR_H, AVATAR_W } from "../avatar/framing";
  * The avatar, standing. One canvas of a fixed size, promoted at rest, so the
  * hub places it by transform and a move allocates nothing. `playing` false
  * freezes it on its last frame: the hub clears it for every transition and
- * while the avatar is off channel. three.js is 640KB of script, so it is
- * fetched when the figure mounts rather than with the dashboard.
+ * while the avatar is off channel. three.js is 640KB of script and the model
+ * several MB, so neither is read until `src` is set: the hub sets it once the
+ * boot has finished, and the canvas stands empty until then.
  */
 const props = withDefaults(
   defineProps<{
-    /** The model: a 360sona GLB. */
+    /** The model: a 360sona GLB. Empty until it should load. */
     src: string;
     playing?: boolean;
     renderScale?: number;
@@ -32,6 +33,7 @@ const canvas = ref<HTMLCanvasElement>();
 let renderer: AvatarRenderer | null = null;
 let ready = false;
 let gone = false;
+let started = false;
 
 function sync(): void {
   if (renderer === null || !ready) return;
@@ -39,9 +41,10 @@ function sync(): void {
   else renderer.stop();
 }
 
-onMounted(async () => {
+async function begin(): Promise<void> {
   const element = canvas.value;
-  if (element === undefined) return;
+  if (started || element === undefined || props.src === "") return;
+  started = true;
   const { AvatarRenderer } = await import("../avatar/avatarGl");
   if (gone) return;
   const own = new AvatarRenderer(element, {
@@ -63,7 +66,9 @@ onMounted(async () => {
   ready = true;
   sync();
   emit("loaded");
-});
+}
+
+onMounted(() => void begin());
 
 onUnmounted(() => {
   gone = true;
@@ -72,6 +77,10 @@ onUnmounted(() => {
 });
 
 watch(() => props.playing, sync);
+watch(
+  () => props.src,
+  () => void begin(),
+);
 
 const style = { width: `${AVATAR_W}px`, height: `${AVATAR_H}px` };
 </script>
@@ -85,6 +94,7 @@ const style = { width: `${AVATAR_W}px`, height: `${AVATAR_H}px` };
   position: absolute;
   top: 0;
   left: 0;
-  will-change: transform;
+  transform-origin: 0 0;
+  will-change: transform, opacity;
 }
 </style>

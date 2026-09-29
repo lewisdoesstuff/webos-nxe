@@ -14,6 +14,8 @@ export interface PaneItem {
   readonly largeIcon?: string;
   readonly extraLargeIcon?: string;
   readonly iconColor?: string;
+  /** The profile pane, which draws the gamercard instead of art. */
+  readonly profile?: true;
 }
 
 /**

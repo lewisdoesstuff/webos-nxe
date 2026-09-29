@@ -28,6 +28,8 @@ export interface HubItem extends LaunchPoint {
   readonly empty?: true;
   /** The dashboard's own settings page, opened rather than launched. */
   readonly settings?: true;
+  /** The profile pane: the gamercard, with the avatar standing beside it. */
+  readonly profile?: true;
 }
 
 const SETTINGS_APP = "com.palm.app.settings";
@@ -83,6 +85,21 @@ export const XNE_SETTINGS_PANE: HubItem = {
   settings: true,
 };
 
+/**
+ * The profile, second on System as it was second on My Xbox (t062), after
+ * the dashboard's own settings as retail's came after Open Tray: the
+ * gamertag and gamerscore on the pane's face, the avatar standing beside it.
+ * It launches nothing; retail's A opened the avatar's menu, which is not
+ * built.
+ */
+export function profilePane(settings: Settings): HubItem {
+  return { id: "xne:profile", title: settings.gamertag || "Player1", profile: true };
+}
+
+export function isProfilePane(item: HubItem | null | undefined): boolean {
+  return item?.profile === true;
+}
+
 export function isAllPane(item: HubItem | null | undefined): boolean {
   return item?.all === true;
 }
@@ -108,6 +125,7 @@ export function isHideable(item: HubItem | null | undefined): item is HubItem {
     !isAllPane(item) &&
     !isEmptyPane(item) &&
     !isSettingsPane(item) &&
+    !isProfilePane(item) &&
     item.launch === undefined
   );
 }
@@ -136,7 +154,9 @@ export function channelItems(
   settings: Settings,
 ): HubItem[] {
   const rows: HubItem[] = sectionRows(channel, points, settings);
-  if (channel === "system") return [...SYSTEM_PANES, XNE_SETTINGS_PANE, ...rows];
+  if (channel === "system") {
+    return [XNE_SETTINGS_PANE, profilePane(settings), ...SYSTEM_PANES, ...rows];
+  }
   return rows;
 }
 
@@ -162,10 +182,13 @@ export function hubRow(
 }
 
 /** The items an "All" page lists: the row without its "All" pane, its
- * placeholder or its settings pane, so a channel page never lists what cannot
- * be launched. */
+ * placeholder, its settings pane or the profile, so a channel page never lists
+ * what cannot be launched. */
 export function pageItems(row: readonly HubItem[]): HubItem[] {
-  return row.filter((item) => !isAllPane(item) && !isEmptyPane(item) && !isSettingsPane(item));
+  return row.filter(
+    (item) =>
+      !isAllPane(item) && !isEmptyPane(item) && !isSettingsPane(item) && !isProfilePane(item),
+  );
 }
 
 const EMPTY_PAGE: ListPage = {

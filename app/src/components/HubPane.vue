@@ -23,6 +23,7 @@ const art = computed(() => shownArt(source.value));
 const echo = computed(() => shownEcho(source.value));
 const floorPatch = computed(() => shownFloorPatch(source.value));
 const initial = computed(() => (props.item ? initialsFor(props.item.title) : ""));
+const profile = computed(() => props.item?.profile === true);
 
 const rootStyle = { width: `${PANE_W}px`, height: `${PANE_H}px` };
 </script>
@@ -31,12 +32,19 @@ const rootStyle = { width: `${PANE_W}px`, height: `${PANE_H}px` };
   <div class="pane" :data-item="props.item?.id ?? ''" :style="rootStyle">
     <div class="clip">
       <div class="face" />
-      <div class="tile">
-        <img v-if="art" class="art" :src="art" alt="" />
-        <span v-else class="initial">{{ initial }}</span>
-      </div>
-      <img v-if="echo" class="echo" :src="echo" alt="" />
-      <span class="name">{{ props.item?.title ?? "" }}</span>
+      <template v-if="profile">
+        <span class="tag">{{ props.item?.title ?? "" }}</span>
+        <span class="score">0<i class="coin">G</i></span>
+        <span class="recent">Recent Apps</span>
+      </template>
+      <template v-else>
+        <div class="tile">
+          <img v-if="art" class="art" :src="art" alt="" />
+          <span v-else class="initial">{{ initial }}</span>
+        </div>
+        <img v-if="echo" class="echo" :src="echo" alt="" />
+        <span class="name">{{ props.item?.title ?? "" }}</span>
+      </template>
     </div>
     <div class="mirror">
       <img v-if="shownFloorFace()" class="floor" :src="shownFloorFace()!" alt="" />
@@ -175,5 +183,55 @@ const rootStyle = { width: `${PANE_W}px`, height: `${PANE_H}px` };
   white-space: nowrap;
   text-overflow: ellipsis;
   text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+/* The gamercard on the profile pane, read off t122: the tag and score at the
+   top left, a dimmer heading a third of the way down. */
+.tag,
+.score,
+.recent {
+  position: absolute;
+  left: 21px;
+  color: #fff;
+  font-family: "Convection", "Inter", sans-serif;
+  white-space: nowrap;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.35);
+}
+
+.tag {
+  top: 36px;
+  font-size: 42px;
+  line-height: 52px;
+}
+
+.score {
+  top: 90px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 36px;
+  line-height: 44px;
+}
+
+.coin {
+  display: inline-block;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 30%, #fff 0%, #f0f3f4 60%, #cfd6da 100%);
+  color: #6f8a1a;
+  font-size: 20px;
+  font-style: normal;
+  font-weight: 700;
+  line-height: 30px;
+  text-align: center;
+  text-shadow: none;
+}
+
+.recent {
+  top: 218px;
+  font-size: 26px;
+  line-height: 32px;
+  opacity: 0.8;
 }
 </style>

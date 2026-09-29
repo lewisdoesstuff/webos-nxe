@@ -2,7 +2,10 @@
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 
 import { checkArt, prepareArt, prepareFloor } from "./artCache";
+import avatarUrl from "./assets/avatar/avatar.glb?url";
+import { AVATAR_CANVAS } from "./avatar/framing";
 import { type BootReason, type BootSpeed, resolveBootMode } from "./boot";
+import AvatarFigure from "./components/AvatarFigure.vue";
 import BootScreen from "./components/BootScreen.vue";
 import GuideOverlay from "./components/GuideOverlay.vue";
 import HubPane from "./components/HubPane.vue";
@@ -13,6 +16,7 @@ import { deviceSeed } from "./deviceSeed";
 import { stepFocus } from "./focus/row";
 import { BLADE_COUNT, BLADE_IDS } from "./guide";
 import {
+  avatarPlace,
   BULLET_SIZE,
   BULLET_X,
   BULLET_Y,
@@ -53,6 +57,7 @@ import {
   isAllPane,
   isEmptyPane,
   isHideable,
+  isProfilePane,
   isSettingsPane,
   launchTarget,
   pageItems,
@@ -163,7 +168,14 @@ const channels = CHANNEL_ORDER.map(
 );
 
 /** The settings the rows read. A write to any other setting keeps this identity, so it rebuilds no row. */
-const ROW_KEYS = ["hiddenApps", "recentApps", "appOrder", "appSection", "sortModes"] as const;
+const ROW_KEYS = [
+  "hiddenApps",
+  "recentApps",
+  "appOrder",
+  "appSection",
+  "sortModes",
+  "gamertag",
+] as const;
 const rowSettings = computed((previous?: Settings) => {
   const next = settings.settings;
   return previous && ROW_KEYS.every((key) => previous[key] === next[key]) ? previous : next;
@@ -476,7 +488,15 @@ const moveTransition = `transform ${MOVE_MS}ms ${MOVE_EASE}, opacity ${MOVE_MS}m
 /** A page or the settings screen is over the hub; its promoted layers rest hidden and keep their textures. */
 const hubAway = computed(() => pageOpen.value || settingsStack.value.length > 0);
 
-function paneStyle(pane: PooledPane): Record<string, string> {
+interface PaneMotion {
+  readonly x: number;
+  readonly y: number;
+  readonly scale: number;
+  readonly opacity: number;
+  readonly transition: string;
+}
+
+function paneMotion(pane: PooledPane): PaneMotion {
   let { x, y, scale, opacity } = pane.slot;
   let transition = moveTransition;
   if (hubAway.value || !loaded.value) {
@@ -495,6 +515,11 @@ function paneStyle(pane: PooledPane): Record<string, string> {
     const fade = dealt ? DEAL_MS / 2 : CHANNEL_IN_MS;
     transition = `transform ${DEAL_MS}ms ${MOVE_EASE} ${delay}ms, opacity ${fade}ms linear ${delay}ms`;
   }
+  return { x, y, scale, opacity, transition };
+}
+
+function paneStyle(pane: PooledPane): Record<string, string> {
+  const { x, y, scale, opacity, transition } = paneMotion(pane);
   return {
     transform: `translate3d(${x}px, ${y}px, 0) scale(${scale})`,
     opacity: `${opacity}`,
@@ -502,6 +527,65 @@ function paneStyle(pane: PooledPane): Record<string, string> {
     transition,
   };
 }
+
+/**
+ * The avatar stands beside the profile pane and moves with it, on the pane's
+ * own transition, at the pane's depth so nearer panes cover it. Away from
+ * System it rests hidden where it last stood, so its layer keeps its texture.
+ */
+const avatarPane = computed(() => pool.value.find((pane) => isProfilePane(paneItem(pane))));
+let avatarRest = "translate3d(0px, 0px, 0) scale(1)";
+
+const avatarStyle = computed((): Record<string, string> => {
+  const pane = avatarPane.value;
+  if (pane === undefined) {
+    return {
+      transform: avatarRest,
+      opacity: `${HIDDEN}`,
+      "z-index": "1",
+      transition: `opacity ${CHANNEL_OUT_MS}ms linear`,
+    };
+  }
+  const motion = paneMotion(pane);
+  const place = avatarPlace(motion, pane.offset, AVATAR_CANVAS);
+  avatarRest = `translate3d(${place.x}px, ${place.y}px, 0) scale(${place.scale})`;
+  return {
+    transform: avatarRest,
+    opacity: `${motion.opacity}`,
+    "z-index": `${pane.slot.z}`,
+    transition: motion.transition,
+  };
+});
+
+/**
+ * The avatar draws only while nothing else moves: a transition holds it on
+ * its last frame, and so does anything that hides it. `settling` covers a row
+ * move and the hub coming back from a page, the Guide or the settings.
+ */
+const settling = ref(false);
+let settleTimer: ReturnType<typeof setTimeout> | undefined;
+function settle(): void {
+  settling.value = true;
+  clearTimeout(settleTimer);
+  settleTimer = setTimeout(() => (settling.value = false), MOVE_MS + 50);
+}
+
+const avatarPlaying = computed(() => {
+  const pane = avatarPane.value;
+  return (
+    !booting.value &&
+    loaded.value &&
+    !settling.value &&
+    phase.value === "rest" &&
+    !hubAway.value &&
+    !guide.value &&
+    pane !== undefined &&
+    pane.slot.opacity > HIDDEN
+  );
+});
+
+/** The model loads once the boot is over, so its parse and upload never land in the boot's frames. */
+const avatarSrc = computed(() => (booting.value ? "" : avatarUrl));
 
 function labelStyle(index: number): Record<string, string> {
   const slot = labelSlot(hub.value.channel - index);
@@ -610,6 +694,7 @@ function navigate(move: HubMove): void {
     return;
   }
   if (phase.value === "out") return;
+  settle();
   generation++;
   held.value = null;
   phase.value = "rest";
@@ -620,7 +705,7 @@ function navigate(move: HubMove): void {
  * else: pressing A on it does nothing, the way B does nothing at the hub root. */
 function activate(): void {
   const item = rows.value[hub.value.channel]?.[hub.value.item];
-  if (!item || isEmptyPane(item)) return;
+  if (!item || isEmptyPane(item) || isProfilePane(item)) return;
   playSound("decide");
   if (isSettingsPane(item)) {
     openSettings();
@@ -754,6 +839,8 @@ const rings = ripplePattern(deviceSeed()).map((group) => ({
   "--peak": String(group.peak),
 }));
 
+watch([hubAway, guide], settle);
+
 onMounted(() => {
   chooseBootMode();
   settleBoot();
@@ -829,6 +916,8 @@ function expose(): void {
         :style="paneStyle(pane)"
       />
     </div>
+
+    <AvatarFigure :src="avatarSrc" :playing="avatarPlaying" :style="avatarStyle" />
 
     <PageLayer
       :title="pageLatch.title"

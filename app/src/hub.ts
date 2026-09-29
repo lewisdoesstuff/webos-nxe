@@ -274,3 +274,36 @@ export function stepHub(state: HubState, move: HubMove, counts: readonly number[
 export function counterText(item: number, count: number): string {
   return count > 0 ? `${item + 1} of ${count}` : "";
 }
+
+/**
+ * Where the avatar stands for its pane, as the transform its fixed canvas is
+ * drawn with. Retail's avatar is a 3D figure beside the profile pane rather
+ * than art on it, so it does not scale rigidly with the pane: focused (`t122`)
+ * it stands full size in front of the pane's right half with its feet on the
+ * floor below it; in the spill (`t062`) it stands at the pane's right edge,
+ * smaller against the pane than the pane is against the focused one. Each
+ * anchor is the figure's centre and feet in the pane's own 1080p box, and its
+ * size over the pane's. MEASURED to a few pixels off those two frames.
+ */
+const AVATAR_FOCUSED = { centre: px(298), feet: px(392), size: 1 } as const;
+const AVATAR_SPILL = { centre: px(370), feet: px(358), size: 0.871 } as const;
+
+/** The figure's centre and feet in its own canvas, which `avatar/framing.ts` sets. */
+export interface AvatarCanvas {
+  readonly centre: number;
+  readonly feet: number;
+}
+
+export function avatarPlace(
+  pane: { readonly x: number; readonly y: number; readonly scale: number },
+  offset: number,
+  canvas: AvatarCanvas,
+): { x: number; y: number; scale: number } {
+  const anchor = offset === 0 ? AVATAR_FOCUSED : AVATAR_SPILL;
+  const scale = pane.scale * anchor.size;
+  return {
+    x: pane.x + pane.scale * anchor.centre - scale * canvas.centre,
+    y: pane.y + pane.scale * anchor.feet - scale * canvas.feet,
+    scale,
+  };
+}

@@ -1,6 +1,8 @@
 <script setup lang="ts" vapor>
 import { computed, onMounted, onUnmounted, ref } from "vue";
 
+import { type BootReason, type BootSpeed, resolveBootMode } from "./boot";
+import BootScreen from "./components/BootScreen.vue";
 import GuideOverlay from "./components/GuideOverlay.vue";
 import HubPanel from "./components/HubPanel.vue";
 import PromptBar from "./components/PromptBar.vue";
@@ -48,6 +50,41 @@ const settings = useSettingsStore();
 const focus = ref(0);
 /** The Guide is a full-screen takeover, not a side panel. VERIFIED, 9199. */
 const guide = ref(false);
+
+/**
+ * The boot, mounted over a dashboard that is already there.
+ *
+ * The handover is the boot's own plane fading out onto the dashboard, so the
+ * dashboard has to exist from the first frame. Mounting it after `done` would
+ * put an allocation inside the transition, which is the one thing this project
+ * treats as a defect.
+ *
+ * `boot` is a counter rather than a boolean so that `Y` can replay it: setting
+ * the same boolean to true twice would not remount the component.
+ */
+const boot = ref(0);
+const booting = ref(true);
+const bootMode = ref<BootSpeed | "off">("full");
+
+/**
+ * `auto` resolves to full on a cold start and short on a warm one, and to off
+ * under a reduced-motion preference, since the whole sequence is a large moving
+ * light. An explicit `full` or `short` would win over the preference, but there
+ * is no setting for it yet.
+ */
+function chooseBootMode(): void {
+  bootMode.value = resolveBootMode("auto", { cold: true });
+}
+
+function onBootDone(payload: { reason: BootReason }): void {
+  if (payload.reason === "skipped") console.info("[xne] boot skipped");
+  booting.value = false;
+}
+
+/** A boot resolved to off never mounts, so the dashboard is simply the first thing shown. */
+function settleBoot(): void {
+  if (bootMode.value === "off") booting.value = false;
+}
 
 const panes = computed(() => placePanes(focus.value, SECTION_IDS));
 const labels = computed(() => placeLabels(focus.value, SECTION_IDS));
@@ -117,6 +154,20 @@ const frameStyle = {
   height: `${CANVAS_H}px`,
 };
 
+/**
+ * Activate the focused channel.
+ *
+ * A channel is a section, not an app, so there is nothing to launch: the real
+ * dashboard's `A` opens the selected pane's own page, and a section's page is
+ * its list. That page is not built yet, so `A` reports the fact in the console
+ * rather than doing nothing silently.
+ */
+function activate(): void {
+  const target = sectionFor(SECTION_IDS[focus.value] ?? SECTIONS[0].id);
+  const rows = rowsFor(target.id);
+  console.info(`[xne] A on ${target.label}: ${rows.length} row(s), no page to open yet`);
+}
+
 function onKeyDown(event: KeyboardEvent): void {
   if (guide.value) {
     if (event.keyCode === 89 || event.keyCode === 461 || event.keyCode === 27) {
@@ -135,6 +186,19 @@ function onKeyDown(event: KeyboardEvent): void {
     focus.value = stepFocus(focus.value, -1, SECTIONS.length);
     return;
   }
+  // `A` and `Enter` both activate, because the remote's OK arrives as Enter.
+  if (event.keyCode === 13 || event.keyCode === 32) {
+    event.preventDefault();
+    activate();
+    return;
+  }
+  // `Y` replays the boot, which is the only way to reach it once it has run.
+  if (event.keyCode === 89) {
+    event.preventDefault();
+    booting.value = true;
+    boot.value += 1;
+    return;
+  }
   // The Guide, on the key a desktop keyboard has for it.
   if (event.keyCode === 71) {
     event.preventDefault();
@@ -143,6 +207,8 @@ function onKeyDown(event: KeyboardEvent): void {
 }
 
 onMounted(() => {
+  chooseBootMode();
+  settleBoot();
   window.addEventListener("keydown", onKeyDown);
   void apps.load();
   expose();
@@ -151,7 +217,13 @@ onMounted(() => {
 onUnmounted(() => window.removeEventListener("keydown", onKeyDown));
 
 function expose(): void {
-  (window as typeof window & { xneDebug?: unknown }).xneDebug = { focus, panes, labels, guide };
+  (window as typeof window & { xneDebug?: unknown }).xneDebug = {
+    focus,
+    panes,
+    labels,
+    guide,
+    boot,
+  };
 }
 </script>
 
@@ -211,6 +283,18 @@ function expose(): void {
         :items="rowsFor(SECTION_IDS[focus] ?? '').map((row) => row.title)"
       />
     </div>
+
+    <!--
+      Mounted over the dashboard, which is already mounted. The handover is the
+      boot's own plane fading out, so the dashboard behind it has to exist from
+      the first frame or the boot would have to create it mid-transition.
+    -->
+    <BootScreen
+      v-if="booting && bootMode !== 'off'"
+      :key="boot"
+      :mode="bootMode"
+      @done="onBootDone"
+    />
   </main>
 </template>
 

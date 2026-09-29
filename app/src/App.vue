@@ -429,6 +429,8 @@ watch(loaded, (is) => is && void prepareShown(), { immediate: true });
 
 /** Every other channel's art once the boot has finished, one a frame, and any stored art checked against its icon. */
 let baking = 0;
+/** Past the boot's last frame and the teardown of its layer. */
+const BAKE_DELAY_MS = 1500;
 async function bakeArt(): Promise<void> {
   const mine = ++baking;
   await prepareFloor();
@@ -446,7 +448,10 @@ async function bakeArt(): Promise<void> {
 watch(
   [() => apps.launchPoints, booting],
   ([, busy]) => {
-    if (!busy) void bakeArt();
+    if (busy) return;
+    baking += 1;
+    const mine = baking;
+    setTimeout(() => mine === baking && void bakeArt(), BAKE_DELAY_MS);
   },
   { immediate: true },
 );

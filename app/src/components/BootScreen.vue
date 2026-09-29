@@ -73,6 +73,7 @@ let origin = 0;
 let skipped = false;
 let frozen = false;
 let warmed = false;
+let drawn = -1;
 
 function announce(next: BootState): void {
   for (let index = announced; index < next.entered.length; index++) {
@@ -89,7 +90,10 @@ function paint(ms: number): void {
   if (element === undefined || renderer === null) return;
   const at = bootFrameAt(ms, timing.value);
   element.style.opacity = at.id === "handover" ? `${1 - at.progress}` : "1";
-  renderer.draw(bootMasterFrame(ms, timing.value));
+  const master = bootMasterFrame(ms, timing.value);
+  if (master === drawn) return;
+  drawn = master;
+  renderer.draw(master);
 }
 
 function tick(now: number): void {

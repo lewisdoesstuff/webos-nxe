@@ -5,6 +5,7 @@ import { type BootReason, type BootSpeed, resolveBootMode } from "./boot";
 import BootScreen from "./components/BootScreen.vue";
 import GuideOverlay from "./components/GuideOverlay.vue";
 import HubPane from "./components/HubPane.vue";
+import PageLayer from "./components/PageLayer.vue";
 import PromptBar from "./components/PromptBar.vue";
 import {
   BULLET_SIZE,
@@ -30,14 +31,17 @@ import {
   labelSlot,
   MOVE_EASE,
   MOVE_MS,
+  PANE_H,
   PANE_W,
   PANE_X,
+  PANE_Y,
   placePool,
   POOL_SIZE,
   type PooledPane,
   stepHub,
 } from "./hub";
-import { channelItems, launchTarget } from "./hubRows";
+import { channelPage, hubRow, isAllPane, launchTarget, pageItems } from "./hubRows";
+import { PAGE_X, PAGE_Y, type PageFocus, ROOT_FOCUS, stepVertical } from "./pages";
 import { paneArt } from "./panel";
 import { SELECT, promptsFor } from "./prompts";
 import { CANVAS_H, CANVAS_W } from "./ribbon";
@@ -118,8 +122,36 @@ const channels = CHANNEL_ORDER.map(
 );
 
 const rows = computed(() =>
-  channels.map((channel) => channelItems(channel.id, apps.launchPoints, settings.settings)),
+  channels.map((channel) => hubRow(channel.id, apps.launchPoints, settings.settings)),
 );
+
+/** The "All" page over the hub. Always mounted; opening it changes one transform and opacity. */
+const pageOpen = ref(false);
+const pageFocus = ref<PageFocus>(ROOT_FOCUS);
+
+const listed = computed(() => pageItems(rows.value[hub.value.channel] ?? []));
+
+const page = computed(() => channelPage(CHANNEL_ORDER[hub.value.channel] ?? "apps", listed.value));
+
+/** The Guide names the current channel's items, not its "All" pane. */
+const guideItems = computed(() => listed.value.map((row) => row.title));
+
+function openPage(): void {
+  pageFocus.value = ROOT_FOCUS;
+  pageOpen.value = true;
+}
+
+function stepPage(delta: number): void {
+  const next = stepVertical([{ page: page.value, focus: pageFocus.value }], delta)[0];
+  if (next) pageFocus.value = next.focus;
+}
+
+function launchListed(): void {
+  const item = listed.value[pageFocus.value.item];
+  if (!item) return;
+  const target = launchTarget(item);
+  void apps.launch(target.id, { ...target.params });
+}
 
 const counts = computed(() => rows.value.map((row) => row.length));
 
@@ -218,6 +250,23 @@ const frameStyle = {
   height: `${CANVAS_H}px`,
 };
 
+/**
+ * The "All" page sits to the right of the focused pane, clear of it, by
+ * shifting the whole frame it is authored in. It grows out of that pane's box,
+ * expressed in the shifted frame's own coordinates.
+ */
+const PAGE_SHIFT = { x: 533 - PAGE_X, y: 248 - PAGE_Y };
+const pageFrameStyle = {
+  ...frameStyle,
+  transform: `scale(1.5) translate(${PAGE_SHIFT.x}px, ${PAGE_SHIFT.y}px)`,
+};
+const pageRestBox = {
+  x: PANE_X / 1.5 - PAGE_SHIFT.x,
+  y: PANE_Y / 1.5 - PAGE_SHIFT.y,
+  width: PANE_W / 1.5,
+  height: PANE_H / 1.5,
+};
+
 const motion = {
   "--move-ms": `${MOVE_MS}ms`,
   "--move-ease": MOVE_EASE,
@@ -262,6 +311,10 @@ function navigate(move: HubMove): void {
 function activate(): void {
   const item = rows.value[hub.value.channel]?.[hub.value.item];
   if (!item) return;
+  if (isAllPane(item)) {
+    openPage();
+    return;
+  }
   const target = launchTarget(item);
   void apps.launch(target.id, { ...target.params });
 }
@@ -280,6 +333,9 @@ const MOVES: Readonly<Record<number, HubMove>> = {
   33: "pageRight",
 };
 
+/** Back and red on the remote, Escape, Backspace and B on a desktop keyboard. */
+const BACK_KEYS: ReadonlySet<number> = new Set([461, 403, 27, 8, 66]);
+
 /** The remote's yellow key, which NXE's Y button maps to here. */
 const YELLOW = 405;
 
@@ -295,6 +351,19 @@ function onKeyDown(event: KeyboardEvent): void {
     ) {
       event.preventDefault();
       guide.value = false;
+    }
+    return;
+  }
+  if (pageOpen.value) {
+    if (event.keyCode === 38 || event.keyCode === 40) {
+      event.preventDefault();
+      stepPage(event.keyCode === 40 ? 1 : -1);
+    } else if (event.keyCode === 13 || event.keyCode === 404) {
+      event.preventDefault();
+      launchListed();
+    } else if (BACK_KEYS.has(event.keyCode)) {
+      event.preventDefault();
+      pageOpen.value = false;
     }
     return;
   }
@@ -340,6 +409,8 @@ function expose(): void {
     phase,
     pool,
     guide,
+    pageOpen,
+    pageFocus,
     boot,
   };
 }
@@ -386,12 +457,12 @@ function expose(): void {
       />
     </div>
 
+    <div class="frame" data-page-frame :style="pageFrameStyle">
+      <PageLayer :page="page" :focus="pageFocus" :open="pageOpen" :rest="pageRestBox" />
+    </div>
+
     <div class="frame" data-guide :style="frameStyle">
-      <GuideOverlay
-        :open="guide"
-        :blade="hub.channel"
-        :items="(rows[hub.channel] ?? []).map((row) => row.title)"
-      />
+      <GuideOverlay :open="guide" :blade="hub.channel" :items="guideItems" />
     </div>
 
     <!--
@@ -606,6 +677,14 @@ function expose(): void {
   pointer-events: none;
   transform: scale(1.5);
   transform-origin: 0 0;
+}
+
+.frame[data-page-frame] {
+  z-index: 50;
+}
+
+.frame[data-guide] {
+  z-index: 60;
 }
 
 @media (prefers-reduced-motion: reduce) {

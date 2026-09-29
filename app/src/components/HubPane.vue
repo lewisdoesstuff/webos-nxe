@@ -88,28 +88,7 @@ const rootStyle = { width: `${PANE_W}px`, height: `${PANE_H}px` };
       rgba(245, 248, 150, 0.4),
       rgba(245, 248, 150, 0) 100%
     ),
-    radial-gradient(
-      circle at 78% 30%,
-      transparent 0 38px,
-      rgba(255, 255, 255, 0.13) 39px 43px,
-      transparent 44px 62px,
-      rgba(255, 255, 255, 0.09) 63px 66px,
-      transparent 67px
-    ),
-    radial-gradient(
-      circle at 12% 62%,
-      transparent 0 44px,
-      rgba(255, 255, 255, 0.12) 45px 50px,
-      transparent 51px 74px,
-      rgba(255, 255, 255, 0.08) 75px 79px,
-      transparent 80px
-    ),
-    radial-gradient(
-      circle at 90% 78%,
-      transparent 0 24px,
-      rgba(255, 255, 255, 0.1) 25px 28px,
-      transparent 29px
-    ),
+    url("../assets/hub/card-bokeh.svg") 0 0 / 630px 480px no-repeat,
     linear-gradient(
       180deg,
       #d2dd1c 0%,

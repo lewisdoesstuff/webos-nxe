@@ -506,6 +506,16 @@ export function stepVerticalBy(stack: PageStack, delta: number): PageStack {
 }
 
 /**
+ * Left and right along a page drawn as a row of panes: one item at a time in
+ * the focused group, clamped, exactly the hub row's rule. The same step as
+ * `stepVertical`, named for the axis a row page moves on.
+ */
+export const stepAlong = stepVertical;
+
+/** The bumpers along a row page, by `delta` items, clamped. */
+export const stepAlongBy = stepVerticalBy;
+
+/**
  * Left and right, paging between the page's groups (section 3.3, the on-screen
  * "1 of 5" and "Page 1 of 4" counters).
  *

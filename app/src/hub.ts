@@ -74,16 +74,17 @@ export const HIDDEN = 0.001;
 /** Where a pane that has left the front goes: off the left edge, faded. CHOSEN from `row-048`. */
 const GONE_X = -330;
 
-function slotAt720(
+export function slotAt720(
   x: number,
   centreY: number,
   scale: number,
   opacity: number,
   z: number,
+  height = 320,
 ): PaneSlot {
   return {
     x: px(x),
-    y: px(centreY - (320 * scale) / 2),
+    y: px(centreY - (height * scale) / 2),
     scale,
     opacity,
     z,
@@ -133,14 +134,19 @@ function wrap(value: number, count: number): number {
  * wrapping from one end to the other, while it is invisible) and every other
  * element only its transform. The pool never grows or shrinks with the row.
  */
-export function placePool(focus: number, count: number): readonly PooledPane[] {
+export function placePool(
+  focus: number,
+  count: number,
+  slotOf: (offset: number) => PaneSlot = paneSlot,
+  size: number = POOL_SIZE,
+): readonly PooledPane[] {
   const pool: PooledPane[] = [];
-  for (let element = 0; element < POOL_SIZE; element++) {
+  for (let element = 0; element < size; element++) {
     const first = focus + FIRST_OFFSET;
-    const item = first + wrap(element - first, POOL_SIZE);
+    const item = first + wrap(element - first, size);
     const offset = item - focus;
     const real = item >= 0 && item < count;
-    const slot = paneSlot(offset);
+    const slot = slotOf(offset);
     pool.push({
       element,
       item: real ? item : null,

@@ -35,6 +35,7 @@ import {
   labelSlot,
   MOVE_EASE,
   MOVE_MS,
+  PAGE_STEP,
   PANE_H,
   PANE_W,
   PANE_X,
@@ -45,6 +46,7 @@ import {
   stepHub,
 } from "./hub";
 import {
+  type HubItem,
   channelPage,
   hubRow,
   isAllPane,
@@ -54,9 +56,9 @@ import {
   launchTarget,
   pageItems,
 } from "./hubRows";
+import { PAGE_COUNTER_X, PAGE_COUNTER_Y } from "./pageRow";
 import {
-  PAGE_X,
-  PAGE_Y,
+  counterText as pageCounterText,
   type PageFocus,
   type PageStack,
   pop,
@@ -64,12 +66,12 @@ import {
   ROOT_FOCUS,
   rowCount,
   shellPrompts,
+  stepAlong,
+  stepAlongBy,
   stepVertical,
-  stepVerticalBy,
   top,
-  WHOLE_ROWS,
 } from "./pages";
-import { paneArt } from "./panel";
+import { paneArt, type PaneItem } from "./panel";
 import { CANVAS_H, CANVAS_W } from "./ribbon";
 import { ringImage, ripplePattern } from "./ripples";
 import { CHANNEL_ORDER, SECTIONS, startChannel } from "./sections";
@@ -165,6 +167,8 @@ const rows = computed(() =>
 /** The "All" page over the hub. Always mounted; opening it changes one transform and opacity. */
 const pageOpen = ref(false);
 const pageFocus = ref<PageFocus>(ROOT_FOCUS);
+/** What the open page shows, latched when it opens so a channel change never repaints its panes. */
+const pageLatch = ref<{ title: string; items: readonly PaneItem[] }>({ title: "", items: [] });
 
 const listed = computed(() => pageItems(rows.value[hub.value.channel] ?? []));
 
@@ -269,11 +273,21 @@ function onGuideKey(event: KeyboardEvent): boolean {
 }
 
 function openPage(): void {
+  pageLatch.value = { title: page.value.title, items: listed.value };
   pageFocus.value = ROOT_FOCUS;
   pageOpen.value = true;
 }
 
-function stepPage(delta: number, step: typeof stepVertical = stepVertical): void {
+/** The focus goes home once the panes have faded, so the jump is never seen. */
+function closePage(): void {
+  pageOpen.value = false;
+  playSound("cancel");
+  setTimeout(() => {
+    if (!pageOpen.value) pageFocus.value = ROOT_FOCUS;
+  }, 250);
+}
+
+function stepPage(delta: number, step: typeof stepAlong = stepAlong): void {
   const next = step([{ page: page.value, focus: pageFocus.value }], delta)[0];
   if (!next || next.focus === pageFocus.value) return;
   pageFocus.value = next.focus;
@@ -281,7 +295,7 @@ function stepPage(delta: number, step: typeof stepVertical = stepVertical): void
 }
 
 function launchListed(): void {
-  const item = listed.value[pageFocus.value.item];
+  const item = pageLatch.value.items[pageFocus.value.item] as HubItem | undefined;
   if (!item) return;
   playSound("decide");
   const target = launchTarget(item);
@@ -360,7 +374,11 @@ const shownRow = computed(() => rows.value[shown.value.channel] ?? []);
 
 const pool = computed(() => placePool(shown.value.item, shownRow.value.length));
 
-const counter = computed(() => counterText(shown.value.item, shownRow.value.length));
+const counter = computed(() =>
+  pageOpen.value
+    ? pageCounterText(page.value, pageFocus.value)
+    : counterText(shown.value.item, shownRow.value.length),
+);
 
 /**
  * Every pane's art, decoded as soon as the apps load and held for the life of
@@ -391,7 +409,10 @@ const moveTransition = `transform ${MOVE_MS}ms ${MOVE_EASE}, opacity ${MOVE_MS}m
 function paneStyle(pane: PooledPane): Record<string, string> {
   let { x, y, scale, opacity } = pane.slot;
   let transition = moveTransition;
-  if (phase.value === "out") {
+  if (pageOpen.value) {
+    opacity = HIDDEN;
+    transition = `opacity ${CHANNEL_OUT_MS}ms linear`;
+  } else if (phase.value === "out") {
     opacity = HIDDEN;
     transition = `opacity ${CHANNEL_OUT_MS}ms linear`;
   } else if (phase.value === "collapsed") {
@@ -420,7 +441,7 @@ function labelStyle(index: number): Record<string, string> {
     "font-size": `${LABEL_FONT}px`,
     "line-height": `${LABEL_H}px`,
     transform: `translate3d(${slot.x}px, ${slot.y}px, 0) scale(${slot.scale})`,
-    opacity: `${slot.opacity}`,
+    opacity: `${pageOpen.value ? HIDDEN : slot.opacity}`,
   };
 }
 
@@ -431,7 +452,11 @@ const bulletStyle = {
   height: `${BULLET_SIZE}px`,
 };
 
-const counterStyle = { left: `${COUNTER_X}px`, top: `${COUNTER_Y}px` };
+const counterStyle = computed(() =>
+  pageOpen.value
+    ? { left: `${PAGE_COUNTER_X}px`, top: `${PAGE_COUNTER_Y}px` }
+    : { left: `${COUNTER_X}px`, top: `${COUNTER_Y}px` },
+);
 
 const cardStyle = {
   right: `${1920 - CARD_RIGHT}px`,
@@ -449,23 +474,6 @@ const picStyle = {
 const frameStyle = {
   width: `${CANVAS_W}px`,
   height: `${CANVAS_H}px`,
-};
-
-/**
- * The "All" page sits to the right of the focused pane, clear of it, by
- * shifting the whole frame it is authored in. It grows out of that pane's box,
- * expressed in the shifted frame's own coordinates.
- */
-const PAGE_SHIFT = { x: 533 - PAGE_X, y: 248 - PAGE_Y };
-const pageFrameStyle = {
-  ...frameStyle,
-  transform: `scale(1.5) translate(${PAGE_SHIFT.x}px, ${PAGE_SHIFT.y}px)`,
-};
-const pageRestBox = {
-  x: PANE_X / 1.5 - PAGE_SHIFT.x,
-  y: PANE_Y / 1.5 - PAGE_SHIFT.y,
-  width: PANE_W / 1.5,
-  height: PANE_H / 1.5,
 };
 
 const settingsRestBox = {
@@ -592,21 +600,21 @@ function onKeyDown(event: KeyboardEvent): void {
     return;
   }
   if (pageOpen.value) {
-    if (event.keyCode === 38 || event.keyCode === 40) {
+    if (event.keyCode === 37 || event.keyCode === 39) {
       event.preventDefault();
-      stepPage(event.keyCode === 40 ? 1 : -1);
+      stepPage(event.keyCode === 39 ? 1 : -1);
     } else if (event.keyCode === 33 || event.keyCode === 34) {
-      // Channel +/- pages the list by a window. The direction follows the
-      // hub's own 33/34 convention in MOVES above, whatever the buttons say.
+      // The bumpers page along the row, in the hub's own 33/34 direction.
       event.preventDefault();
-      stepPage(event.keyCode === 33 ? WHOLE_ROWS : -WHOLE_ROWS, stepVerticalBy);
+      stepPage(event.keyCode === 33 ? PAGE_STEP : -PAGE_STEP, stepAlongBy);
     } else if (event.keyCode === 13 || event.keyCode === 404) {
       event.preventDefault();
       launchListed();
     } else if (BACK_KEYS.has(event.keyCode)) {
       event.preventDefault();
-      pageOpen.value = false;
-      playSound("cancel");
+      closePage();
+    } else if (event.keyCode === 38 || event.keyCode === 40) {
+      event.preventDefault();
     }
     return;
   }
@@ -681,7 +689,12 @@ function expose(): void {
 </script>
 
 <template>
-  <main class="stage" :data-settings="settingsStack.length > 0 || undefined" :style="motion">
+  <main
+    class="stage"
+    :data-settings="settingsStack.length > 0 || undefined"
+    :data-page="pageOpen || undefined"
+    :style="motion"
+  >
     <!--
       Everything static paints before anything promoted. Unpromoted content
       painted after an animating layer has to be squashed into a layer of its
@@ -726,9 +739,12 @@ function expose(): void {
       />
     </div>
 
-    <div class="frame" data-page-frame :style="pageFrameStyle">
-      <PageLayer :page="page" :focus="pageFocus" :open="pageOpen" :rest="pageRestBox" />
-    </div>
+    <PageLayer
+      :title="pageLatch.title"
+      :items="pageLatch.items"
+      :focus="pageFocus.item"
+      :open="pageOpen"
+    />
 
     <div class="frame" data-settings-frame :style="frameStyle">
       <SettingsLayer
@@ -1011,10 +1027,6 @@ function expose(): void {
   transform-origin: 0 0;
 }
 
-.frame[data-page-frame] {
-  z-index: 50;
-}
-
 /* The hub leaves once the settings panel has grown over it, and comes back at
    once on close. Visibility, so no layer is created or resized by either. */
 .stage[data-settings] .label,
@@ -1022,7 +1034,10 @@ function expose(): void {
 .stage[data-settings] .counter,
 .stage[data-settings] .card,
 .stage[data-settings] .pic,
-.stage[data-settings] .row {
+.stage[data-settings] .row,
+.stage[data-page] .bullet,
+.stage[data-page] .card,
+.stage[data-page] .pic {
   animation: hub-away 0s linear 300ms forwards;
 }
 

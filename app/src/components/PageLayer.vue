@@ -1,6 +1,7 @@
 <script setup lang="ts" vapor>
 import { computed } from "vue";
 
+import { shownArt } from "../artCache";
 import { HIDDEN, LABEL_H, LABEL_W, MOVE_EASE, MOVE_MS, placePool, type PooledPane } from "../hub";
 import {
   PAGE_POOL_SIZE,
@@ -83,7 +84,7 @@ const titleStyle = computed((): Record<string, string> => ({
         <div class="art" :style="artStyle(pane)">
           <img
             v-if="itemOf(pane) && paneArt(itemOf(pane)!)"
-            :src="paneArt(itemOf(pane)!)!"
+            :src="shownArt(paneArt(itemOf(pane)!))!"
             alt=""
           />
           <span v-else class="initial">{{ initialsFor(itemOf(pane)?.title ?? "") }}</span>

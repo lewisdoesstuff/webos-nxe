@@ -1,6 +1,7 @@
 <script setup lang="ts" vapor>
 import { computed } from "vue";
 
+import { shownArt } from "../artCache";
 import { PANE_H, PANE_W } from "../hub";
 import { initialsFor, paneArt, type PaneItem } from "../panel";
 
@@ -15,7 +16,7 @@ const props = defineProps<{
   item: PaneItem | null;
 }>();
 
-const art = computed(() => (props.item ? paneArt(props.item) : null));
+const art = computed(() => (props.item ? shownArt(paneArt(props.item)) : null));
 const initial = computed(() => (props.item ? initialsFor(props.item.title) : ""));
 
 const rootStyle = { width: `${PANE_W}px`, height: `${PANE_H}px` };

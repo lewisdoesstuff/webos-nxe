@@ -1,6 +1,7 @@
 <script setup lang="ts" vapor>
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 
+import { prepareArt } from "./artCache";
 import { type BootReason, type BootSpeed, resolveBootMode } from "./boot";
 import BootScreen from "./components/BootScreen.vue";
 import GuideOverlay from "./components/GuideOverlay.vue";
@@ -389,27 +390,34 @@ const counter = computed(() =>
       : counterText(shown.value.item, shownRow.value.length),
 );
 
-/**
- * Every pane's art, decoded as soon as the apps load and held for the life of
- * the page, so a channel change that puts eight new icons up at once finds
- * them already decoded (PERF-STATUS, "decode artwork at boot").
- */
-const heldArt = new Map<string, HTMLImageElement>();
+/** Every pane's art, scaled to the size it is shown as soon as the apps load (`artCache.ts`). */
 watch(
   () => apps.launchPoints,
   (points) => {
     for (const point of points) {
       const url = paneArt(point);
-      if (!url || heldArt.has(url)) continue;
-      const image = new Image();
-      image.src = url;
-      heldArt.set(url, image);
-      image.decode().catch(() => undefined);
+      if (url) void prepareArt(url);
     }
   },
 );
 
-function paneItem(pane: PooledPane) {
+/**
+ * A channel change swaps every pane's content while the row is hidden, and
+ * eight panes repainting in one frame held the TV's GPU for up to 300 ms. So
+ * each pane keeps the item it showed until its turn: the focused pane first,
+ * then one a frame in the order the deal reveals them, every one well before
+ * its reveal. `held` is each element's previous item, or null at rest.
+ */
+const held = ref<ReadonlyMap<number, HubItem | null> | null>(null);
+const released = ref(0);
+
+function releaseRank(pane: PooledPane): number {
+  return pane.offset >= 0 ? pane.offset : POOL_SIZE - pane.offset;
+}
+
+function paneItem(pane: PooledPane): HubItem | null {
+  const hold = held.value;
+  if (hold !== null && releaseRank(pane) >= released.value) return hold.get(pane.element) ?? null;
   return pane.item === null ? null : (shownRow.value[pane.item] ?? null);
 }
 
@@ -504,17 +512,29 @@ function nextFrame(): Promise<void> {
   return new Promise((resolve) => requestAnimationFrame(() => resolve()));
 }
 
+async function releasePanes(mine: number): Promise<void> {
+  for (let rank = 2; rank <= 2 * POOL_SIZE; rank++) {
+    await nextFrame();
+    if (mine !== generation) return;
+    released.value = rank;
+  }
+  held.value = null;
+}
+
 async function changeChannel(): Promise<void> {
   const mine = ++generation;
   phase.value = "out";
   await new Promise((resolve) => setTimeout(resolve, CHANNEL_OUT_MS));
   if (mine !== generation) return;
+  held.value = new Map(pool.value.map((pane) => [pane.element, paneItem(pane)]));
+  released.value = 1;
   shown.value = hub.value;
   phase.value = "collapsed";
   await nextFrame();
   await nextFrame();
   if (mine !== generation) return;
   phase.value = "in";
+  void releasePanes(mine);
   const settle = CHANNEL_IN_MS + DEAL_MS + DEAL_STAGGER_MS * POOL_SIZE;
   await new Promise((resolve) => setTimeout(resolve, settle));
   if (mine === generation) phase.value = "rest";
@@ -533,6 +553,7 @@ function navigate(move: HubMove): void {
   }
   if (phase.value === "out") return;
   generation++;
+  held.value = null;
   phase.value = "rest";
   shown.value = next;
 }

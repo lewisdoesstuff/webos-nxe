@@ -120,7 +120,20 @@ CDP_URL=http://localhost:9222 node tools/gate.mjs --match localhost
 ```
 
 Exits 0 pass, 1 fail, 2 untrustworthy. Run it after any change to what moves.
-It needs a real compositor, so it will not run against headless Chrome.
+It needs a real compositor. Old headless Chrome has none, but `--headless=new`
+does, so run it locally without a window:
+
+```bash
+"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --headless=new \
+  --remote-debugging-port=9422 --user-data-dir="$(mktemp -d)" \
+  --window-size=1920,1167 --force-device-scale-factor=1 --use-angle=metal \
+  --disable-renderer-backgrounding --disable-background-timer-throttling \
+  "http://localhost:5173/?boot=off" &
+CDP_URL=http://localhost:9422 node tools/gate.mjs --match localhost --keys 39
+```
+
+The window height is 87px over 1080 because headless takes that off the
+viewport, and a 993px document fails the gate as a layer spanning the frame.
 
 ## On the TV
 

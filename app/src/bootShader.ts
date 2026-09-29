@@ -19,6 +19,8 @@ uniform vec4 uLight;
 uniform vec4 uHalo;
 uniform vec4 uMark;
 uniform vec4 uStar;
+uniform vec4 uRing;
+uniform vec4 uRingB;
 uniform vec4 uField;
 uniform vec4 uShape;
 
@@ -61,6 +63,7 @@ vec3 field(vec2 p) {
   float g = clamp(1.0 - length((p - vec2(960.0, 560.0)) / vec2(620.0, 520.0)), 0.0, 1.0);
   vec3 settled = mix(cSetEdge, cSetMid, smoothstep(0.0, 0.4, g));
   settled = mix(settled, cSetGlow, smoothstep(0.25, 1.0, g));
+  c = mix(c, c * vec3(0.78, 1.0, 0.7) + cAccent * 0.08, uField.w);
   return mix(c, settled, uField.z);
 }
 
@@ -90,15 +93,38 @@ vec3 shell(vec3 n, float px) {
   float star = max(exp(-d1 * d1 / (sw * sw)), exp(-d2 * d2 / (sw * sw))) * sqrt(taper);
   c += mix(cRim, cCore, 0.4) * star * uMark.x * front;
 
-  float w = (uShape.y + uShape.z * (1.0 - q.z)) * uMark.w;
-  float gap = min(d1, d2) - w;
-  float groove = (1.0 - smoothstep(-px, px, gap)) * front * step(0.001, uMark.w);
-  float core = exp(-max(gap + w, 0.0) * 18.0);
-  vec3 light = mix(cWall, cCore, core);
-  float glow = uMark.y * front;
-  vec3 floorC = mix(cShadow, light, glow);
-  c += light * glow * exp(-max(gap, 0.0) * 14.0) * 0.6;
-  return mix(c, floorC, groove);
+  float w = uShape.y * uMark.w + uShape.z * max(1.0 - q.z, 0.0) * min(uMark.w, 1.0);
+  float dm = min(d1, d2);
+  float gap = dm - w;
+  float inGroove = (1.0 - smoothstep(-px, px, gap)) * front * step(0.001, uMark.w);
+  float across = clamp(dm / max(w, 1e-4), 0.0, 1.0);
+  float nearPole = exp(-theta * theta / 0.05);
+  vec3 grooveC = mix(cCore, cWall, smoothstep(0.05, 0.7, across) * (1.0 - 0.7 * nearPole));
+  grooveC = mix(grooveC, vec3(1.0), max(uMark.z, 0.75 * nearPole)) * uMark.y;
+  float spill = exp(-max(gap, 0.0) / (0.01 + 0.03 * uMark.z)) * (0.3 + 0.7 * nearPole);
+  c += mix(cCore, vec3(1.0), uMark.z) * spill * (uMark.y * 0.25 + uMark.z * 0.8) * front;
+  float lip = exp(-pow(gap / (0.005 + px), 2.0)) * step(0.0, gap);
+  c += vec3(0.85, 0.95, 0.85) * lip * uMark.w * 0.7 * front;
+  return mix(c, grooveC, inGroove);
+}
+
+float beam(vec2 p, vec2 at, vec2 dir) {
+  vec2 v = p - at;
+  dir *= sign(dir.x + 1e-4);
+  float along = max(dot(v, dir), 0.0);
+  float across = dot(v, vec2(-dir.y, dir.x));
+  float width = 0.09 * uSphere.z + 0.1 * abs(along);
+  return (1.0 - smoothstep(0.6 * width, width, abs(across))) * exp(-abs(along) / uStar.w);
+}
+
+float ring(vec2 p, float scale) {
+  vec2 v = p - uRing.xy;
+  float ca = cos(uRingB.x);
+  float sa = sin(uRingB.x);
+  v = vec2(ca * v.x + sa * v.y, -sa * v.x + ca * v.y);
+  float e = length(v / (uRing.zw * scale));
+  float dist = (e - 1.0) * min(uRing.z, uRing.w) * scale;
+  return exp(-dist * dist / (uRingB.y * uRingB.y)) + 0.25 * exp(-abs(dist) / (uRingB.y * 5.0));
 }
 
 vec3 scene(vec2 p) {
@@ -114,6 +140,22 @@ vec3 scene(vec2 p) {
     vec3 n = vec3(d.x, -d.y, sqrt(1.0 - rr));
     float edge = smoothstep(1.0, 1.0 - 2.0 * px, sqrt(rr));
     c = mix(c, shell(n, px * 2.0), edge * uSphere.w);
+  }
+  if (uStar.z > 0.0) {
+    vec3 ez = uBasis[2];
+    vec2 at = uSphere.xy + vec2(ez.x, -ez.y) * uSphere.z;
+    float ca = cos(uShape.x);
+    float sa = sin(uShape.x);
+    vec3 t1 = uBasis * vec3(sa, ca, 0.0);
+    vec3 t2 = uBasis * vec3(-sa, ca, 0.0);
+    vec2 s1 = normalize(vec2(t1.x, -t1.y) + 1e-5);
+    vec2 s2 = normalize(vec2(t2.x, -t2.y) + 1e-5);
+    float b = max(beam(p, at, s1), beam(p, at, s2)) * smoothstep(0.0, 60.0, out1);
+    c += mix(cCore, vec3(1.0), 0.7) * b * uStar.z;
+  }
+  if (uRingB.z > 0.0) {
+    float r = ring(p, 1.0) + 0.7 * ring(p, 1.0 + uRingB.w);
+    c += cAccent * r * uRingB.z;
   }
   return c * uLight.w;
 }

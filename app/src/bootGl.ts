@@ -49,6 +49,8 @@ const VEC4S = [
   "mark",
   "star",
   "field",
+  "ring",
+  "ringB",
 ] as const satisfies readonly (keyof BootSceneFrame)[];
 
 function css(c: Rgb): string {

@@ -55,131 +55,55 @@ export function track(keys: readonly Key[]): (frame: number) => number {
 }
 
 /**
- * The keys, by channel. Sphere centre and radius are circles fitted to the
- * limb on the named frame (least squares through column edges); the pole is
- * where the mark's centre sits on the shell, as a yaw and pitch off the camera
- * axis; the rest are read by eye and by sampled pixel values.
+ * The keys, by channel, as `[frame, value]`. Sphere centre and radius are
+ * circles fitted to the limb on the named frame (least squares through column
+ * edges, or three points where a flare burns part of it out); the pole is where
+ * the mark's centre sits on the shell, as a yaw and pitch off the camera axis;
+ * the rest are read by eye and by sampled pixel values.
  */
+// prettier-ignore
 export const KEYS = {
-  sphereX: [
-    [10, 1418],
-    [20, 1333],
-    [30, 1221],
-    [40, 1111],
-    [50, 1007],
-    [60, 926],
-    [70, 847],
-    [80, 797],
-    [90, 796],
-  ],
-  sphereY: [
-    [10, 4128],
-    [20, 3760],
-    [30, 3256],
-    [40, 2827],
-    [50, 2389],
-    [60, 2021],
-    [70, 1710],
-    [80, 1489],
-    [90, 1408],
-  ],
-  sphereR: [
-    [10, 3712],
-    [20, 3376],
-    [30, 2926],
-    [40, 2544],
-    [50, 2143],
-    [60, 1799],
-    [70, 1500],
-    [80, 1289],
-    [90, 1221],
-  ],
+  sphereX: [[10, 1418], [20, 1333], [30, 1221], [40, 1111], [50, 1007], [60, 926], [70, 847], [80, 797], [90, 780], [100, 742], [110, 713], [120, 670], [130, 629]],
+  sphereY: [[10, 4128], [20, 3760], [30, 3256], [40, 2827], [50, 2389], [60, 2021], [70, 1710], [80, 1489], [90, 1380], [100, 1256], [110, 1219], [120, 1170], [130, 1122]],
+  sphereR: [[10, 3712], [20, 3376], [30, 2926], [40, 2544], [50, 2143], [60, 1799], [70, 1500], [80, 1289], [90, 1190], [100, 1066], [110, 1020], [120, 965], [130, 913]],
   sphereAlpha: [[0, 1]],
 
   yaw: [[10, 30]],
   pitch: [[10, 40]],
-  roll: [[10, 0]],
+  roll: [[86, 0], [110, -12]],
 
-  exposure: [
-    [9, 0],
-    [10, 0.3],
-    [25, 1],
-  ],
-  keyLight: [
-    [10, 0],
-    [40, 0.03],
-    [55, 0.15],
-    [70, 1.15],
-    [80, 1.8],
-    [90, 2.4],
-  ],
-  rimLight: [
-    [10, 0.25],
-    [30, 0.7],
-    [60, 0.9],
-  ],
-  ambient: [
-    [10, 0],
-    [50, 0.01],
-    [70, 0.04],
-    [90, 0.3],
-  ],
+  exposure: [[9, 0], [10, 0.3], [25, 1]],
+  keyLight: [[10, 0], [40, 0.03], [55, 0.15], [70, 1.15], [80, 1.8], [90, 2], [100, 1.3], [120, 0.95], [130, 0.9]],
+  rimLight: [[10, 0.25], [30, 0.7], [60, 0.9]],
+  ambient: [[10, 0], [50, 0.01], [70, 0.04], [90, 0.3], [110, 0.35], [130, 0.3]],
 
-  haloX: [
-    [10, 1200],
-    [20, 1150],
-    [30, 780],
-    [50, 600],
-    [70, 700],
-  ],
-  haloW: [
-    [10, 300],
-    [30, 380],
-    [50, 650],
-    [70, 800],
-  ],
-  haloK: [
-    [10, 60],
-    [30, 150],
-    [50, 260],
-    [70, 300],
-  ],
-  haloA: [
-    [10, 0],
-    [20, 0.15],
-    [30, 0.6],
-    [50, 0.85],
-    [70, 0.35],
-    [90, 0.2],
-  ],
+  haloX: [[10, 1200], [20, 1150], [30, 780], [50, 600], [70, 700]],
+  haloW: [[10, 300], [30, 380], [50, 650], [70, 800]],
+  haloK: [[10, 60], [30, 150], [50, 260], [70, 300]],
+  haloA: [[10, 0], [20, 0.15], [30, 0.6], [50, 0.85], [70, 0.35], [90, 0.2], [110, 0]],
 
-  grey: [
-    [45, 0],
-    [60, 0.25],
-    [70, 0.55],
-    [90, 0.9],
-  ],
-  pale: [[0, 0]],
+  grey: [[45, 0], [60, 0.25], [70, 0.55], [90, 0.9], [110, 1]],
+  pale: [[110, 0], [130, 0.35]],
   settled: [[0, 0]],
+  tint: [[121, 0], [130, 0.8]],
 
-  star: [
-    [55, 0],
-    [70, 0.3],
-    [80, 0.45],
-    [90, 1.2],
-  ],
-  starLength: [
-    [60, 0.2],
-    [70, 0.24],
-    [90, 0.3],
-  ],
-  starWidth: [
-    [60, 0.03],
-    [90, 0.045],
-  ],
-  glow: [[0, 0]],
-  hot: [[0, 0]],
-  open: [[0, 0]],
+  star: [[55, 0], [70, 0.3], [80, 0.45], [88, 0.8], [95, 0]],
+  starLength: [[60, 0.2], [70, 0.24], [90, 0.3]],
+  starWidth: [[60, 0.03], [90, 0.045]],
+  glow: [[86, 0], [92, 1]],
+  hot: [[86, 0], [92, 1], [100, 1], [112, 0.4], [121, 0.15], [135, 0]],
+  open: [[86, 0], [100, 3.5]],
+  beams: [[86, 0], [90, 1.2], [100, 1], [108, 0.3], [115, 0]],
+  beamLength: [[0, 900]],
+
+  ringX: [[0, 1070]],
+  ringY: [[0, 600]],
+  ringR: [[108, 750], [121, 950], [130, 1400], [145, 2000]],
+  ringAspect: [[0, 0.62]],
+  ringAngle: [[0, -30]],
+  ringWidth: [[0, 18]],
+  ringAlpha: [[113, 0], [119, 1], [135, 1], [150, 0]],
+  ringSpread: [[0, 0.04]],
 } as const satisfies Record<string, readonly Key[]>;
 
 type Channel = keyof typeof KEYS;
@@ -202,21 +126,28 @@ export interface BootSceneFrame {
   readonly halo: Vec4;
   /** The star under the shell, the open groove's light, its white-hot core, how far the groove is open. */
   readonly mark: Vec4;
-  /** The star's arm length and width, radians; z, w unused. */
+  /** The star's arm length and width in radians, the beams along the arms and their length. */
   readonly star: Vec4;
-  /** How far the field is through grey, pale and settled; w unused. */
+  /** How far the field is through grey, pale and settled, and its green tint. */
   readonly field: Vec4;
+  /** The light ring: centre x, centre y, radii. */
+  readonly ring: Vec4;
+  /** The ring's angle in radians, line width, opacity and the second ring's offset. */
+  readonly ringB: Vec4;
 }
 
 export function bootScene(frame: number): BootSceneFrame {
   const v = (name: Channel) => TRACKS[name](frame);
+  const ringR = v("ringR");
   return {
     sphere: [v("sphereX"), v("sphereY"), v("sphereR"), v("sphereAlpha")],
     pole: [v("yaw") * DEG, v("pitch") * DEG, v("roll") * DEG, 0],
     light: [v("keyLight"), v("rimLight"), v("ambient"), v("exposure")],
     halo: [v("haloX"), v("haloW"), v("haloK"), v("haloA")],
     mark: [v("star"), v("glow"), v("hot"), v("open")],
-    star: [v("starLength"), v("starWidth"), 0, 0],
-    field: [v("grey"), v("pale"), v("settled"), 0],
+    star: [v("starLength"), v("starWidth"), v("beams"), v("beamLength")],
+    field: [v("grey"), v("pale"), v("settled"), v("tint")],
+    ring: [v("ringX"), v("ringY"), ringR, ringR * v("ringAspect")],
+    ringB: [v("ringAngle") * DEG, v("ringWidth"), v("ringAlpha"), v("ringSpread")],
   };
 }

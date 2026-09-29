@@ -78,41 +78,64 @@ vec3 shell(vec3 n, float px) {
   vec3 q = n * uBasis;
   float ca = cos(uShape.x);
   float sa = sin(uShape.x);
-  float d1 = abs(dot(q, vec3(ca, -sa, 0.0)));
-  float d2 = abs(dot(q, vec3(ca, sa, 0.0)));
+  vec3 m1 = vec3(ca, -sa, 0.0);
+  vec3 m2 = vec3(ca, sa, 0.0);
+  float e1 = dot(q, m1);
+  float e2 = dot(q, m2);
+  float d1 = abs(e1);
+  float d2 = abs(e2);
   float theta = acos(clamp(q.z, -1.0, 1.0));
   float front = smoothstep(-0.35, -0.05, q.z);
 
+  float open = uMark.w;
+  float w = uShape.y * open + uShape.z * max(1.0 - q.z, 0.0) * min(open, 1.0);
+  float dm = min(d1, d2);
+  float gap = dm - w;
+  float bw = 0.018 + 0.03 * min(open, 1.0);
+  float bev = (1.0 - smoothstep(0.0, bw, gap)) * step(0.0, gap) * front * step(0.001, open);
+  vec3 mn = d1 < d2 ? m1 * sign(e1) : m2 * sign(e2);
+  vec3 nb = normalize(n - bev * 1.3 * (uBasis * mn));
+
   vec3 key = normalize(vec3(0.9, 0.25, 0.35));
-  float diff = max(dot(n, key), 0.0);
-  diff *= diff * diff;
+  float diff = max(dot(nb, key), 0.0);
+  diff *= diff;
+  vec3 r = vec3(2.0 * nb.z * nb.x, 2.0 * nb.z * nb.y, 2.0 * nb.z * nb.z - 1.0);
+  float box1 = smoothstep(0.35, 0.95, dot(r, normalize(vec3(0.55, 0.75, 0.45))));
+  float box2 = smoothstep(0.55, 1.0, dot(r, normalize(vec3(0.95, -0.1, 0.35))));
+  float dark = mix(0.2, 1.0, smoothstep(-0.9, 0.6, nb.x + 0.35 * nb.y));
   float rim = pow(1.0 - n.z, 12.0) * smoothstep(-0.2, 0.6, n.y);
   vec2 wq = q.xy + 0.004 * vec2(noise(q.yx * 40.0), noise(q.xy * 40.0));
   float grain = noise(vec2(wq.x * 20.0, wq.y * 700.0)) - 0.5;
 
-  vec3 c = cBase * (uLight.z + diff * uLight.x) * (1.0 + uShape.w * grain);
+  float lit = uLight.z * (0.25 + 0.5 * dark) + uLight.x * (0.45 * diff + 0.55 * box1 * dark + 0.4 * box2);
+  vec3 c = mix(cShadow, cBase, clamp(lit, 0.0, 1.0)) * (0.4 + 0.65 * lit) * (1.0 + uShape.w * 2.0 * grain);
   c += cRim * rim * uLight.y;
   vec3 h = normalize(key + vec3(0.0, 0.0, 1.0));
-  c += cSpec * pow(max(dot(n, h), 0.0), 30.0) * uLight.x * 0.35;
+  c += cSpec * pow(max(dot(nb, h), 0.0), 30.0) * uLight.x * 0.3 * (1.0 + 3.0 * uShape.w * grain);
 
   float taper = max(1.0 - theta / uStar.x, 0.0);
   float sw = uStar.y * sqrt(taper) + 1e-4;
   float star = max(exp(-d1 * d1 / (sw * sw)), exp(-d2 * d2 / (sw * sw))) * sqrt(taper);
   c += mix(cRim, cCore, 0.4) * star * uMark.x * front;
 
-  float w = uShape.y * uMark.w + uShape.z * max(1.0 - q.z, 0.0) * min(uMark.w, 1.0);
-  float dm = min(d1, d2);
-  float gap = dm - w;
-  float inGroove = (1.0 - smoothstep(-px, px, gap)) * front * step(0.001, uMark.w);
+  float inGroove = (1.0 - smoothstep(-px, px, gap)) * front * step(0.001, open);
   float across = clamp(dm / max(w, 1e-4), 0.0, 1.0);
-  float nearPole = exp(-theta * theta / 0.05);
-  vec3 grooveC = mix(cCore, cWall, smoothstep(0.05, 0.7, across) * (1.0 - 0.7 * nearPole));
-  grooveC = mix(grooveC, vec3(1.0), max(uMark.z, 0.75 * nearPole)) * uMark.y;
-  float spill = exp(-max(gap, 0.0) / (0.01 + 0.03 * uMark.z)) * (0.3 + 0.7 * nearPole);
-  c += mix(cCore, vec3(1.0), uMark.z) * spill * (uMark.y * 0.25 + uMark.z * 0.8) * front;
-  c += mix(cCore, vec3(1.0), 0.6) * uMark.y * min(uMark.w, 1.0) * 0.9 * exp(-theta * theta / 0.05) * front;
-  float lip =exp(-pow(gap / (0.005 + px), 2.0)) * step(0.0, gap);
-  c += vec3(0.85, 0.95, 0.85) * lip * uMark.w * 0.7 * front;
+  float nearPole = exp(-theta * theta / 0.25);
+  float hatch = noise(vec2(q.x * 260.0 + q.y * 260.0, q.z * 40.0));
+  float wall = smoothstep(0.6, 0.92, across + 0.06 * (hatch - 0.5));
+  vec3 floorC = mix(cCore * vec3(0.97, 0.98, 0.72), mix(cCore, cWall, 0.6), smoothstep(0.3, 0.8, across));
+  floorC = mix(floorC, cCore, nearPole * 0.8);
+  vec3 grooveC = mix(floorC, min(cWall * 1.25, 1.0), wall);
+  grooveC *= 1.0 - 0.35 * smoothstep(0.9, 1.0, across);
+  float heat = max(uMark.z, 1.15 * nearPole * min(open, 1.0));
+  grooveC = mix(grooveC, vec3(1.0), heat * (1.0 - 0.6 * wall));
+  grooveC *= uMark.y;
+  float spill = exp(-max(gap, 0.0) / (0.012 + 0.02 * uMark.z)) + 0.35 * exp(-max(gap, 0.0) / 0.1);
+  spill *= (0.25 + 0.75 * nearPole) * (1.0 - 0.75 * inGroove);
+  c += mix(mix(cCore, cWall, 0.6), vec3(1.0), uMark.z * 0.7 + 0.3 * nearPole) * spill * (uMark.y * 0.35 + uMark.z * 0.8) * front * min(open, 1.0);
+  c += mix(cCore, vec3(1.0), 0.6) * uMark.y * min(open, 1.0) * 1.5 * nearPole * front;
+  float lip = exp(-pow(gap / (0.004 + px), 2.0)) * step(0.0, gap);
+  c += vec3(0.85, 0.95, 0.85) * lip * open * 0.35 * front;
   return mix(c, grooveC, inGroove);
 }
 

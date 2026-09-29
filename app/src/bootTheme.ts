@@ -114,8 +114,8 @@ export const XBOX_THEME: BootTheme = {
   },
   mark: {
     angle: 45,
-    width: 0.04,
-    flare: 0.06,
+    width: 0.026,
+    flare: 0.04,
     wall: hex(0x2fa313),
     core: hex(0xf6ffc8),
   },

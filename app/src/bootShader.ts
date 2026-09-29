@@ -15,6 +15,8 @@ const BODY = `
 uniform vec2 uRes;
 uniform vec4 uSphere;
 uniform mat3 uBasis;
+uniform mat3 uSettle;
+uniform vec4 uDecal;
 uniform vec4 uLight;
 uniform vec4 uHalo;
 uniform vec4 uMark;
@@ -146,21 +148,30 @@ vec3 shell(vec3 n, float px) {
   vec3 floorC = mix(cFloor * 0.75, cFloor, smoothstep(0.0, 0.15, side));
   floorC = mix(floorC, cream, smoothstep(0.1, 0.55, side) * (1.0 - smoothstep(0.5, 1.2, theta)));
   vec3 grooveC = mix(floorC, wallC, inWall);
-  float heat = max(uMark.z, (1.0 - smoothstep(0.28, 0.8, theta)) * min(open, 1.0));
+  float heat = max(uMark.z, (1.0 - smoothstep(0.28, 0.8, theta)) * min(open, 1.0) * uGroove.z);
   grooveC = mix(grooveC, vec3(1.0), clamp(heat, 0.0, 1.0) * (1.0 - 0.6 * inWall));
   grooveC *= uMark.y;
 
   float inGroove = (1.0 - smoothstep(-2.0 * px, 2.0 * px, gap)) * front * on;
   float spill = exp(-max(gap, 0.0) / (0.012 + 0.02 * uMark.z)) + 0.35 * exp(-max(gap, 0.0) / 0.1);
-  spill *= (0.25 + 0.75 * nearPole) * (1.0 - 0.75 * inGroove);
+  spill *= (0.25 + 0.75 * nearPole * uGroove.z) * (1.0 - 0.75 * inGroove);
   c += mix(mix(cCore, cFloor, 0.6), vec3(1.0), uMark.z * 0.7 + 0.3 * nearPole) * spill * (uMark.y * 0.6 + uMark.z * 0.8) * front * min(open, 1.0);
-  c += mix(cCore, vec3(1.0), 0.6) * uMark.y * min(open, 1.0) * 0.45 * nearPole * front;
+  c += mix(cCore, vec3(1.0), 0.6) * uMark.y * min(open, 1.0) * 0.45 * nearPole * front * uGroove.z;
   c += vec3(1.0) * uMark.z * min(open, 1.0) * (0.8 * exp(-max(gap, 0.0) / 0.07)) * front;
   float lip = exp(-pow(gap / (0.004 + px), 2.0)) * step(0.0, gap);
   c += vec3(0.85, 0.95, 0.85) * lip * open * 0.35 * front;
   float halo = exp(-max(gap, 0.0) / 0.03) + 0.4 * exp(-max(gap, 0.0) / 0.09);
   c += cWall * halo * uMark.y * min(open, 1.0) * (0.55 + 0.45 * nearPole) * 0.8 * front;
-  return mix(c, grooveC, inGroove);
+  c = mix(c, grooveC, inGroove);
+  if (uDecal.x > 0.0) {
+    float da = uGroove.w - uDecal.y;
+    float cd = cos(da);
+    float sd = sin(da);
+    vec3 sv = uSettle * vec3(cd * q.x + sd * q.y, cd * q.y - sd * q.x, q.z);
+    vec2 uv = vec2(uOrbDisc.x + sv.x * uOrbDisc.z, uOrbDisc.y - sv.y * uOrbDisc.w);
+    c = mix(c, TEX(tOrb, uv, 0.0).rgb, uDecal.x * smoothstep(-0.25, 0.1, sv.z));
+  }
+  return c;
 }
 
 float beam(vec2 p, vec2 at, vec2 dir) {
@@ -220,10 +231,10 @@ vec3 scene(vec2 p) {
   if (rr < 1.0) {
     vec3 n = vec3(d.x, -d.y, sqrt(1.0 - rr));
     float edge = smoothstep(1.0, 1.0 - 2.0 * px, sqrt(rr));
-    vec3 s = mix(shell(n, px * 2.0), c, uExtra.y * (0.6 + 0.4 * n.z));
+    vec3 s = mix(shell(n, px * 2.0), c, uExtra.y * (1.0 - uDecal.x) * (0.6 + 0.4 * n.z));
     c = mix(c, s, edge * uSphere.w);
   }
-  float bloom = uMark.y * clamp((uMark.w - 1.0) / 3.0, 0.0, 1.0) * uSphere.w * (1.0 - uMark.z);
+  float bloom = uGroove.z * clamp((uMark.w - 1.0) / 3.0, 0.0, 1.0) * uSphere.w * (1.0 - uMark.z);
   if (bloom > 0.0) {
     vec3 ez = uBasis[2];
     vec2 at = uSphere.xy + vec2(ez.x, -ez.y) * uSphere.z;

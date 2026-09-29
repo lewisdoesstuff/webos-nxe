@@ -66,12 +66,12 @@ export const KEYS = {
   sphereX: [[10, 1418], [20, 1333], [30, 1221], [40, 1111], [50, 1007], [60, 926], [70, 847], [80, 797], [90, 780], [100, 742], [110, 713], [120, 670], [130, 629], [150, 584], [170, 577], [190, 590], [210, 591], [220, 650], [230, 723], [240, 845], [250, 951], [262, 975]],
   sphereY: [[10, 4128], [20, 3760], [30, 3256], [40, 2827], [50, 2389], [60, 2021], [70, 1710], [80, 1489], [90, 1380], [100, 1256], [110, 1219], [120, 1170], [130, 1122], [150, 1112], [170, 1091], [190, 1074], [210, 1002], [220, 710], [230, 546], [240, 476], [250, 440], [262, 441]],
   sphereR: [[10, 3712], [20, 3376], [30, 2926], [40, 2544], [50, 2143], [60, 1799], [70, 1500], [80, 1289], [90, 1190], [100, 1066], [110, 1020], [120, 965], [130, 913], [150, 882], [170, 840], [190, 796], [210, 690], [220, 370], [230, 240], [240, 185], [250, 160], [262, 147]],
-  sphereAlpha: [[243, 1], [249, 0]],
+  sphereAlpha: [[249, 1], [250, 0]],
   aspect: [[150, 1], [212, 1], [222, 1.15]],
   haze: [[200, 0], [212, 0.25], [220, 0.5], [230, 0.55], [240, 0.55], [250, 0.15]],
   bokeh: [[195, 0], [210, 1], [240, 1], [260, 0.3], [280, 0]],
 
-  yaw: [[92, 48], [120, 44], [135, 37], [200, -25], [210, -32], [220, -116], [230, -200], [240, -284], [246, -334], [249, -356], [252, -360], [270, -360]],
+  yaw: [[92, 48], [120, 44], [135, 37], [200, -25], [210, -32], [220, -116], [230, -200], [240, -284], [244, -328], [247, -354], [248, -358], [250, -360], [270, -360]],
   pitch: [[110, 43.5], [160, 43], [190, 38.5], [210, 33.4], [250, 18], [280, 13]],
   roll: [[86, -13], [140, -14], [195, -4], [222, 0], [250, 0]],
 
@@ -95,14 +95,16 @@ export const KEYS = {
   starWidth: [[60, 0.03], [90, 0.045]],
   glow: [[86, 0], [92, 1]],
   hot: [[86, 0], [92, 1], [104, 1], [112, 0.5], [121, 0.15], [135, 0]],
-  open: [[86, 0], [92, 0.5], [97, 3], [104, 4.5], [114, 5], [130, 7], [150, 8], [170, 9], [190, 10], [206, 8], [214, 4], [222, 1], [250, 0.8]],
+  open: [[86, 0], [92, 0.5], [97, 3], [104, 4.5], [114, 5], [130, 7], [150, 8], [170, 9], [190, 10], [206, 8], [214, 4], [222, 1], [236, 0.9], [243, 2.5], [248, 4.5], [252, 5]],
   taper: [[100, -0.2], [215, -0.2], [235, 1.54]],
+  bloom: [[92, 1], [222, 1], [230, 0]],
+  decal: [[238, 0], [246, 1]],
   depth: [[100, 0.07], [225, 0.07], [240, 0.08]],
   gapUR: [[100, 0.7], [150, 0.4], [206, 0.6], [222, 1]],
   gapUL: [[100, 1], [150, 0.5], [206, 0.8], [222, 1]],
   gapLL: [[100, 1], [250, 1]],
   gapLR: [[100, 0.9], [206, 0.9], [222, 1]],
-  arm: [[100, 0], [110, 4], [230, 4], [245, 0]],
+  arm: [[100, 0], [110, 4], [230, 4], [240, -35], [244, -30], [246, -14], [248, -2], [250, 0]],
   streakX: [[125, 1200], [150, 1100], [180, 900], [210, 700]],
   streakY: [[125, 300], [150, 330], [180, 390], [210, 420]],
   streakAngle: [[125, 8], [150, 10], [180, 12], [210, 14]],
@@ -122,7 +124,7 @@ export const KEYS = {
   orbX: [[242, -108], [246, -58], [250, -26], [252, -13.5], [254, -5.5], [257, 0]],
   orbY: [[242, 24.7], [246, 6.6], [249, 0.3], [252, 0]],
   orbScale: [[242, 1.24], [246, 1.165], [250, 1.111], [252, 1.071], [254, 1.045], [256, 1.026], [260, 1.006], [263, 1]],
-  orbAlpha: [[243, 0], [249, 1]],
+  orbAlpha: [[247, 0], [249, 1]],
   markScale: [[280, 1.3], [300, 1.12], [320, 1.03], [335, 1]],
   markAlpha: [[275, 0], [290, 0.45], [310, 0.7], [330, 1]],
   markBlur: [[280, 4], [300, 2.5], [320, 1], [335, 0]],
@@ -148,7 +150,7 @@ export interface BootSceneFrame {
   readonly halo: Vec4;
   /** The star under the shell, the open groove's light, its white-hot core, how far the groove is open. */
   readonly mark: Vec4;
-  /** How the gap changes toward the limb, the walls' depth, the arms' extra angle in radians. */
+  /** How the gap changes toward the limb, the walls' depth, the bloom, the arms' extra angle in radians. */
   readonly groove: Vec4;
   /** The gap of the upper right, upper left, lower left and lower right arms against the opening. */
   readonly gaps: Vec4;
@@ -168,7 +170,16 @@ export interface BootSceneFrame {
   readonly orb: Vec4;
   /** The wordmark: scale about its centre, opacity, blur as a mip bias; w unused. */
   readonly wordmark: Vec4;
+  /** The settled orb laid on the turning sphere: its weight, and the arms' angle at `SETTLE_FRAME`. */
+  readonly decal: Vec4;
 }
+
+/**
+ * The frame the sphere hands over to the settled orb. The orb image is laid on
+ * the sphere as it turns in, projected from the pose the sphere holds here, so
+ * at this frame the two are the same picture and the handover shows nothing.
+ */
+export const SETTLE_FRAME = 249;
 
 export function bootScene(frame: number): BootSceneFrame {
   const v = (name: Channel) => TRACKS[name](frame);
@@ -179,7 +190,7 @@ export function bootScene(frame: number): BootSceneFrame {
     light: [v("keyLight"), v("rimLight"), v("ambient"), v("exposure")],
     halo: [v("haloX"), v("haloW"), v("haloK"), v("haloA")],
     mark: [v("star"), v("glow"), v("hot"), v("open")],
-    groove: [v("taper"), v("depth"), 0, v("arm") * DEG],
+    groove: [v("taper"), v("depth"), v("bloom"), v("arm") * DEG],
     gaps: [v("gapUR"), v("gapUL"), v("gapLL"), v("gapLR")],
     streak: [v("streakX"), v("streakY"), v("streakAngle") * DEG, v("streak")],
     star: [v("starLength"), v("starWidth"), v("beams"), v("beamLength")],
@@ -189,5 +200,6 @@ export function bootScene(frame: number): BootSceneFrame {
     extra: [v("aspect"), v("haze"), v("bokeh"), frame],
     orb: [v("orbX"), v("orbY"), v("orbScale"), v("orbAlpha")],
     wordmark: [v("markScale"), v("markAlpha"), v("markBlur"), 0],
+    decal: [v("decal"), TRACKS.arm(SETTLE_FRAME) * DEG, 0, 0],
   };
 }

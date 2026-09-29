@@ -10,7 +10,7 @@
  * settled lockup if neither exists.
  */
 
-import { bootScene, type BootSceneFrame, type Vec4 } from "./bootScene";
+import { bootScene, SETTLE_FRAME, type BootSceneFrame, type Vec4 } from "./bootScene";
 import { FRAGMENT_100, FRAGMENT_300, VERTEX_100, VERTEX_300 } from "./bootShader";
 import type { BootTheme, Rgb } from "./bootTheme";
 
@@ -56,6 +56,7 @@ const VEC4S = [
   "ring",
   "ringB",
   "extra",
+  "decal",
 ] as const satisfies readonly (keyof BootSceneFrame)[];
 
 function css(c: Rgb): string {
@@ -79,6 +80,11 @@ export function poleBasis(yaw: number, pitch: number, roll: number): Float32Arra
   const ry = ex.map((v, i) => -s * v + c * (ey0[i] as number));
   return new Float32Array([...rx, ...ry, ...ez]);
 }
+
+const SETTLE_POLE = bootScene(SETTLE_FRAME).pole;
+
+/** The pose the settled orb image is projected from onto the turning sphere. */
+const SETTLE_BASIS = poleBasis(SETTLE_POLE[0], SETTLE_POLE[1], SETTLE_POLE[2]);
 
 /** Where the settled orb and the wordmark are drawn on a frame, in frame pixels. */
 export function lockupPlacement(
@@ -299,6 +305,7 @@ export class BootRenderer {
       false,
       poleBasis(scene.pole[0], scene.pole[1], scene.pole[2]),
     );
+    gl.uniformMatrix3fv(this.location(gl, "uSettle"), false, SETTLE_BASIS);
     gl.drawArrays(gl.TRIANGLES, 0, 3);
   }
 

@@ -347,11 +347,12 @@ function expose(): void {
     -->
     <div class="sky" />
     <div class="floor" />
+    <div class="orb" />
     <span class="bullet" :style="bulletStyle" />
     <span class="counter" :style="counterStyle">{{ counter }}</span>
     <header class="card" :style="cardStyle">
       <span class="tag">{{ settings.settings.gamertag || "Player1" }}</span>
-      <span class="score">0 G</span>
+      <span class="score">0<i class="coin">G</i></span>
     </header>
     <div class="pic" :style="picStyle" />
     <div class="frame" data-frame :style="frameStyle">
@@ -409,23 +410,100 @@ function expose(): void {
   background: #2c3a1a;
 }
 
-/* Placeholder ground, to be replaced by the theme art: a green sky over a grey
-   floor, with the horizon at the measured y 390 (585 at 1080p). */
+/* Lime sky lit from the right horizon, over a grey reflective floor whose
+   horizon is the measured y 585. Everything here is static paint. */
 .sky {
   position: absolute;
   inset: 0 0 auto 0;
-  height: 600px;
-  background: linear-gradient(170deg, #1f4a08 0%, #5d9a12 30%, #b5d77a 70%, #eef4dc 100%);
+  height: 620px;
+  background:
+    radial-gradient(
+      circle 60px at 1130px 150px,
+      transparent 0 34px,
+      rgba(255, 255, 255, 0.1) 35px 38px,
+      transparent 39px
+    ),
+    radial-gradient(
+      circle 60px at 1400px 90px,
+      transparent 0 40px,
+      rgba(255, 255, 255, 0.09) 41px 45px,
+      transparent 46px
+    ),
+    radial-gradient(circle 40px at 860px 350px, rgba(255, 255, 255, 0.1) 0 26px, transparent 27px),
+    radial-gradient(circle 40px at 1450px 360px, rgba(255, 255, 255, 0.1) 0 24px, transparent 25px),
+    radial-gradient(
+      ellipse 34% 60% at 96% 100%,
+      rgba(250, 250, 150, 0.95) 0%,
+      rgba(230, 240, 90, 0.6) 45%,
+      rgba(230, 240, 90, 0) 100%
+    ),
+    radial-gradient(
+      ellipse 42% 60% at 80% 60%,
+      rgba(226, 234, 226, 1) 0%,
+      rgba(226, 234, 226, 0) 100%
+    ),
+    radial-gradient(ellipse 75% 85% at 0% 0%, rgba(14, 52, 4, 0.95) 0%, rgba(14, 52, 4, 0) 100%),
+    linear-gradient(180deg, #2f6a08 0%, #7db510 45%, #b4d64a 100%);
 }
 
 .floor {
   position: absolute;
   top: 585px;
-  left: -200px;
-  right: -200px;
+  left: -300px;
+  right: -300px;
   bottom: 0;
-  border-radius: 50% 50% 0 0 / 40px 40px 0 0;
-  background: linear-gradient(180deg, #8b949c 0%, #4d565f 30%, #b8c1c9 75%, #5d666f 100%);
+  border-radius: 50% 50% 0 0 / 60px 60px 0 0;
+  background:
+    radial-gradient(
+      ellipse 45% 22% at 42% 8%,
+      rgba(232, 240, 248, 0.95) 0%,
+      rgba(232, 240, 248, 0) 100%
+    ),
+    radial-gradient(ellipse 50% 40% at 100% 0%, rgba(40, 46, 50, 0.7) 0%, rgba(40, 46, 50, 0) 100%),
+    radial-gradient(
+      ellipse 60% 60% at 50% 115%,
+      rgba(20, 24, 28, 0.55) 0%,
+      rgba(20, 24, 28, 0) 100%
+    ),
+    linear-gradient(180deg, #6f7880 0%, #8b949c 25%, #b9c3cc 55%, #7d8791 100%);
+}
+
+.orb {
+  position: absolute;
+  left: 1737px;
+  top: 948px;
+  width: 0;
+  height: 0;
+}
+
+.orb::before {
+  content: "";
+  position: absolute;
+  left: -110px;
+  top: 30px;
+  width: 220px;
+  height: 56px;
+  border-radius: 50%;
+  background: radial-gradient(
+    ellipse 50% 50% at 50% 50%,
+    rgba(255, 255, 255, 0) 55%,
+    rgba(255, 255, 255, 0.4) 62%,
+    rgba(40, 46, 52, 0.35) 70%,
+    rgba(255, 255, 255, 0.3) 78%,
+    rgba(255, 255, 255, 0) 88%
+  );
+}
+
+.orb::after {
+  content: "";
+  position: absolute;
+  left: -33px;
+  top: -33px;
+  width: 66px;
+  height: 66px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 30%, #fff 0%, #d5dadd 45%, #7f8a90 100%);
+  box-shadow: inset 0 0 0 3px rgba(60, 130, 20, 0.5);
 }
 
 /* A channel label is a promoted box scaled about its left edge, so the list
@@ -483,14 +561,33 @@ function expose(): void {
 }
 
 .score {
-  font-size: 32px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 34px;
   line-height: 40px;
+}
+
+.coin {
+  display: inline-block;
+  width: 33px;
+  height: 33px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 30%, #fff 0%, #c9cfd3 60%, #8d979d 100%);
+  color: #4a5258;
+  font-size: 21px;
+  font-style: normal;
+  font-weight: 700;
+  line-height: 33px;
+  text-align: center;
+  text-shadow: none;
 }
 
 .pic {
   position: absolute;
   border-radius: 3px;
   background: linear-gradient(160deg, #6d747c, #3a4047);
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.45);
 }
 
 /* The prompt row and the Guide are authored in the 720p frame's own pixels

@@ -81,6 +81,15 @@ export type SectionId = (typeof SECTIONS)[number]["id"];
 /** The ids, in ribbon order, for a caller that keys something off them. */
 export const SECTION_IDS: readonly SectionId[] = SECTIONS.map((section) => section.id);
 
+/**
+ * The hub's channel list, top to bottom. The selected channel sits lowest and
+ * the dashboard starts on the bottom one, so the most used goes last.
+ */
+export const CHANNEL_ORDER: readonly SectionId[] = ["system", "media", "games", "inputs", "apps"];
+
+/** The channel the hub starts on: the bottom of the list. */
+export const START_CHANNEL = CHANNEL_ORDER.length - 1;
+
 const SECTION_SET: ReadonlySet<string> = new Set(SECTION_IDS);
 
 /** A section id this build has, which a stored document may not name. */

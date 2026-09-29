@@ -4,50 +4,73 @@ import { computed, onMounted, onUnmounted, ref } from "vue";
 import { type BootReason, type BootSpeed, resolveBootMode } from "./boot";
 import BootScreen from "./components/BootScreen.vue";
 import GuideOverlay from "./components/GuideOverlay.vue";
-import HubPanel from "./components/HubPanel.vue";
+import HubPane from "./components/HubPane.vue";
 import PromptBar from "./components/PromptBar.vue";
-import { stepFocus } from "./focus/row";
 import {
-  COLUMN_H,
-  COLUMN_W,
-  COLUMN_X,
-  COLUMN_Y,
+  BULLET_SIZE,
+  BULLET_X,
+  BULLET_Y,
+  CARD_PIC,
+  CARD_PIC_X,
+  CARD_PIC_Y,
+  CARD_RIGHT,
+  CHANNEL_IN_MS,
+  CHANNEL_OUT_MS,
+  COUNTER_X,
+  COUNTER_Y,
+  counterText,
+  DEAL_MS,
+  DEAL_STAGGER_MS,
+  HIDDEN,
+  type HubMove,
+  type HubState,
+  LABEL_FONT,
+  LABEL_H,
+  LABEL_W,
+  labelSlot,
   MOVE_EASE,
   MOVE_MS,
-  placeLabels,
-  placePanes,
-  PROMPT_Y_FRAME,
-  RAIL_ALPHA,
-  railFigures,
-  type Slot,
+  PANE_W,
+  PANE_X,
+  placePool,
+  POOL_SIZE,
+  type PooledPane,
+  stepHub,
 } from "./hub";
 import { SELECT, promptsFor } from "./prompts";
 import { CANVAS_H, CANVAS_W } from "./ribbon";
-import { SECTIONS, SECTION_IDS, sectionRows } from "./sections";
+import { CHANNEL_ORDER, SECTIONS, sectionRows, START_CHANNEL } from "./sections";
 import { useAppsStore } from "./stores/apps";
 import { useSettingsStore } from "./stores/settings";
 
 /**
- * The hub: a channel column of five fixed channels on the left and a row of
- * five panes to its right, with the prompt row at the measured height.
+ * The hub: the channel list at the top left, the channel's row of panes below
+ * it receding to the right, the gamercard at the top right and the prompts at
+ * the foot. Geometry and navigation are `hub.ts`'s, measured off retail 9199.
  *
- * Authored at 1920x1080 and rendered 1:1 (docs/PERF.md). Every number is a
- * 720p measurement out of `GuideMain.xui` and lives in `hub.ts`, which
- * converts it once; nothing here measures anything.
- *
- * The sheet in docs/PERF.md is what shapes the markup. A transition must not
- * allocate, so the pane row is five panes whatever the sections are, the
- * column is five labels whatever the selection is, and the shelf inside every
- * pane is four tiles whatever the rows are. A `v-for` whose length follows the
- * data is the bug this project exists to avoid. The movers are promoted with
- * `will-change: transform`, so a move is transform writes on textures that are
- * already there, and only `transform` and `opacity` ever animate.
+ * A transition must not allocate (docs/PERF.md). The row is a fixed pool of
+ * pane elements whatever the channel holds, recycled as the focus moves, and
+ * the list is one label per channel. Both are promoted, so a move is transform
+ * and opacity writes on textures that already exist.
  */
 
 const apps = useAppsStore();
 const settings = useSettingsStore();
 
-const focus = ref(0);
+/** Where the user is. The labels follow it at once. */
+const hub = ref<HubState>({ channel: START_CHANNEL, item: 0 });
+/** What the row shows. It lags `hub` through a channel change's fade. */
+const shown = ref<HubState>({ channel: START_CHANNEL, item: 0 });
+
+/**
+ * A channel change: `out` fades the row, `collapsed` swaps it in behind the
+ * focused pane with no transition, `in` fades the focused pane up and deals the
+ * spill out to the right.
+ */
+type Phase = "rest" | "out" | "collapsed" | "in";
+const phase = ref<Phase>("rest");
+let generation = 0;
+
 /** The Guide is a full-screen takeover, not a side panel. VERIFIED, 9199. */
 const guide = ref(false);
 
@@ -88,113 +111,177 @@ function settleBoot(): void {
   if (bootMode.value === "off") booting.value = false;
 }
 
-const panes = computed(() => placePanes(focus.value, SECTION_IDS));
-const labels = computed(() => placeLabels(focus.value, SECTION_IDS));
+const channels = CHANNEL_ORDER.map(
+  (id) => SECTIONS.find((section) => section.id === id) ?? SECTIONS[0],
+);
 
-const rowsBySection = computed((): Record<string, ReturnType<typeof sectionRows>> => {
-  const rows: Record<string, ReturnType<typeof sectionRows>> = {};
-  for (const section of SECTIONS) {
-    rows[section.id] = sectionRows(section.id, apps.launchPoints, settings.settings);
+const rows = computed(() =>
+  channels.map((channel) => sectionRows(channel.id, apps.launchPoints, settings.settings)),
+);
+
+const counts = computed(() => rows.value.map((row) => row.length));
+
+const shownRow = computed(() => rows.value[shown.value.channel] ?? []);
+
+const pool = computed(() => placePool(shown.value.item, shownRow.value.length));
+
+const counter = computed(() => counterText(shown.value.item, shownRow.value.length));
+
+function paneItem(pane: PooledPane) {
+  return pane.item === null ? null : (shownRow.value[pane.item] ?? null);
+}
+
+const moveTransition = `transform ${MOVE_MS}ms ${MOVE_EASE}, opacity ${MOVE_MS}ms ${MOVE_EASE}`;
+
+function paneStyle(pane: PooledPane): Record<string, string> {
+  let { x, y, scale, opacity } = pane.slot;
+  let transition = moveTransition;
+  if (phase.value === "out") {
+    opacity = HIDDEN;
+    transition = `opacity ${CHANNEL_OUT_MS}ms linear`;
+  } else if (phase.value === "collapsed") {
+    if (pane.offset > 0) x = PANE_X + PANE_W * (1 - scale);
+    opacity = HIDDEN;
+    transition = "none";
+  } else if (phase.value === "in") {
+    const dealt = pane.offset > 0;
+    const delay = dealt ? CHANNEL_IN_MS + (pane.offset - 1) * DEAL_STAGGER_MS : 0;
+    const fade = dealt ? DEAL_MS / 2 : CHANNEL_IN_MS;
+    transition = `transform ${DEAL_MS}ms ${MOVE_EASE} ${delay}ms, opacity ${fade}ms linear ${delay}ms`;
   }
-  return rows;
-});
-
-function sectionFor(id: string) {
-  return SECTIONS.find((section) => section.id === id) ?? SECTIONS[0];
-}
-
-function rowsFor(id: string) {
-  return rowsBySection.value[id] ?? [];
-}
-
-/**
- * A slot as a style: a translate and a scale about the slot's own pivot. The
- * box behind the transform never changes, so the compositor's allocation does
- * not either.
- */
-function slotStyle(slot: Slot): Record<string, string> {
   return {
-    width: `${slot.width}px`,
-    height: `${slot.height}px`,
-    transform: `translate3d(${slot.x}px, ${slot.y}px, 0) scale(${slot.scaleX}, ${slot.scaleY})`,
-    "transform-origin": `${slot.pivotX * 100}% 50%`,
-    transition: `transform ${MOVE_MS}ms ${MOVE_EASE}`,
+    transform: `translate3d(${x}px, ${y}px, 0) scale(${scale})`,
+    opacity: `${opacity}`,
+    "z-index": `${pane.slot.z}`,
+    transition,
   };
 }
 
-const columnStyle = {
-  left: `${COLUMN_X}px`,
-  top: `${COLUMN_Y}px`,
-  width: `${COLUMN_W}px`,
-  height: `${COLUMN_H}px`,
-};
-
-function figureStyle(figure: {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-}): Record<string, string> {
+function labelStyle(index: number): Record<string, string> {
+  const slot = labelSlot(hub.value.channel - index);
   return {
-    left: `${figure.x}px`,
-    top: `${figure.y}px`,
-    width: `${figure.width}px`,
-    height: `${figure.height}px`,
-    opacity: `${RAIL_ALPHA}`,
+    width: `${LABEL_W}px`,
+    height: `${LABEL_H}px`,
+    "font-size": `${LABEL_FONT}px`,
+    "line-height": `${LABEL_H}px`,
+    transform: `translate3d(${slot.x}px, ${slot.y}px, 0) scale(${slot.scale})`,
+    opacity: `${slot.opacity}`,
   };
 }
 
-/** The move's own timing, so the stylesheet and the geometry cannot drift apart. */
-const motion = {
-  "--move-ms": `${MOVE_MS}ms`,
-  "--move-ease": MOVE_EASE,
+const bulletStyle = {
+  left: `${BULLET_X}px`,
+  top: `${BULLET_Y}px`,
+  width: `${BULLET_SIZE}px`,
+  height: `${BULLET_SIZE}px`,
 };
 
-/** The 720p frame's own size, which the frame furniture is authored in. */
+const counterStyle = { left: `${COUNTER_X}px`, top: `${COUNTER_Y}px` };
+
+const cardStyle = {
+  right: `${1920 - CARD_RIGHT}px`,
+  top: `${CARD_PIC_Y}px`,
+};
+
+const picStyle = {
+  left: `${CARD_PIC_X}px`,
+  top: `${CARD_PIC_Y}px`,
+  width: `${CARD_PIC}px`,
+  height: `${CARD_PIC}px`,
+};
+
+/** The 720p frame's own size, which the prompt row and the Guide are authored in. */
 const frameStyle = {
   width: `${CANVAS_W}px`,
   height: `${CANVAS_H}px`,
 };
 
-/**
- * Activate the focused channel.
- *
- * A channel is a section, not an app, so there is nothing to launch: the real
- * dashboard's `A` opens the selected pane's own page, and a section's page is
- * its list. That page is not built yet, so `A` reports the fact in the console
- * rather than doing nothing silently.
- */
-function activate(): void {
-  const target = sectionFor(SECTION_IDS[focus.value] ?? SECTIONS[0].id);
-  const rows = rowsFor(target.id);
-  console.info(`[xne] A on ${target.label}: ${rows.length} row(s), no page to open yet`);
+const motion = {
+  "--move-ms": `${MOVE_MS}ms`,
+  "--move-ease": MOVE_EASE,
+};
+
+function nextFrame(): Promise<void> {
+  return new Promise((resolve) => requestAnimationFrame(() => resolve()));
 }
+
+async function changeChannel(): Promise<void> {
+  const mine = ++generation;
+  phase.value = "out";
+  await new Promise((resolve) => setTimeout(resolve, CHANNEL_OUT_MS));
+  if (mine !== generation) return;
+  shown.value = hub.value;
+  phase.value = "collapsed";
+  await nextFrame();
+  await nextFrame();
+  if (mine !== generation) return;
+  phase.value = "in";
+  const settle = CHANNEL_IN_MS + DEAL_MS + DEAL_STAGGER_MS * POOL_SIZE;
+  await new Promise((resolve) => setTimeout(resolve, settle));
+  if (mine === generation) phase.value = "rest";
+}
+
+function navigate(move: HubMove): void {
+  const next = stepHub(hub.value, move, counts.value);
+  if (next === hub.value) return;
+  const channelChanged = next.channel !== hub.value.channel;
+  hub.value = next;
+  if (channelChanged) {
+    void changeChannel();
+    return;
+  }
+  if (phase.value === "out") return;
+  generation++;
+  phase.value = "rest";
+  shown.value = next;
+}
+
+/** A launches the focused pane's item. */
+function activate(): void {
+  const item = rows.value[hub.value.channel]?.[hub.value.item];
+  if (!item) return;
+  void apps.launch(item.id);
+}
+
+/**
+ * The remote, mapped to the controller: OK and green are A, Back and red are
+ * B, the arrows are the D-pad, and Channel +/- are the bumpers. B does nothing
+ * at the hub root, as on the dashboard.
+ */
+const MOVES: Readonly<Record<number, HubMove>> = {
+  37: "left",
+  38: "up",
+  39: "right",
+  40: "down",
+  34: "pageLeft",
+  33: "pageRight",
+};
 
 function onKeyDown(event: KeyboardEvent): void {
   if (guide.value) {
-    if (event.keyCode === 89 || event.keyCode === 461 || event.keyCode === 27) {
+    if (
+      event.keyCode === 89 ||
+      event.keyCode === 461 ||
+      event.keyCode === 27 ||
+      event.keyCode === 403
+    ) {
       event.preventDefault();
       guide.value = false;
     }
     return;
   }
-  if (event.keyCode === 39) {
+  const move = MOVES[event.keyCode];
+  if (move) {
     event.preventDefault();
-    focus.value = stepFocus(focus.value, 1, SECTIONS.length);
+    navigate(move);
     return;
   }
-  if (event.keyCode === 37) {
-    event.preventDefault();
-    focus.value = stepFocus(focus.value, -1, SECTIONS.length);
-    return;
-  }
-  // `A` and `Enter` both activate, because the remote's OK arrives as Enter.
-  if (event.keyCode === 13 || event.keyCode === 32) {
+  if (event.keyCode === 13 || event.keyCode === 404) {
     event.preventDefault();
     activate();
     return;
   }
-  // `Y` replays the boot, which is the only way to reach it once it has run.
+  // `Y` on a desktop keyboard replays the boot.
   if (event.keyCode === 89) {
     event.preventDefault();
     booting.value = true;
@@ -220,9 +307,10 @@ onUnmounted(() => window.removeEventListener("keydown", onKeyDown));
 
 function expose(): void {
   (window as typeof window & { xneDebug?: unknown }).xneDebug = {
-    focus,
-    panes,
-    labels,
+    hub,
+    shown,
+    phase,
+    pool,
     guide,
     boot,
   };
@@ -231,58 +319,45 @@ function expose(): void {
 
 <template>
   <main class="stage" :style="motion">
-    <div class="glow" />
-
-    <header class="who">
-      <div class="avatar" />
-      <div class="id">
-        <span class="tag">{{ settings.settings.gamertag || "Player" }}</span>
-        <span class="score">G 1250</span>
-      </div>
-    </header>
-
-    <div class="column" data-column :style="columnStyle">
-      <div class="rail" data-rail>
-        <span
-          v-for="(figure, index) in railFigures()"
-          :key="index"
-          class="figure"
-          :data-figure="index"
-          :style="figureStyle(figure)"
-        />
-      </div>
-    </div>
+    <div class="sky" />
+    <div class="floor" />
 
     <span
-      v-for="label in labels"
-      :key="label.id"
+      v-for="(channel, index) in channels"
+      :key="channel.id"
       class="label"
-      :data-channel="label.id"
-      :data-row="label.row"
-      :data-selected="label.selected || undefined"
-      :style="slotStyle(label.slot)"
-      >{{ sectionFor(label.id).label }}</span
+      :data-channel="channel.id"
+      :data-selected="index === hub.channel || undefined"
+      :style="labelStyle(index)"
+      >{{ channel.label }}</span
     >
+    <span class="bullet" :style="bulletStyle" />
 
     <div class="row" data-panes>
-      <HubPanel
-        v-for="(pane, index) in panes"
-        :key="pane.id"
-        :section="sectionFor(pane.id)"
-        :rows="rowsFor(pane.id)"
-        :data-offset="index"
-        :data-slot="pane.focused ? 'focused' : 'spill'"
-        :style="slotStyle(pane.slot)"
+      <HubPane
+        v-for="pane in pool"
+        :key="pane.element"
+        :item="paneItem(pane)"
+        :data-offset="pane.offset"
+        :style="paneStyle(pane)"
       />
     </div>
 
+    <span class="counter" :style="counterStyle">{{ counter }}</span>
+
+    <header class="card" :style="cardStyle">
+      <span class="tag">{{ settings.settings.gamertag || "Player1" }}</span>
+      <span class="score">0 G</span>
+    </header>
+    <div class="pic" :style="picStyle" />
+
     <div class="frame" data-frame :style="frameStyle">
-      <PromptBar :prompts="promptsFor({ a: SELECT.label })" :y="PROMPT_Y_FRAME" />
+      <PromptBar :prompts="promptsFor({ a: SELECT.label })" />
 
       <GuideOverlay
         :open="guide"
-        :blade="focus"
-        :items="rowsFor(SECTION_IDS[focus] ?? '').map((row) => row.title)"
+        :blade="hub.channel"
+        :items="(rows[hub.channel] ?? []).map((row) => row.title)"
       />
     </div>
 
@@ -306,100 +381,50 @@ function expose(): void {
   width: 100%;
   height: 100%;
   overflow: hidden;
-  background: #0b0f14;
+  background: #2c3a1a;
 }
 
-/* MEASURED, GuideMain.xui: #0F0F0F at alpha 100 into #81878D at alpha 0. */
-.glow {
+/* Placeholder ground, to be replaced by the theme art: a green sky over a grey
+   floor, with the horizon at the measured y 390 (585 at 1080p). */
+.sky {
   position: absolute;
-  inset: 0;
-  background: radial-gradient(
-    ellipse at 38% 45%,
-    rgba(15, 15, 15, 0.39) 0%,
-    rgba(129, 135, 141, 0) 72%
-  );
+  inset: 0 0 auto 0;
+  height: 600px;
+  background: linear-gradient(170deg, #1f4a08 0%, #5d9a12 30%, #b5d77a 70%, #eef4dc 100%);
 }
 
-/* UNVERIFIED, project chrome: the gamercard the old hub carried at the top left. */
-.who {
+.floor {
   position: absolute;
-  top: 60px;
-  left: 168px;
-  display: flex;
-  gap: 21px;
-  align-items: center;
+  top: 585px;
+  left: -200px;
+  right: -200px;
+  bottom: 0;
+  border-radius: 50% 50% 0 0 / 40px 40px 0 0;
+  background: linear-gradient(180deg, #8b949c 0%, #4d565f 30%, #b8c1c9 75%, #5d666f 100%);
 }
 
-.avatar {
-  width: 96px;
-  height: 96px;
-  border: 1px solid rgba(255, 255, 255, 0.35);
-  border-radius: 5px;
-  background: linear-gradient(160deg, #4a4f57, #22262b);
-}
-
-.id {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-}
-
-.tag {
-  font-size: 30px;
-  font-weight: 700;
-}
-
-.score {
-  font-size: 20px;
-  color: #9aa4ad;
-}
-
-.column {
-  position: absolute;
-}
-
-/* The rail is SelBlade's own figures. It rests at the measured 0.4 and never
-   moves: the scene data only fades it, and this build holds it still so a move
-   stays a transform write. */
-.rail {
-  position: absolute;
-  inset: 0;
-}
-
-.figure {
-  position: absolute;
-  background: rgba(255, 255, 255, 0.5);
-}
-
-/*
- * A label is a promoted box that scales about its own centre, which is the
- * pivot every label carries in the scene data, so a label that becomes
- * selected stops scaling and its text ends up furthest left.
- */
+/* A channel label is a promoted box scaled about its left edge, so the list
+   scrolls and recedes by transform and opacity alone. */
 .label {
   position: absolute;
   top: 0;
   left: 0;
   overflow: hidden;
-  color: rgba(255, 255, 255, 0.85);
-  font-size: 24px;
-  line-height: 32px;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
-  will-change: transform;
-  transition: transform var(--move-ms) var(--move-ease);
-}
-
-.label[data-selected] {
   color: #fff;
+  white-space: nowrap;
+  transform-origin: 0 50%;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.45);
+  will-change: transform, opacity;
+  transition:
+    transform var(--move-ms) var(--move-ease),
+    opacity var(--move-ms) var(--move-ease);
 }
 
-/*
- * The panes move, so they are promoted: a transform on an unpromoted box
- * repaints it every frame. The layer exists at rest and only its transform
- * changes, which is what keeps a move from allocating.
- */
+.bullet {
+  position: absolute;
+  background: #fff;
+}
+
 .row {
   position: absolute;
   inset: 0;
@@ -407,15 +432,44 @@ function expose(): void {
 }
 
 .row :deep(.pane) {
-  will-change: transform;
+  transform-origin: 0 0;
+  will-change: transform, opacity;
 }
 
-/*
- * The prompt row and the Guide are authored in the 720p frame's own pixels
- * (`PromptBar`, `guide.ts`), so they sit in that frame and one transform on the
- * frame puts them at 1080p about the stage's origin. A transform is not a
- * composited layer on its own, so this costs no texture.
- */
+.counter {
+  position: absolute;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 24px;
+  line-height: 30px;
+}
+
+.card {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  color: #fff;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.45);
+}
+
+.tag {
+  font-size: 40px;
+  line-height: 48px;
+}
+
+.score {
+  font-size: 32px;
+  line-height: 40px;
+}
+
+.pic {
+  position: absolute;
+  border-radius: 3px;
+  background: linear-gradient(160deg, #6d747c, #3a4047);
+}
+
+/* The prompt row and the Guide are authored in the 720p frame's own pixels
+   and scaled to 1080p about the stage's origin by one transform. */
 .frame {
   position: absolute;
   top: 0;
@@ -428,7 +482,7 @@ function expose(): void {
 @media (prefers-reduced-motion: reduce) {
   .label,
   .row :deep(.pane) {
-    transition: none;
+    transition: none !important;
   }
 }
 </style>

@@ -53,9 +53,12 @@ const browser = spawn(
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 function finish(code) {
+  browser.once("exit", () => {
+    rmSync(profile, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+    process.exit(code);
+  });
   browser.kill();
-  rmSync(profile, { recursive: true, force: true });
-  process.exit(code);
+  return new Promise(() => {});
 }
 
 let page;
@@ -70,7 +73,7 @@ for (let attempt = 0; attempt < 50 && !page; attempt++) {
 }
 if (!page) {
   console.error("chrome did not start");
-  finish(2);
+  await finish(2);
 }
 
 const socket = new WebSocket(page.webSocketDebuggerUrl);
@@ -119,13 +122,13 @@ const shot = await send("Page.captureScreenshot", { format: "png" });
 const data = shot.result?.data;
 if (!data) {
   console.error("no screenshot", JSON.stringify(shot.error ?? shot));
-  finish(2);
+  await finish(2);
 }
 
 if (!ref) {
   writeFileSync(out, Buffer.from(data, "base64"));
   console.log(`wrote ${out}`);
-  finish(0);
+  await finish(0);
 }
 
 const ours = join(profile, "ours.png");
@@ -155,6 +158,6 @@ const result = spawnSync(
   ],
   { stdio: "inherit" },
 );
-if (result.status !== 0) finish(2);
+if (result.status !== 0) await finish(2);
 console.log(`wrote ${out} (ours | reference${blend === null ? "" : " | blend"})`);
-finish(0);
+await finish(0);

@@ -22,10 +22,48 @@ function transportFailing(code: string) {
 }
 
 beforeEach(() => {
+  window.localStorage.clear();
   setActivePinia(createPinia());
 });
 
 describe("apps store", () => {
+  it("draws the last list Luna gave before Luna answers, and replaces it with the answer", async () => {
+    transportReturning({ returnValue: true, launchPoints: [{ id: "a", title: "Apple" }] });
+    await useAppsStore().load();
+
+    setActivePinia(createPinia());
+    let answer = (_payload: LunaPayload) => {};
+    setTransport({
+      request: (uri: string) =>
+        uri.endsWith("listLaunchPoints")
+          ? new Promise<LunaPayload>((resolve) => (answer = resolve))
+          : Promise.resolve({ returnValue: true }),
+    });
+    const apps = useAppsStore();
+    const loading = apps.load();
+
+    expect(apps.status).toBe("ready");
+    expect(apps.launchPoints.map((point) => point.id)).toEqual(["a"]);
+
+    answer({ returnValue: true, launchPoints: [{ id: "b", title: "Banana" }] });
+    await loading;
+    expect(apps.launchPoints.map((point) => point.id)).toEqual(["b"]);
+  });
+
+  it("keeps the last list when Luna refuses", async () => {
+    transportReturning({ returnValue: true, launchPoints: [{ id: "a", title: "Apple" }] });
+    await useAppsStore().load();
+
+    setActivePinia(createPinia());
+    transportFailing("-1");
+    const apps = useAppsStore();
+    await apps.load();
+
+    expect(apps.status).toBe("ready");
+    expect(apps.error).not.toBeNull();
+    expect(apps.launchPoints.map((point) => point.id)).toEqual(["a"]);
+  });
+
   it("keeps the device's order, which is the order the stock home shows", async () => {
     transportReturning({
       returnValue: true,

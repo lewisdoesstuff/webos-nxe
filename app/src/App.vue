@@ -1,7 +1,7 @@
 <script setup lang="ts" vapor>
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 
-import { prepareArt, prepareFloor } from "./artCache";
+import { checkArt, prepareArt, prepareFloor } from "./artCache";
 import { type BootReason, type BootSpeed, resolveBootMode } from "./boot";
 import BootScreen from "./components/BootScreen.vue";
 import GuideOverlay from "./components/GuideOverlay.vue";
@@ -410,19 +410,24 @@ function artOf(items: readonly HubItem[]): Set<string> {
  */
 const BOOT_WAIT_MS = 4000;
 const bootReady = ref(false);
-setTimeout(() => (bootReady.value = true), BOOT_WAIT_MS);
+function readyToBoot(reason: string): void {
+  if (bootReady.value) return;
+  bootReady.value = true;
+  console.info(`[xne] boot starts at ${Math.round(performance.now())}ms: ${reason}`);
+}
+setTimeout(() => readyToBoot("waited the longest it may"), BOOT_WAIT_MS);
 
 async function prepareShown(): Promise<void> {
-  await prepareFloor();
-  for (const url of artOf(rows.value[hub.value.channel] ?? [])) await prepareArt(url);
+  const urls = [...artOf(rows.value[hub.value.channel] ?? [])];
+  await Promise.all([prepareFloor(), ...urls.map((url) => prepareArt(url))]);
   await nextFrame();
   await nextFrame();
-  bootReady.value = true;
+  readyToBoot("the channel is ready");
 }
 
 watch(loaded, (is) => is && void prepareShown(), { immediate: true });
 
-/** Every other channel's art, once the boot has finished, one a frame. */
+/** Every other channel's art once the boot has finished, one a frame, and any stored art checked against its icon. */
 let baking = 0;
 async function bakeArt(): Promise<void> {
   const mine = ++baking;
@@ -430,6 +435,11 @@ async function bakeArt(): Promise<void> {
   for (const url of artOf(rows.value.flat())) {
     if (mine !== baking) return;
     await prepareArt(url);
+    await nextFrame();
+  }
+  for (const url of artOf(rows.value.flat())) {
+    if (mine !== baking) return;
+    await checkArt(url);
     await nextFrame();
   }
 }

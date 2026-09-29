@@ -10,6 +10,8 @@ export interface LaunchPoint {
   title: string;
   icon?: string;
   largeIcon?: string;
+  /** 192 or 230px where present; `largeIcon` is 115 to 256. */
+  extraLargeIcon?: string;
   iconColor?: string;
   appType?: string;
   folderPath?: string;

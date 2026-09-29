@@ -9,3 +9,4 @@ __pycache__/
 .DS_Store
 docs/refs/
 .openchamber/
+.claude/worktrees/

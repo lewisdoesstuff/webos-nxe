@@ -1,4 +1,4 @@
-import { cpSync, existsSync } from "node:fs";
+import { cpSync, existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 import vue from "@vitejs/plugin-vue";
@@ -33,6 +33,26 @@ function copyPackageFiles(): Plugin {
   };
 }
 
+/**
+ * In dev, `hack/<absolute path>` is served from `mock-tv/`, a mirror of the
+ * TV's icon files, so the mock's real paths resolve the way they do on the TV.
+ */
+function serveMockTv(): Plugin {
+  const mirror = resolve(root, "mock-tv");
+  return {
+    name: "xne:mock-tv",
+    apply: "serve",
+    configureServer(server) {
+      server.middlewares.use("/hack", (request, response, next) => {
+        const file = resolve(mirror, `.${decodeURIComponent(request.url ?? "").split("?")[0]}`);
+        if (!file.startsWith(mirror) || !existsSync(file)) return next();
+        response.setHeader("Content-Type", "image/png");
+        response.end(readFileSync(file));
+      });
+    },
+  };
+}
+
 export default defineConfig({
   root: appDir,
   base: "./",
@@ -40,7 +60,7 @@ export default defineConfig({
   resolve: {
     alias: { "@": resolve(appDir, "src") },
   },
-  plugins: [vue(), copyPackageFiles()],
+  plugins: [vue(), copyPackageFiles(), serveMockTv()],
   build: {
     outDir,
     emptyOutDir: true,

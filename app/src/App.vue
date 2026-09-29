@@ -280,10 +280,15 @@ const MOVES: Readonly<Record<number, HubMove>> = {
   33: "pageRight",
 };
 
+/** The remote's yellow key, which NXE's Y button maps to here. */
+const YELLOW = 405;
+
 function onKeyDown(event: KeyboardEvent): void {
   if (guide.value) {
     if (
       event.keyCode === 89 ||
+      event.keyCode === 71 ||
+      event.keyCode === YELLOW ||
       event.keyCode === 461 ||
       event.keyCode === 27 ||
       event.keyCode === 403
@@ -311,8 +316,8 @@ function onKeyDown(event: KeyboardEvent): void {
     boot.value += 1;
     return;
   }
-  // The Guide, on the key a desktop keyboard has for it.
-  if (event.keyCode === 71) {
+  // The Guide: G on a desktop keyboard, the remote's yellow key on the TV.
+  if (event.keyCode === 71 || event.keyCode === YELLOW) {
     event.preventDefault();
     guide.value = true;
   }

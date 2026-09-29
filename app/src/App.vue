@@ -417,6 +417,7 @@ function expose(): void {
   inset: 0 0 auto 0;
   height: 620px;
   background:
+    url("./assets/hub/bokeh.svg") 0 0 / 1920px 620px no-repeat,
     radial-gradient(
       circle 60px at 1130px 150px,
       transparent 0 34px,

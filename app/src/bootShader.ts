@@ -92,9 +92,10 @@ vec3 shell(vec3 n, float px) {
   float d1 = abs(e1);
   float d2 = abs(e2);
   float theta = acos(clamp(q.z, -1.0, 1.0));
-  float front = smoothstep(-0.35, -0.05, q.z) * (1.0 - uDecal.x);
+  float grooveOff = 1.0 - smoothstep(234.0, 238.0, uExtra.w);
+  float front = smoothstep(-0.35, -0.05, q.z) * grooveOff;
 
-  float open = uMark.w * (1.0 - uDecal.x);
+  float open = uMark.w * grooveOff;
   float on = step(0.001, open);
   float base = uShape.y * open * (1.0 + uGroove.x * clamp(1.0 - q.z, 0.0, 1.0));
   float away = smoothstep(0.05, 0.7, theta);

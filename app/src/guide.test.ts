@@ -68,6 +68,7 @@ import {
   SLAB_PIVOT_Y,
   SLAB_SCALE,
   SLAB_STEP,
+  SLAB_TUCK,
   SLAB_TILT,
   SLAB_W,
   SPINNER_D,
@@ -129,7 +130,7 @@ function fromSelection(rows: readonly Channel[]): Channel[] {
  * positioned by its unrotated top left, which is what the placement returns.
  */
 function turned(box: Box): Box {
-  return { x: box.x, y: box.y, width: ROTATED_LINE, height: box.width };
+  return { x: box.x - ROTATED_LINE, y: box.y, width: ROTATED_LINE, height: box.width };
 }
 
 /** Every box the overlay draws, for the check that the chrome covers them all. */
@@ -146,7 +147,6 @@ function drawnBoxes(): Box[] {
     CHEVRON_BOX,
     ...slabs.map((slab) => slabOrigin(slab)),
     ...slabs.map((slab) => turned(slabLabelBox(slab))),
-    ...placeChannels().map((row) => channelBox(row)),
     ...Array.from({ length: PROMPT_COUNT }, (_, i) => promptDisc(i)),
     ...Array.from({ length: PROMPT_COUNT }, (_, i) => promptLabel(i)),
   ];
@@ -472,25 +472,23 @@ describe("the blade stack", () => {
     expect(BLADE_COUNT).toBe(5);
   });
 
-  it("recesses monotonically: the scale falls and the tilt grows, every step", () => {
+  it("recesses monotonically: the scale falls every step", () => {
     for (let i = 1; i < SLAB_COUNT; i += 1) {
       expect(at(SLAB_SCALE, i)).toBeLessThan(at(SLAB_SCALE, i - 1));
-      expect(at(SLAB_TILT, i)).toBeGreaterThan(at(SLAB_TILT, i - 1));
       expect(at(SLAB_STEP, i)).toBeLessThanOrEqual(at(SLAB_STEP, i - 1));
     }
   });
 
-  it("puts the first slab against the panel's right edge", () => {
-    expect(at(placeSlabs(0, BLADE_IDS), 0).x).toBe(PANEL_X + PANEL_W);
+  it("tucks the first slab's right edge just under the panel's left edge", () => {
+    expect(at(placeSlabs(0, BLADE_IDS), 0).x + SLAB_W).toBe(PANEL_X + SLAB_TUCK);
   });
 
-  it("steps right without going back, and leaves a gap", () => {
+  it("steps left without going back", () => {
     const slabs = placeSlabs(0, BLADE_IDS);
     for (let i = 1; i < SLAB_COUNT; i += 1) {
       const inner = at(slabs, i - 1);
       const outer = at(slabs, i);
-      expect(outer.x).toBeGreaterThan(inner.x);
-      expect(outer.x).toBeGreaterThanOrEqual(slabBox(inner).x + SLAB_W * inner.scale);
+      expect(outer.x).toBeLessThan(inner.x);
     }
   });
 
@@ -508,7 +506,7 @@ describe("the blade stack", () => {
     for (const slab of placeSlabs(0, BLADE_IDS)) {
       const box = slabBox(slab);
       expect(inCanvas(box)).toBe(true);
-      expect(box.x).toBeGreaterThanOrEqual(PANEL_X + PANEL_W);
+      expect(right(box)).toBeLessThanOrEqual(PANEL_X + SLAB_TUCK);
       expect(box.y).toBeGreaterThanOrEqual(PANEL_Y);
       expect(bottom(box)).toBeLessThanOrEqual(PANEL_Y + PANEL_H);
     }
@@ -543,7 +541,7 @@ describe("the blade stack", () => {
   it("shows the Marketplace frame's four slabs when the Marketplace is focused", () => {
     // Section 3.7 lists `Games`, `Player1`, `Media` and `Settings` as the other
     // four. The ring's direction is a composition, so this asserts the set.
-    const ids = placeSlabs(1, BLADE_IDS)
+    const ids = placeSlabs(0, BLADE_IDS)
       .map((s) => s.id)
       .sort();
     expect(ids).toEqual(["games", "media", "player1", "settings"]);
@@ -575,14 +573,16 @@ describe("the blade stack", () => {
       const origin = slabOrigin(slab);
       const inner = within(origin, slabLabelBox(slab));
       expect(inner.x).toBe(SLAB_LABEL_X);
-      expect(inner.y).toBeGreaterThan(0);
-      expect(inner.x + ROTATED_LINE).toBeLessThanOrEqual(SLAB_W);
+      expect(inner.y).toBeGreaterThanOrEqual(0);
+      expect(inner.x - ROTATED_LINE).toBeGreaterThanOrEqual(0);
+      expect(inner.x).toBeLessThanOrEqual(SLAB_W);
     }
   });
 
   it("keeps the tab's label and the arc inside the tab's width", () => {
     const tabLabelBoxWidth = ROTATED_LINE;
-    expect(tabLabelBox().x + tabLabelBoxWidth).toBeLessThanOrEqual(PANEL_X + TAB_W);
+    expect(tabLabelBox().x).toBeLessThanOrEqual(PANEL_X + TAB_W);
+    expect(tabLabelBox().x - tabLabelBoxWidth).toBeGreaterThanOrEqual(PANEL_X);
     expect(spinnerBox().x).toBeGreaterThanOrEqual(PANEL_X);
     expect(spinnerBox().x + SPINNER_D).toBeLessThanOrEqual(PANEL_X + TAB_W);
     expect(SPINNER_Y).toBeLessThan(TAB_LABEL_Y);
@@ -648,15 +648,14 @@ describe("the prompt row", () => {
     }
   });
 
-  it("centres the row on the canvas, like the panel and the gamerpic", () => {
+  it("starts the row under the panel's left edge", () => {
     const row: Box = {
       x: PROMPT_X,
       y: PROMPT_Y,
       width: PROMPT_CELL_W * PROMPT_COUNT,
       height: PROMPT_H,
     };
-    expect(PROMPT_X + row.width / 2).toBe(640);
-    expect(row).toEqual({ x: 376, y: 528, width: 528, height: 22 });
+    expect(row).toEqual({ x: 377, y: 528, width: 440, height: 22 });
   });
 
   it("sits inside the panel's own width, which is the alignment the clock shows", () => {
@@ -757,7 +756,6 @@ describe("the item list", () => {
 
   it("sizes the list text below the channel's, which is the hero of the Guide", () => {
     expect(ITEM_FONT).toBeLessThan(30);
-    expect(ITEM_H).toBe(CHANNEL_BOX_H);
   });
 });
 
@@ -931,19 +929,19 @@ describe("the overlay's render", () => {
 
   it("calls the insertion-state hint only at mount, never inside an effect", () => {
     const effects = bodies(OVERLAY, "_renderEffect(");
-    // Eight effects: the root, the static geometry, the green bar, the chevron,
-    // and one inside each of the four lists. If the matcher stopped early this
+    // Six effects: the root, the static geometry, the green bar, the chevron,
+    // and one inside each of the lists. If the matcher stopped early this
     // count would fall and the check below would pass on nothing.
-    expect(effects).toHaveLength(8);
-    expect(effects.filter((body) => body.includes("_setStyle"))).toHaveLength(8);
+    expect(effects).toHaveLength(6);
+    expect(effects.filter((body) => body.includes("_setStyle"))).toHaveLength(6);
     for (const body of effects) {
       expect(body, body.slice(0, 80)).not.toContain("_setInsertionState");
     }
   });
 
-  it("renders four lists, which is one per fixed-length array", () => {
-    expect(OVERLAY.match(/_createFor\(/g)).toHaveLength(4);
-    for (const source of ["_ctx.channels", "_ctx.slabs", "_ctx.rows", "_ctx.prompts"]) {
+  it("renders three lists, which is one per fixed-length array", () => {
+    expect(OVERLAY.match(/_createFor\(/g)).toHaveLength(3);
+    for (const source of ["_ctx.slabs", "_ctx.rows", "_ctx.prompts"]) {
       expect(OVERLAY, source).toContain(source);
     }
   });
@@ -955,11 +953,11 @@ describe("the overlay's render", () => {
   });
 
   it("takes the open state as one attribute on the root and nothing else", () => {
-    expect(OVERLAY).toContain('_setAttr(n29, "data-open", $props.open || undefined)');
+    expect(OVERLAY).toMatch(/_setAttr\(n\d+, "data-open", \$props\.open \|\| undefined\)/);
   });
 
   it("hoists one template per element shape, so a shape is built once", () => {
-    expect(OVERLAY.match(/const t\d = _template/g)).toHaveLength(5);
+    expect(OVERLAY.match(/const t\d = _template/g)).toHaveLength(4);
   });
 
   it("transitions only transform and opacity, on every rule that transitions", () => {

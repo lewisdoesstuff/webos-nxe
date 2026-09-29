@@ -1,14 +1,8 @@
 <script setup lang="ts" vapor>
-import { computed } from "vue";
+import { computed, ref, watch } from "vue";
 
 import {
   BLADE_IDS,
-  BULLET_D,
-  CHANNELS,
-  CHANNEL_BOX_H,
-  CHANNEL_FONT,
-  CHANNEL_W,
-  CHANNEL_X,
   CHROME,
   CHEVRON_BOX,
   CLOCK_FONT,
@@ -37,7 +31,6 @@ import {
   PICPIC_W,
   PICPIC_X,
   PICPIC_Y,
-  placeChannels,
   placeItems,
   placeSlabs,
   PROMPT_CELL_W,
@@ -54,15 +47,12 @@ import {
   SPINNER_D,
   TAB_LABEL_FONT,
   TAB_W,
-  channelBox,
-  channelLabelX,
   slabLabelBox,
   slabOrigin,
   spinnerBox,
   tabLabelBox,
   within,
   type Box,
-  type Channel,
   type ItemRow,
   type Slab,
 } from "../guide";
@@ -110,8 +100,6 @@ const props = withDefaults(
     open?: boolean;
     /** Index into `BLADE_IDS`: the blade the panel is showing. */
     blade?: number;
-    /** Index into the channel list, 0 being the topmost channel. */
-    channel?: number;
     /** Row of the item list the green bar is on. */
     item?: number;
     /** The focused blade's items, if the parent has them. */
@@ -119,10 +107,22 @@ const props = withDefaults(
     /** The Guide's clock, already formatted by the caller. */
     clock?: string;
   }>(),
-  { open: false, blade: 1, channel: 4, item: 0, clock: "" },
+  { open: false, blade: 4, item: 0, clock: "" },
 );
 
 const bladeIds = BLADE_IDS;
+
+/** The time as the Guide shows it, read when it opens. */
+const stamp = ref("");
+watch(
+  () => props.open,
+  (open) => {
+    if (!open) return;
+    const d = new Date();
+    stamp.value = `${d.getHours() % 12 || 12}:${String(d.getMinutes()).padStart(2, "0")}`;
+  },
+  { immediate: true },
+);
 
 /** The Guide's own prompt row, the one array `prompts.ts` built. */
 const prompts = guidePrompts();
@@ -133,13 +133,11 @@ const prompts = guidePrompts();
  * element count: an index past the end is moved to the end, not dropped.
  */
 const blade = computed(() => Math.min(Math.max(props.blade, 0), bladeIds.length - 1));
-const channel = computed(() => Math.min(Math.max(props.channel, 0), CHANNELS.length - 1));
 const item = computed(() => Math.min(Math.max(props.item, 0), ITEM_ROWS - 1));
 
 /** The slab stack, cut from the same ring the focused blade's tab label is on. */
 const slabs = computed(() => placeSlabs(blade.value, bladeIds));
 
-const channels = computed(() => placeChannels(CHANNELS, channel.value));
 const rows = computed(() =>
   placeItems(props.items ?? ITEMS[bladeIds[blade.value] ?? ""] ?? [], item.value),
 );
@@ -165,11 +163,6 @@ const rootStyle: Record<string, string> = {
   "--clock-w": `${CLOCK_W}px`,
   "--clock-h": `${CLOCK_H}px`,
   "--clock-font": `${CLOCK_FONT}px`,
-  "--chan-w": `${CHANNEL_W}px`,
-  "--chan-h": `${CHANNEL_BOX_H}px`,
-  "--chan-font": `${CHANNEL_FONT}px`,
-  "--label-x": `${channelLabelX() - CHANNEL_X}px`,
-  "--bullet-d": `${BULLET_D}px`,
   "--item-bar-w": `${ITEM_BAR_W}px`,
   "--item-h": `${ITEM_H}px`,
   "--item-font": `${ITEM_FONT}px`,
@@ -193,28 +186,11 @@ function at(box: Box): Record<string, string> {
   };
 }
 
-/**
- * A channel row, written at the full 384x42 and scaled down from its own top
- * left, so the element's box never changes and only the transform does. The
- * scale and the fade are the whole of a channel change.
- */
-function channelStyle(row: Channel): Record<string, string> {
-  const box = inChrome(channelBox(row));
-  return {
-    left: `${box.x}px`,
-    top: `${box.y}px`,
-    width: `${CHANNEL_W}px`,
-    height: `${CHANNEL_BOX_H}px`,
-    transform: `scale(${row.scale})`,
-    opacity: `${row.alpha}`,
-  };
-}
-
 /** An item row, at its own slot, lit only while the bar is on it. */
 function itemStyle(row: ItemRow): Record<string, string> {
   return {
     ...at({ x: ITEM_X, y: row.y, width: ITEM_BAR_W, height: ITEM_H }),
-    opacity: row.selected ? "1" : "0.6",
+    opacity: row.selected ? "1" : "0.92",
   };
 }
 
@@ -227,7 +203,7 @@ function itemStyle(row: ItemRow): Record<string, string> {
 function slabStyle(slab: Slab): Record<string, string> {
   return {
     ...at(slabOrigin(slab)),
-    transform: `rotateY(${-slab.tilt}deg) scale(${slab.scale})`,
+    transform: `scale(${slab.scale})`,
     transitionDelay: `${slab.d * SLAB_STAGGER_MS}ms`,
   };
 }
@@ -270,21 +246,9 @@ const CLOCK: Box = { x: CLOCK_X, y: CLOCK_Y, width: CLOCK_W, height: CLOCK_H };
     <div class="dim" />
 
     <div class="chrome">
-      <div
-        v-for="row in channels"
-        :key="row.d"
-        class="channel"
-        :data-channel="row.label"
-        :data-selected="row.selected || undefined"
-        :style="channelStyle(row)"
-      >
-        <span class="bullet" />
-        <span class="word">{{ row.label }}</span>
-      </div>
-
       <div class="gamerpic" :style="at(PIC)" />
 
-      <div class="clock" :style="at(CLOCK)">{{ clock }}</div>
+      <div class="clock" :style="at(CLOCK)">{{ clock || stamp }}</div>
 
       <div class="slabs">
         <div
@@ -394,47 +358,10 @@ const CLOCK: Box = { x: CLOCK_X, y: CLOCK_Y, width: CLOCK_W, height: CLOCK_H };
   transform: translate3d(0, 0, 0);
 }
 
-/*
- * A channel row, written at the full 384x42 and scaled from its own top left, so
- * a channel change is a transform and an opacity and the box never resizes.
- */
-.channel {
-  position: absolute;
-  transform-origin: 0 0;
-  will-change: transform, opacity;
-  color: #fff;
-  font-size: var(--chan-font);
-  font-weight: 700;
-  line-height: var(--chan-h);
-  white-space: nowrap;
-  text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.6);
-  transition:
-    transform var(--select-ms) cubic-bezier(0.215, 0.61, 0.355, 1),
-    opacity var(--select-ms) linear;
-}
-
-.bullet {
-  position: absolute;
-  left: 0;
-  top: 50%;
-  width: var(--bullet-d);
-  height: var(--bullet-d);
-  margin-top: calc(var(--bullet-d) / -2);
-  background: #fff;
-}
-
-.channel .word {
-  position: absolute;
-  left: var(--label-x);
-  top: 0;
-}
-
 /* The profile plate, centred above the panel at the gamerpic's own box. */
 .gamerpic {
   position: absolute;
-  border: 1px solid rgba(255, 255, 255, 0.42);
-  border-radius: 3px;
-  background: linear-gradient(160deg, #4a4f57, #22262b);
+  background: #222 url("../assets/hub/gamerpic.svg") center / 100% 100% no-repeat;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
 }
 
@@ -453,26 +380,33 @@ const CLOCK: Box = { x: CLOCK_X, y: CLOCK_Y, width: CLOCK_W, height: CLOCK_H };
 .slabs {
   position: absolute;
   inset: 0;
-  perspective: 700px;
 }
 
 .slab {
   position: absolute;
-  transform-origin: 0 50%;
-  border-right: 1px solid rgba(255, 255, 255, 0.85);
-  background: linear-gradient(
-    100deg,
-    rgba(255, 255, 255, 0.1) 0%,
-    rgba(255, 255, 255, 0.62) 62%,
-    rgba(255, 255, 255, 0.9) 100%
-  );
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+  transform-origin: 100% 50%;
+  border-radius: 8px 0 0 8px;
+  background: linear-gradient(90deg, #cfd4d8 0%, #e6e9ec 45%, #f4f5f6 100%);
+  box-shadow: -3px 0 8px rgba(0, 0, 0, 0.5);
   will-change: transform;
   transition: transform var(--open-ms) cubic-bezier(0.215, 0.61, 0.355, 1);
 }
 
+.slab[data-offset="0"] {
+  z-index: 4;
+}
+
+.slab[data-offset="1"] {
+  z-index: 3;
+}
+
+.slab[data-offset="2"] {
+  z-index: 2;
+}
+
 .slab-label {
   position: absolute;
+  text-align: center;
   transform: rotate(90deg);
   transform-origin: 0 0;
   color: #16181b;
@@ -480,6 +414,7 @@ const CLOCK: Box = { x: CLOCK_X, y: CLOCK_Y, width: CLOCK_W, height: CLOCK_H };
   font-weight: 700;
   line-height: var(--line);
   white-space: nowrap;
+  text-transform: capitalize;
 }
 
 /*
@@ -489,14 +424,15 @@ const CLOCK: Box = { x: CLOCK_X, y: CLOCK_Y, width: CLOCK_W, height: CLOCK_H };
  */
 .panel {
   position: absolute;
-  border-radius: 4px;
-  background: linear-gradient(180deg, rgba(24, 26, 30, 0.96), rgba(12, 13, 16, 0.96));
+  border-radius: 6px;
+  background: linear-gradient(180deg, #24364b 0%, #1b2a3b 100%);
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.55);
 }
 
 .tab {
   position: absolute;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.04));
+  border-radius: 6px 0 0 6px;
+  background: linear-gradient(180deg, #17222f, #121b26);
 }
 
 /*
@@ -507,8 +443,8 @@ const CLOCK: Box = { x: CLOCK_X, y: CLOCK_Y, width: CLOCK_W, height: CLOCK_H };
 .spinner {
   position: absolute;
   margin-left: calc(var(--spinner-d) / -2);
-  border: 2px solid rgba(255, 255, 255, 0.8);
-  border-top-color: transparent;
+  border: 3px solid rgba(255, 255, 255, 0.85);
+  border-top-color: rgba(255, 255, 255, 0.25);
   border-radius: 50%;
 }
 
@@ -516,6 +452,8 @@ const CLOCK: Box = { x: CLOCK_X, y: CLOCK_Y, width: CLOCK_W, height: CLOCK_H };
   position: absolute;
   transform: rotate(90deg);
   transform-origin: 0 0;
+  text-align: center;
+  text-transform: capitalize;
   color: #fff;
   font-size: var(--tab-font);
   font-weight: 700;
@@ -530,8 +468,8 @@ const CLOCK: Box = { x: CLOCK_X, y: CLOCK_Y, width: CLOCK_W, height: CLOCK_H };
  */
 .bar {
   position: absolute;
-  border-radius: 2px;
-  background: linear-gradient(90deg, #4e9a3d, #5eae4c 60%, #6fbe5a);
+  border-radius: 3px;
+  background: linear-gradient(180deg, #86c826 0%, #6db01a 48%, #4f9210 52%, #5ba316 100%);
   will-change: transform;
   transition: transform var(--select-ms) cubic-bezier(0.215, 0.61, 0.355, 1);
 }
@@ -541,12 +479,12 @@ const CLOCK: Box = { x: CLOCK_X, y: CLOCK_Y, width: CLOCK_W, height: CLOCK_H };
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  box-shadow: 0 0 10px rgba(94, 174, 76, 0.55);
+  box-shadow: 0 0 10px rgba(110, 176, 26, 0.5);
 }
 
 .item {
   position: absolute;
-  padding-left: 14px;
+  padding-left: 8px;
   overflow: hidden;
   color: #fff;
   font-size: var(--item-font);
@@ -598,13 +536,13 @@ const CLOCK: Box = { x: CLOCK_X, y: CLOCK_Y, width: CLOCK_W, height: CLOCK_H };
 }
 
 .prompt .word {
+  position: absolute;
   left: 0;
 }
 
 @media (prefers-reduced-motion: reduce) {
   .dim,
   .chrome,
-  .channel,
   .bar,
   .slab {
     transition: none;

@@ -17,7 +17,7 @@
  */
 
 import { BUTTON_SIZE, promptsFor, type Prompt } from "./prompts";
-import { CANVAS_W, type Box } from "./ribbon";
+import type { Box } from "./ribbon";
 
 export type { Box } from "./ribbon";
 
@@ -43,19 +43,19 @@ export const PANEL_RIGHT = PANEL_X + PANEL_W;
  * frame puts a rotated label and a spinner in the same 315px of height, so the
  * width only has to clear a 13pt line and a 16px arc.
  */
-export const TAB_W = 30;
-export const TAB_LABEL_FONT = 13;
+export const TAB_W = 44;
+export const TAB_LABEL_FONT = 21;
 
 /**
  * The line a turned label runs in, which is how wide it draws once it is
  * rotated, and how long a slab's label has to run. UNVERIFIED: the frame rotates
  * the labels 90 degrees and measures neither the line nor the run.
  */
-export const ROTATED_LINE = 12;
+export const ROTATED_LINE = 22;
 
 /** The arc above the tab label. The frame has one; its size is UNVERIFIED. */
-export const SPINNER_D = 16;
-export const SPINNER_Y = 214;
+export const SPINNER_D = 26;
+export const SPINNER_Y = 210;
 
 /**
  * Where the tab's label starts, turned 90 degrees so it runs down the edge, and
@@ -67,8 +67,8 @@ export const SPINNER_Y = 214;
  * the panel's height less where it starts, so a tab label of any length fits
  * without the box being asked to grow.
  */
-export const TAB_LABEL_X = PANEL_X + TAB_W / 2 - TAB_LABEL_FONT / 2;
-export const TAB_LABEL_Y = 246;
+export const TAB_LABEL_X = PANEL_X + TAB_W / 2 + ROTATED_LINE / 2;
+export const TAB_LABEL_Y = 250;
 export const TAB_LABEL_RUN = PANEL_Y + PANEL_H - TAB_LABEL_Y;
 
 /**
@@ -222,10 +222,10 @@ export const ITEMS: Readonly<Record<string, readonly string[]>> = {
  * the down chevron at the panel's bottom right needs. Fixed, so a blade with four
  * items and a blade with six draw the same six elements.
  */
-export const ITEM_ROWS = 6;
+export const ITEM_ROWS = 7;
 
 /** The row box, the same 42 as the selected channel. DERIVED by reuse. */
-export const ITEM_H = 42;
+export const ITEM_H = 41;
 
 /**
  * The list's font. UNVERIFIED: the frame measures the four item rows' text only
@@ -233,25 +233,25 @@ export const ITEM_H = 42;
  * the channel is the hero of the Guide and the item is not, and 18 is about
  * 0.6 of the 30 the channel uses at full size.
  */
-export const ITEM_FONT = 18;
+export const ITEM_FONT = 24;
 
 /** The pitch, 6 on the 42. DERIVED from ITEM_ROWS fitting the panel. */
-export const ITEM_PITCH = 48;
+export const ITEM_PITCH = 40;
 
 /** The first row's top, 24 down the panel. DERIVED from ITEM_ROWS fitting it. */
-export const ITEM_TOP = PANEL_Y + 24;
+export const ITEM_TOP = PANEL_Y + 15;
 
 /** The row's left edge, clearing the tab. DERIVED from TAB_W. */
-export const ITEM_X = PANEL_X + TAB_W + 20;
+export const ITEM_X = PANEL_X + TAB_W + 13;
 
 /**
  * The green bar's width, stopping short of the chevron. DERIVED: 470 puts the
  * bar's right edge at 888 and the chevron at 890, with the panel's at 912.
  */
-export const ITEM_BAR_W = 470;
+export const ITEM_BAR_W = 473;
 
 /** The down chevron at the panel's bottom right, NXE-BOOT-INPUT.md section 3.8. */
-export const CHEVRON_BOX: Box = { x: 890, y: 490, width: 18, height: 14 };
+export const CHEVRON_BOX: Box = { x: 900, y: 498, width: 10, height: 8 };
 
 /**
  * The blades, in the order Arbiter's Judgement walks them on 2008-11-16: the
@@ -265,8 +265,8 @@ export const CHEVRON_BOX: Box = { x: 890, y: 490, width: 18, height: 14 };
  * in profile, which is the one substitution made.
  */
 export const BLADE_IDS = [
-  "games",
   "marketplace",
+  "games",
   "player1",
   "media",
   "settings",
@@ -278,8 +278,11 @@ export const BLADE_COUNT = BLADE_IDS.length;
 export const SLAB_COUNT = 4;
 
 /** The slab's own box, the panel's height, so the stack lines up with it. */
-export const SLAB_W = 30;
+export const SLAB_W = 44;
 export const SLAB_H = PANEL_H;
+
+/** How far the nearest slab's right edge runs under the panel. */
+export const SLAB_TUCK = 2;
 
 /**
  * The recession ramp, all UNVERIFIED.
@@ -291,9 +294,9 @@ export const SLAB_H = PANEL_H;
  * the gaps continue to compress the way 27, 26, 24 do. The tilt is what makes it
  * 3D rather than merely small.
  */
-export const SLAB_SCALE = [0.92, 0.84, 0.76, 0.68] as const;
-export const SLAB_STEP = [20, 18, 16, 14] as const;
-export const SLAB_TILT = [8, 14, 20, 26] as const;
+export const SLAB_SCALE = [0.95, 0.92, 0.89, 0.86] as const;
+export const SLAB_STEP = [38, 38, 38, 38] as const;
+export const SLAB_TILT = [0, 0, 0, 0] as const;
 
 /**
  * The slabs' pivot, the panel's own mid-height, the same reason the hub's is
@@ -309,10 +312,10 @@ export const SLAB_PIVOT_Y = SLAB_H / 2;
  * because the label is its child and has to scale with it. The x centres the
  * turned text in the slab's width.
  */
-export const SLAB_LABEL_X = SLAB_W / 2 - 5.5;
-export const SLAB_LABEL_Y = 16;
-export const SLAB_LABEL_FONT = 11;
-export const SLAB_LABEL_RUN = 200;
+export const SLAB_LABEL_X = SLAB_W / 2 + ROTATED_LINE / 2;
+export const SLAB_LABEL_Y = 0;
+export const SLAB_LABEL_FONT = 20;
+export const SLAB_LABEL_RUN = SLAB_H;
 
 /**
  * How dark the hub behind is. UNVERIFIED as a number: the section says the hub
@@ -320,7 +323,7 @@ export const SLAB_LABEL_RUN = 200;
  * for it. One flat plane rather than a gradient, because a plane is one layer
  * either way and a full-frame one is the most expensive element in the app.
  */
-export const DIM_ALPHA = 0.88;
+export const DIM_ALPHA = 0.97;
 
 /**
  * The open. DERIVED, and not from section 3.7.
@@ -383,11 +386,11 @@ export const PROMPT_H = BUTTON_SIZE;
  * 376-904. Inside the panel's 368-912, which is the alignment the clock's right
  * edge already shows the band has.
  */
-export const PROMPT_CELL_W = 132;
+export const PROMPT_CELL_W = 110;
 export const PROMPT_GAP = 8;
-export const PROMPT_FONT = 13;
+export const PROMPT_FONT = 20;
 export const PROMPT_ROW_W = PROMPT_CELL_W * PROMPT_COUNT;
-export const PROMPT_X = CANVAS_W / 2 - PROMPT_ROW_W / 2;
+export const PROMPT_X = 377;
 
 export interface Slab {
   /** Step out from the panel, 0 being the slab against its right edge. */
@@ -458,11 +461,11 @@ export function slabRow(d: number, id: string): Slab {
  * boxes on screen are the same before and after it.
  */
 export function placeSlabs(focus: number, bladeIds: readonly string[]): Slabs {
-  let edge = PANEL_RIGHT;
+  let edge = PANEL_X + SLAB_TUCK;
   const at = (d: number): Slab => {
-    const slab = slabRow(d, bladeIds[wrap(focus + 1 + d, bladeIds.length)] ?? "");
-    slab.x = d === 0 ? edge : edge + ramp(SLAB_STEP, d);
-    edge = slab.x + SLAB_W * slab.scale;
+    const slab = slabRow(d, bladeIds[wrap(focus - 1 - d, bladeIds.length)] ?? "");
+    slab.x = (d === 0 ? edge : edge - ramp(SLAB_STEP, d)) - SLAB_W;
+    edge = slab.x + SLAB_W;
     return slab;
   };
   return [at(0), at(1), at(2), at(3)];
@@ -471,7 +474,7 @@ export function placeSlabs(focus: number, bladeIds: readonly string[]): Slabs {
 /** The right edge of the last slab, which the chrome box has to clear. */
 export function slabRight(slabs: Slabs): number {
   const last = slabs[slabs.length - 1];
-  return last === undefined ? PANEL_RIGHT : last.x + SLAB_W * last.scale;
+  return last === undefined ? PANEL_X : last.x;
 }
 
 /**
@@ -486,7 +489,7 @@ export function slabRight(slabs: Slabs): number {
 export function slabBox(slab: Slab): Box {
   const scale = slab.scale;
   return {
-    x: slab.x,
+    x: slab.x + SLAB_W * (1 - scale * Math.cos((slab.tilt * Math.PI) / 180)),
     y: PANEL_Y + (SLAB_H * (1 - scale)) / 2,
     width: SLAB_W * scale * Math.cos((slab.tilt * Math.PI) / 180),
     height: SLAB_H * scale,
@@ -638,7 +641,7 @@ export function promptLabel(index: number): Box {
 const SLAB_END = slabRight(placeSlabs(0, BLADE_IDS));
 
 /** The top of the channel ramp, which is the top of the Guide's own chrome. */
-const CHROME_TOP = CHANNEL_TOP - (CHANNEL_COUNT - 1) * CHANNEL_PITCH;
+const CHROME_TOP = PICPIC_Y;
 
 /** The bottom of the prompt band, which is the bottom of the chrome. */
 const CHROME_BOTTOM = PROMPT_Y + PROMPT_H;
@@ -669,9 +672,9 @@ const CHROME_PAD_BOTTOM = 24;
  * is one layer fewer to keep in step.
  */
 export const CHROME: Box = {
-  x: PANEL_X - CHROME_PAD_X,
+  x: SLAB_END - CHROME_PAD_X,
   y: CHROME_TOP - CHROME_PAD_TOP,
-  width: SLAB_END - PANEL_X + 2 * CHROME_PAD_X,
+  width: PANEL_RIGHT - SLAB_END + 2 * CHROME_PAD_X,
   height: CHROME_BOTTOM - CHROME_TOP + CHROME_PAD_TOP + CHROME_PAD_BOTTOM,
 };
 

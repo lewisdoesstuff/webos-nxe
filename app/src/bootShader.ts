@@ -21,6 +21,7 @@ uniform vec4 uMark;
 uniform vec4 uStar;
 uniform vec4 uRing;
 uniform vec4 uRingB;
+uniform vec4 uExtra;
 uniform vec4 uField;
 uniform vec4 uShape;
 
@@ -103,7 +104,8 @@ vec3 shell(vec3 n, float px) {
   grooveC = mix(grooveC, vec3(1.0), max(uMark.z, 0.75 * nearPole)) * uMark.y;
   float spill = exp(-max(gap, 0.0) / (0.01 + 0.03 * uMark.z)) * (0.3 + 0.7 * nearPole);
   c += mix(cCore, vec3(1.0), uMark.z) * spill * (uMark.y * 0.25 + uMark.z * 0.8) * front;
-  float lip = exp(-pow(gap / (0.005 + px), 2.0)) * step(0.0, gap);
+  c += mix(cCore, vec3(1.0), 0.6) * uMark.y * min(uMark.w, 1.0) * 0.9 * exp(-theta * theta / 0.05) * front;
+  float lip =exp(-pow(gap / (0.005 + px), 2.0)) * step(0.0, gap);
   c += vec3(0.85, 0.95, 0.85) * lip * uMark.w * 0.7 * front;
   return mix(c, grooveC, inGroove);
 }
@@ -127,9 +129,23 @@ float ring(vec2 p, float scale) {
   return exp(-dist * dist / (uRingB.y * uRingB.y)) + 0.25 * exp(-abs(dist) / (uRingB.y * 5.0));
 }
 
+vec3 bokeh(vec2 p) {
+  float b = 0.0;
+  for (int i = 0; i < 6; i++) {
+    float k = float(i);
+    vec2 at = vec2(fract(sin(k * 12.9898) * 43758.5453), fract(sin(k * 78.233) * 43758.5453));
+    at = at * vec2(1920.0, 1080.0) + vec2(uExtra.w * (20.0 + 15.0 * k), 0.0);
+    float r = 70.0 + 60.0 * fract(k * 0.618);
+    b += 0.5 * smoothstep(r, r * 0.6, length(p - at));
+  }
+  return vec3(b);
+}
+
 vec3 scene(vec2 p) {
   vec3 c = field(p);
+  c += bokeh(p) * uExtra.z * 0.25;
   vec2 d = (p - uSphere.xy) / uSphere.z;
+  d.x /= uExtra.x;
   float rr = dot(d, d);
   float out1 = max(length(p - uSphere.xy) - uSphere.z, 0.0);
   float hx = (p.x - uHalo.x) / uHalo.y;
@@ -139,7 +155,8 @@ vec3 scene(vec2 p) {
   if (rr < 1.0) {
     vec3 n = vec3(d.x, -d.y, sqrt(1.0 - rr));
     float edge = smoothstep(1.0, 1.0 - 2.0 * px, sqrt(rr));
-    c = mix(c, shell(n, px * 2.0), edge * uSphere.w);
+    vec3 s = mix(shell(n, px * 2.0), c, uExtra.y * (0.6 + 0.4 * n.z));
+    c = mix(c, s, edge * uSphere.w);
   }
   if (uStar.z > 0.0) {
     vec3 ez = uBasis[2];

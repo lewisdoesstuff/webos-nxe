@@ -20,6 +20,11 @@ for t in 48 50 62 66 82 100 110 122 124 128 134 136 140 144 150 154 164; do
   ffmpeg -loglevel error -y -ss "$t" -i video/nhf_OIt7ag0.mkv -frames:v 1 "hub/9199-t$(printf %03d "$t").png"
 done
 
+mkdir -p settings
+for t in 16 20 52 54 56 156 158 160; do
+  ffmpeg -loglevel error -y -ss "$t" -i video/nhf_OIt7ag0.mkv -frames:v 1 "settings/9199-t$(printf %03d "$t").png"
+done
+
 ffmpeg -loglevel error -y -i video/dkKAW_GXXZk.mkv \
   -vf "select='not(mod(n\,20))*lte(n\,380)',scale=384:216,tile=5x4" -fps_mode passthrough -frames:v 1 sheets/boot.png
 ffmpeg -loglevel error -y -i video/nhf_OIt7ag0.mkv -vf "fps=1/2,scale=320:180,tile=8x11" -frames:v 1 sheets/9199.png

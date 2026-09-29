@@ -83,7 +83,7 @@ export function settingsRoot(): ListPage {
   return {
     kind: "list",
     id: "settings",
-    title: "Settings",
+    title: "XNE Settings",
     groups: [
       {
         id: "settings",

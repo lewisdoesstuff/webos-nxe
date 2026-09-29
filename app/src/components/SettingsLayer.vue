@@ -251,37 +251,28 @@ const withIcons = computed(() => items.value.some((item) => item.icon !== undefi
 .bar {
   position: absolute;
   top: -2px;
-  bottom: -2px;
-  left: 0;
-  right: 0;
-  border-radius: 3px;
-  background: linear-gradient(
-    180deg,
-    #b9e87a 0%,
-    #8cc93a 14%,
-    #64a80a 34%,
-    #58a300 52%,
-    #62ab00 72%,
-    #86c21e 96%,
-    #a0d040 100%
-  );
-  box-shadow: inset 0 0 0 1px rgba(184, 232, 110, 0.55);
-  opacity: 0;
-}
-
-.list[data-icons] .bar {
+  bottom: -1px;
+  left: -4px;
+  right: -4px;
+  border-radius: 4px;
   background:
-    linear-gradient(90deg, rgba(160, 190, 150, 0) 45%, rgba(170, 196, 160, 0.7) 100%),
+    radial-gradient(60% 45% at 50% 100%, rgba(214, 255, 150, 0.45), rgba(214, 255, 150, 0)),
     linear-gradient(
       180deg,
-      #b9e87a 0%,
-      #8cc93a 14%,
-      #64a80a 34%,
-      #58a300 52%,
-      #62ab00 72%,
-      #86c21e 96%,
-      #a0d040 100%
+      #91c74e 0%,
+      #c5dd98 12%,
+      #a7d065 23%,
+      #8ac140 33%,
+      #6fb211 44%,
+      #519f00 54%,
+      #4c9d00 65%,
+      #6ab507 75%,
+      #95ce3b 85%,
+      #b6e856 96%,
+      #8cc440 100%
     );
+  box-shadow: inset 0 0 0 1px rgba(196, 238, 120, 0.6);
+  opacity: 0;
 }
 
 .row[data-focused] {

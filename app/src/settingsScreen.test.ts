@@ -33,7 +33,7 @@ function hidden(...ids: string[]) {
 describe("the settings root", () => {
   it("lists the categories", () => {
     const root = settingsRoot();
-    expect(root.title).toBe("Settings");
+    expect(root.title).toBe("XNE Settings");
     expect(root.groups[0]?.items.map((item) => item.label)).toEqual(
       SETTINGS_CATEGORIES.map((category) => category.title),
     );

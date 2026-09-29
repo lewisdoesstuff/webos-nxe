@@ -28,6 +28,7 @@ function armed(): { log: AudioLog } {
   // code defaults rather than the last test's choices.
   localStorage.clear();
   setActivePinia(createPinia());
+  useSettingsStore().updateSetting("navSound", false);
   log = installAudio();
   return { log };
 }
@@ -233,7 +234,6 @@ describe("with no store to read", () => {
 
     expect(() => sound?.playSound("cursor")).not.toThrow();
     expect(() => sound?.startMusic()).not.toThrow();
-    expect(sound?.status().navSound).toBe(false);
-    expect(log?.contexts).toBe(0);
+    expect(sound?.status().navSound).toBe(true);
   });
 });

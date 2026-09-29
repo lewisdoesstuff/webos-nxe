@@ -25,6 +25,8 @@ export interface AudioLog {
   stopped: number;
   resumed: number;
   closed: number;
+  /** Length in samples of the buffer each started source played. */
+  playedLengths: number[];
   /** The last context made, for poking at its state. */
   last: FakeContext | null;
 }
@@ -90,6 +92,7 @@ class FakeSource {
 
   start(): void {
     this.log.started++;
+    this.log.playedLengths.push(this.buffer?.length ?? 0);
   }
 
   stop(): void {
@@ -115,6 +118,11 @@ export class FakeContext {
   createBuffer(channels: number, length: number, sampleRate: number): FakeBuffer {
     this.log.buffers++;
     return new FakeBuffer(channels, length, sampleRate);
+  }
+
+  decodeAudioData(bytes: ArrayBuffer): Promise<FakeBuffer> {
+    if (bytes.byteLength === 0) return Promise.reject(new Error("undecodable"));
+    return Promise.resolve(new FakeBuffer(1, bytes.byteLength, this.sampleRate));
   }
 
   createBufferSource(): unknown {
@@ -222,6 +230,7 @@ function emptyLog(): AudioLog {
     stopped: 0,
     resumed: 0,
     closed: 0,
+    playedLengths: [],
     last: null,
   };
 }

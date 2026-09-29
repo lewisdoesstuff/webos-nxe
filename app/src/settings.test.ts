@@ -101,7 +101,7 @@ describe("changedKeys", () => {
   });
 
   it("finds a value the user has moved off the default", () => {
-    expect(changedKeys({ ...SETTINGS_DEFAULTS, navSound: true })).toEqual(["navSound"]);
+    expect(changedKeys({ ...SETTINGS_DEFAULTS, navSound: false })).toEqual(["navSound"]);
     expect(changedKeys({ ...SETTINGS_DEFAULTS, musicVolume: 0.5 })).toEqual([]);
     expect(changedKeys({ ...SETTINGS_DEFAULTS, screensaverDim: 0 })).toEqual(["screensaverDim"]);
   });

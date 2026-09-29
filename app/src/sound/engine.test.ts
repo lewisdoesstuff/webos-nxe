@@ -161,3 +161,44 @@ describe("the blip engine", () => {
     expect(sound.status().sounds).toBe(0);
   });
 });
+
+const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+describe("recorded clips", () => {
+  function withFiles(load: (url: string) => Promise<ArrayBuffer>): SoundEngine {
+    log = installAudio();
+    engine = createSoundEngine({ files: { cursor: "cursor.ogg", decide: "decide.ogg" }, load });
+    return engine;
+  }
+
+  it("decodes on preload and plays the clip instead of the synthesised blip", async () => {
+    const sound = withFiles(() => Promise.resolve(new ArrayBuffer(7)));
+    sound.preload();
+    await settle();
+    sound.play("cursor");
+    sound.play("cancel");
+
+    expect(log?.playedLengths[0]).toBe(7);
+    expect(log?.playedLengths[1]).not.toBe(7);
+  });
+
+  it("keeps the synthesised blip when a file fails to load or decode", async () => {
+    const sound = withFiles((url) =>
+      url === "cursor.ogg" ? Promise.reject(new Error("404")) : Promise.resolve(new ArrayBuffer(0)),
+    );
+    sound.preload();
+    await settle();
+    sound.play("cursor");
+    sound.play("decide");
+
+    expect(log?.started).toBe(2);
+    expect(log?.playedLengths.every((length) => length > 7)).toBe(true);
+  });
+
+  it("does not wait for a clip on the first key press", () => {
+    const sound = withFiles(() => new Promise(() => {}));
+    sound.play("cursor");
+
+    expect(log?.started).toBe(1);
+  });
+});

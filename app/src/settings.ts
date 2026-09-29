@@ -60,7 +60,7 @@ export const SETTINGS_DEFAULTS: Settings = {
   background: "none",
   wallpaperPath: "/media/internal/ooo.lew.xne/wallpaper.jpg",
   backgroundBrightness: 1,
-  navSound: false,
+  navSound: true,
   musicPath: "",
   musicVolume: 0.5,
   previews: true,

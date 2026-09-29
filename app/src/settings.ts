@@ -16,6 +16,8 @@ export interface Settings {
   defaultsRev: number;
   /** Empty means signed out, and the gamercard shows its caption instead. */
   gamertag: string;
+  /** The channel the hub starts on, by section id. Apps when unset. */
+  lastChannel: string;
   clock24h: boolean;
   showClock: boolean;
   /** The A/B/X/Y + LB/RB row at the foot of the screen. */
@@ -48,6 +50,7 @@ export interface Settings {
 export const SETTINGS_DEFAULTS: Settings = {
   defaultsRev: DEFAULTS_REV,
   gamertag: "Player",
+  lastChannel: "apps",
   clock24h: true,
   showClock: true,
   hintBar: true,
@@ -128,6 +131,7 @@ export function mergeSettings(stored: unknown): { settings: Settings; migrated: 
   const settings: Settings = {
     defaultsRev: DEFAULTS_REV,
     gamertag: stringOr(source["gamertag"], SETTINGS_DEFAULTS.gamertag),
+    lastChannel: stringOr(source["lastChannel"], SETTINGS_DEFAULTS.lastChannel),
     clock24h: booleanOr(source["clock24h"], SETTINGS_DEFAULTS.clock24h),
     showClock: booleanOr(source["showClock"], SETTINGS_DEFAULTS.showClock),
     hintBar: booleanOr(source["hintBar"], SETTINGS_DEFAULTS.hintBar),
@@ -182,10 +186,10 @@ export function sectionForApp(
   return appSection[appId] ?? fallback;
 }
 
-type FlagKeys = {
+export type FlagKeys = {
   [K in keyof Settings]-?: boolean extends Settings[K] ? K : never;
 }[keyof Settings];
-type LevelKeys = {
+export type LevelKeys = {
   [K in keyof Settings]-?: number extends Settings[K] ? K : never;
 }[keyof Settings];
 type ChoiceKeys = {

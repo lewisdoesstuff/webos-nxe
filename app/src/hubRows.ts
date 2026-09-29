@@ -19,10 +19,15 @@ export interface LaunchTarget {
  * A pane of the hub's row. Most are launch points, and two kinds are made here:
  * a settings page, which launches the TV's settings app with a target, and an
  * "All" pane, which opens the channel's page instead of launching anything.
+ * An empty channel's row holds one more kind: a placeholder, which is drawn
+ * and never launched or listed.
  */
 export interface HubItem extends LaunchPoint {
   readonly launch?: LaunchTarget;
   readonly all?: true;
+  readonly empty?: true;
+  /** The dashboard's own settings page, opened rather than launched. */
+  readonly settings?: true;
 }
 
 const SETTINGS_APP = "com.palm.app.settings";
@@ -65,12 +70,62 @@ export const SYSTEM_PANES: readonly HubItem[] = [
   },
 ];
 
+/**
+ * The dashboard's own settings, beside the TV's. It opens a page rather than
+ * launching anything. It shares the sun tile with All Settings: channels have
+ * no icons of their own, and the titles tell them apart until they do.
+ */
+export const XNE_SETTINGS_PANE: HubItem = {
+  id: "xne:settings",
+  title: "XNE Settings",
+  icon: settingsIcon,
+  settings: true,
+};
+
 export function isAllPane(item: HubItem | null | undefined): boolean {
   return item?.all === true;
 }
 
+export function isEmptyPane(item: HubItem | null | undefined): boolean {
+  return item?.empty === true;
+}
+
+export function isSettingsPane(item: HubItem | null | undefined): boolean {
+  return item?.settings === true;
+}
+
+/**
+ * Whether X can hide this pane: a real launch point, not synthetic chrome.
+ *
+ * Settings panes carry their own launch target, and "All", placeholder and
+ * settings panes are the row's own furniture, so none of them can leave it. A
+ * hidden real item leaves the row because `sectionRows` filters it.
+ */
+export function isHideable(item: HubItem | null | undefined): item is HubItem {
+  return (
+    !!item &&
+    !isAllPane(item) &&
+    !isEmptyPane(item) &&
+    !isSettingsPane(item) &&
+    item.launch === undefined
+  );
+}
+
 function labelOf(channel: SectionId): string {
   return SECTIONS.find((section) => section.id === channel)?.label ?? channel;
+}
+
+/**
+ * One inert pane for a channel with nothing in it, so the row is not blank.
+ *
+ * It carries no icon: channels have none, and the pane draws the title's
+ * initial the way it does for any icon-less item. Its id is namespaced like an
+ * "All" pane's, but nothing ever launches it: `pageItems` leaves it out and
+ * the shell's A guard turns it away.
+ */
+function emptyPane(channel: SectionId): HubItem {
+  const label = labelOf(channel);
+  return { id: `empty:${channel}`, title: `No ${label.toLowerCase()} installed`, empty: true };
 }
 
 /** The channel's items, without the "All" pane. Empty when there are none. */
@@ -80,7 +135,8 @@ export function channelItems(
   settings: Settings,
 ): HubItem[] {
   const rows: HubItem[] = sectionRows(channel, points, settings);
-  return channel === "system" ? [...SYSTEM_PANES, ...rows] : rows;
+  if (channel === "system") return [...SYSTEM_PANES, XNE_SETTINGS_PANE, ...rows];
+  return rows;
 }
 
 /** A non-empty channel's items with its "All" pane at the end. */
@@ -92,18 +148,23 @@ export function withAllPane(channel: SectionId, items: readonly HubItem[]): HubI
   ];
 }
 
-/** The row the hub shows for a channel. */
+/** The row the hub shows for a channel. An empty channel shows one
+ * placeholder pane, and nothing else: there is no "All" of nothing. */
 export function hubRow(
   channel: SectionId,
   points: readonly Reported[],
   settings: Settings,
 ): HubItem[] {
-  return withAllPane(channel, channelItems(channel, points, settings));
+  const items = channelItems(channel, points, settings);
+  if (items.length === 0) return [emptyPane(channel)];
+  return withAllPane(channel, items);
 }
 
-/** The items an "All" page lists: the row without its "All" pane. */
+/** The items an "All" page lists: the row without its "All" pane, its
+ * placeholder or its settings pane, so a channel page never lists what cannot
+ * be launched. */
 export function pageItems(row: readonly HubItem[]): HubItem[] {
-  return row.filter((item) => !isAllPane(item));
+  return row.filter((item) => !isAllPane(item) && !isEmptyPane(item) && !isSettingsPane(item));
 }
 
 const EMPTY_PAGE: ListPage = {

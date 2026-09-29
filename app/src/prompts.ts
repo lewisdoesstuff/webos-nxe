@@ -58,6 +58,8 @@ export const NO_BACK: Prompt = { button: "b", label: null };
 
 export const BACK: Prompt = { button: "b", label: "Back" };
 
+export const HIDE: Prompt = { button: "x", label: "Hide" };
+
 /**
  * The prompt row for a screen, left to right.
  *

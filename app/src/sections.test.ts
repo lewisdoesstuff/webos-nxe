@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { BLADE_COUNT } from "./ribbon";
 import {
+  CHANNEL_ORDER,
   classify,
   groupRows,
   recentlyLaunched,
@@ -10,6 +11,8 @@ import {
   type SectionId,
   sectionFor,
   sectionRows,
+  startChannel,
+  START_CHANNEL,
   unclassifiedRows,
   UNCLASSIFIED,
   type Reported,
@@ -92,6 +95,19 @@ describe("the section list", () => {
       expect(section.tint).toMatch(/^#[0-9a-f]{6}$/i);
     }
     expect(new Set(SECTIONS.map((section) => section.label)).size).toBe(SECTIONS.length);
+  });
+});
+
+describe("startChannel", () => {
+  it("resumes the stored channel", () => {
+    expect(startChannel("games")).toBe(CHANNEL_ORDER.indexOf("games"));
+    expect(startChannel("apps")).toBe(START_CHANNEL);
+  });
+
+  it("starts on Apps for anything it does not recognise", () => {
+    for (const stored of ["nope", "", "welcome"]) {
+      expect(startChannel(stored), stored).toBe(START_CHANNEL);
+    }
   });
 });
 

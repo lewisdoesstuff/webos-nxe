@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { channelPage } from "./hubRows";
 import {
   type DialogPage,
   hasMoreBelow,
@@ -11,6 +12,7 @@ import {
   pageBox,
   pagePrompts,
   pageRest,
+  shellPrompts,
   type PageItem,
   pop,
   push,
@@ -22,6 +24,7 @@ import {
   scrollTop,
   stepHorizontal,
   stepVertical,
+  stepVerticalBy,
   textureMb,
   trackOffset,
   CLIPPED_ROW,
@@ -116,6 +119,14 @@ const ALL_PAGES: readonly Page[] = [...LIST_PAGES, EXIT, NO_BACK];
 /** The prompt row as [button, caption] pairs, which is how the assertions read. */
 function labels(stack: PageStack): [string, string][] {
   return pagePrompts(stack).map((prompt) => [prompt.button, prompt.label ?? ""]);
+}
+
+/** The shell's row the same way, so its assertions read the same way. */
+function shellLabels(guideOpen: boolean, stack: PageStack, canHide = false): [string, string][] {
+  return shellPrompts(guideOpen, stack, canHide).map((prompt) => [
+    prompt.button,
+    prompt.label ?? "",
+  ]);
 }
 
 function focus(group: number, row: number): PageFocus {
@@ -336,6 +347,21 @@ describe("up and down within a page", () => {
     expect(frame(stepVertical(stack, 1)).focus.item).toBe(0);
   });
 
+  // Channel +/- pages by a window, which is a multi-row vertical step and
+  // clamps the same way a single step does. `stepFocus` reads its delta as a
+  // direction, so paging has its own step.
+  it("pages by a window and clamps at the ends", () => {
+    const stack = open(THREE_GROUPS, focus(1, 0));
+    expect(frame(stepVerticalBy(stack, WHOLE_ROWS)).focus.item).toBe(WHOLE_ROWS);
+    expect(frame(stepVerticalBy(stack, -WHOLE_ROWS)).focus.item).toBe(0);
+    const short = open(FITS, focus(0, 0));
+    expect(frame(stepVerticalBy(short, WHOLE_ROWS)).focus.item).toBe(2);
+    const end = open(FITS, focus(0, 2));
+    expect(stepVerticalBy(end, WHOLE_ROWS)).toBe(end);
+    const start = open(FITS);
+    expect(stepVerticalBy(start, -WHOLE_ROWS)).toBe(start);
+  });
+
   it("survives a group with no rows at all", () => {
     const empty: ListPage = {
       kind: "list",
@@ -377,15 +403,27 @@ describe("left and right between groups", () => {
     expect(frame(stepHorizontal(stack, 1)).focus.item).toBe(0);
   });
 
-  it("holds the counter that drives the paging", () => {
+  it("holds the counter that reads position in the focused group's rows", () => {
     expect(counterText(THREE_GROUPS, focus(0, 0))).toBe("1 of 3");
-    expect(counterText(THREE_GROUPS, focus(1, 0))).toBe("2 of 3");
-    expect(counterText(THREE_GROUPS, focus(2, 39))).toBe("3 of 3");
+    expect(counterText(THREE_GROUPS, focus(0, 2))).toBe("3 of 3");
+    expect(counterText(THREE_GROUPS, focus(1, 0))).toBe("1 of 40");
+    expect(counterText(THREE_GROUPS, focus(2, 0))).toBe("1 of 1");
+  });
+
+  it("counts the rows rather than the groups, so a one-group page still counts", () => {
+    const one = channelPage("apps", [
+      { id: "a", title: "A" },
+      { id: "b", title: "B" },
+      { id: "c", title: "C" },
+    ]);
+    expect(one.groups).toHaveLength(1);
+    expect(counterText(one, focus(0, 0))).toBe("1 of 3");
+    expect(counterText(one, focus(0, 2))).toBe("3 of 3");
   });
 
   it("survives a focus outside the page", () => {
-    expect(counterText(THREE_GROUPS, focus(9, 9))).toBe("3 of 3");
-    expect(counterText(THREE_GROUPS, focus(-4, 0))).toBe("1 of 3");
+    expect(counterText(THREE_GROUPS, focus(0, 9))).toBe("3 of 3");
+    expect(counterText(THREE_GROUPS, focus(2, -4))).toBe("1 of 1");
   });
 
   it("names the focused group, and nothing at all on a dialog", () => {
@@ -610,6 +648,40 @@ describe("the prompt row", () => {
 
   it("is empty at the hub root, where the dashboard drew no prompt at all", () => {
     expect(pagePrompts([])).toEqual([]);
+  });
+});
+
+describe("the shell's prompt row", () => {
+  it("is A Select and nothing else at the hub root", () => {
+    expect(shellLabels(false, [])).toEqual([["a", "Select"]]);
+  });
+
+  it("is the open page's own row with a page open", () => {
+    expect(shellLabels(false, open(FITS))).toEqual([
+      ["a", "Select"],
+      ["b", "Back"],
+    ]);
+  });
+
+  it("adds X Hide at the root where the focused pane can leave the row", () => {
+    expect(shellLabels(false, [], true)).toEqual([
+      ["a", "Select"],
+      ["x", "Hide"],
+    ]);
+  });
+
+  it("never adds X Hide to a page row or under the Guide", () => {
+    expect(shellLabels(false, open(FITS), true)).toEqual([
+      ["a", "Select"],
+      ["b", "Back"],
+    ]);
+    expect(shellPrompts(true, [], true)).toEqual([]);
+    expect(shellPrompts(true, open(FITS), true)).toEqual([]);
+  });
+
+  it("draws nothing with the Guide open, which carries its own row", () => {
+    expect(shellPrompts(true, [])).toEqual([]);
+    expect(shellPrompts(true, open(FITS))).toEqual([]);
   });
 });
 

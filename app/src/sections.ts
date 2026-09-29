@@ -90,6 +90,19 @@ export const CHANNEL_ORDER: readonly SectionId[] = ["system", "media", "games", 
 /** The channel the hub starts on: the bottom of the list. */
 export const START_CHANNEL = CHANNEL_ORDER.length - 1;
 
+/**
+ * The channel to start on: the stored one where it names a channel this build
+ * has, else the bottom of the list.
+ *
+ * A stored id from another build is refused rather than honoured, the way an
+ * unknown `appSection` override is: starting on Apps beats starting on a
+ * channel that is not there.
+ */
+export function startChannel(lastChannel: string): number {
+  const index = CHANNEL_ORDER.findIndex((id) => id === lastChannel);
+  return index === -1 ? START_CHANNEL : index;
+}
+
 const SECTION_SET: ReadonlySet<string> = new Set(SECTION_IDS);
 
 /** A section id this build has, which a stored document may not name. */

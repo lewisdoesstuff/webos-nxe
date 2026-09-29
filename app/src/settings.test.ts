@@ -51,6 +51,13 @@ describe("mergeSettings", () => {
     expect(mergeSettings({ previews: "no" }).settings.previews).toBe(true);
   });
 
+  it("remembers the last channel, defaulting to Apps", () => {
+    expect(SETTINGS_DEFAULTS.lastChannel).toBe("apps");
+    expect(mergeSettings({}).settings.lastChannel).toBe("apps");
+    expect(mergeSettings({ lastChannel: "games" }).settings.lastChannel).toBe("games");
+    expect(mergeSettings({ lastChannel: 3 }).settings.lastChannel).toBe("apps");
+  });
+
   it("reports an older document as needing migration", () => {
     expect(mergeSettings({}).migrated).toBe(true);
     expect(mergeSettings({ defaultsRev: 0 }).migrated).toBe(true);

@@ -6,6 +6,7 @@ import {
   BUTTON_RING,
   BUTTON_SIZE,
   type Button,
+  HIDE,
   NO_BACK,
   SELECT,
   promptsFor,
@@ -154,6 +155,11 @@ describe("the named prompts", () => {
   it("gives B the word Back on a page with somewhere to go back to", () => {
     expect(BACK.button).toBe("b");
     expect(BACK.label).toBe("Back");
+  });
+
+  it("gives X the word Hide for the pane it can put away", () => {
+    expect(HIDE.button).toBe("x");
+    expect(HIDE.label).toBe("Hide");
   });
 
   it("leaves B uncaptioned where the dashboard wrote no word", () => {

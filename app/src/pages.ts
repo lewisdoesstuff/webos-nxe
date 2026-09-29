@@ -14,7 +14,7 @@
  */
 
 import { rehome, stepFocus } from "./focus/row";
-import { promptsFor, SELECT, BACK, type Button, type Prompt } from "./prompts";
+import { promptsFor, SELECT, BACK, HIDE, type Button, type Prompt } from "./prompts";
 import {
   PANEL_H as HUB_PANEL_H,
   PANEL_W as HUB_PANEL_W,
@@ -341,10 +341,26 @@ export function hasMoreBelow(page: Page, focus: PageFocus): boolean {
   return scrollTop(page, focus) < maxScroll(page, focus);
 }
 
-/** The `n of m` counter that drives the left and right paging, empty on a dialog. */
+/**
+ * The `n of m` counter, counting the rows of the focused group, empty on a
+ * dialog.
+ *
+ * The position is the focused row, so the counter advances as the list scrolls
+ * and reads the same as the hub's own counter under the focused panel. Retail
+ * drew an `n of m` on every row and every list, and §3.6 reads it tracking
+ * position across a rightward run, so a counter of the rows is the thing that
+ * was measured. A counter of the groups would hold at `1 of 1` on a channel
+ * page, because a channel page is one group whatever it holds.
+ *
+ * A dialog has none, though its options are a list and `rowCount` counts them.
+ * §3.4 gives a dialog's screen as `A` and `B` and nothing else, and a counter
+ * beside a pair of options is reading a position the user cannot move.
+ */
 export function counterText(page: Page, focus: PageFocus): string {
   if (page.kind === "dialog") return "";
-  return `${clamp(focus.group, 0, page.groups.length - 1) + 1} of ${page.groups.length}`;
+  const count = rowCount(page, focus);
+  if (count === 0) return "";
+  return `${clamp(focus.item, 0, count - 1) + 1} of ${count}`;
 }
 
 /** The focused group's own title, empty on a dialog, which has no groups. */
@@ -470,6 +486,24 @@ export function stepVertical(stack: PageStack, delta: number): PageStack {
 }
 
 /**
+ * Channel +/- paging the list by a window, rather than a row.
+ *
+ * `stepFocus` deliberately reads its delta as a direction, so a held key cannot
+ * skip rows. That rule is about repeated single steps; Channel +/- is a
+ * discrete paging button whose whole purpose is the jump, so it moves by the
+ * full delta and clamps the same way. A clamped press returns the identical
+ * stack reference, so the caller can tell "nothing happened" apart the same
+ * way it does for a single step.
+ */
+export function stepVerticalBy(stack: PageStack, delta: number): PageStack {
+  return refocus(stack, (frame) => {
+    const count = rowCount(frame.page, frame.focus);
+    const item = count === 0 ? frame.focus.item : clamp(frame.focus.item + delta, 0, count - 1);
+    return { ...frame, focus: { ...frame.focus, item } };
+  });
+}
+
+/**
  * Left and right, paging between the page's groups (section 3.3, the on-screen
  * "1 of 5" and "Page 1 of 4" counters).
  *
@@ -515,4 +549,27 @@ export function pagePrompts(stack: PageStack): Prompt[] {
   if (page.x !== undefined) context.x = page.x;
   if (page.y !== undefined) context.y = page.y;
   return promptsFor({ a: SELECT.label, b: BACK.label, ...context });
+}
+
+/**
+ * The shell's own prompt row for whatever the hub is showing.
+ *
+ * The hub root draws `A` Select and no `B`, because there is nowhere to go
+ * back to (section 2). A drilled-in page draws that page's own row, which for
+ * a channel page is `A` Select and `B` Back. With the Guide open the shell
+ * draws nothing: the Guide carries its own prompt row inside its chrome, and
+ * the hub behind it is dimmed almost to black.
+ *
+ * `canHide` adds the `X` Hide prompt at the root, where X toggles the focused
+ * pane's item out of the row. Nowhere else: a page's rows are not panes, and
+ * the Guide owns its row.
+ */
+export function shellPrompts(guideOpen: boolean, stack: PageStack, canHide = false): Prompt[] {
+  if (guideOpen) return [];
+  if (stack.length === 0) {
+    return canHide
+      ? promptsFor({ a: SELECT.label, x: HIDE.label })
+      : promptsFor({ a: SELECT.label });
+  }
+  return pagePrompts(stack);
 }

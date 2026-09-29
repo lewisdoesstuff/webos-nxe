@@ -5,6 +5,9 @@ import {
   channelPage,
   hubRow,
   isAllPane,
+  isEmptyPane,
+  isHideable,
+  isSettingsPane,
   launchTarget,
   pageItems,
   SYSTEM_PANES,
@@ -27,15 +30,45 @@ describe("hubRow", () => {
     expect(row.filter(isAllPane)).toHaveLength(1);
   });
 
-  it("leaves an empty channel empty", () => {
-    expect(hubRow("games", [], SETTINGS_DEFAULTS)).toEqual([]);
+  it("leaves an empty channel with one placeholder pane and no All pane", () => {
+    const row = hubRow("games", [], SETTINGS_DEFAULTS);
+    expect(row).toHaveLength(1);
+    expect(isEmptyPane(row[0])).toBe(true);
+    expect(isAllPane(row[0])).toBe(false);
+    expect(row[0]?.id).toBe("empty:games");
+    expect(row[0]?.title).toBe("No games installed");
     expect(withAllPane("games", [])).toEqual([]);
+  });
+
+  it("keeps a placeholder out of page items and off any launch target", () => {
+    const row = hubRow("games", [], SETTINGS_DEFAULTS);
+    expect(pageItems(row)).toEqual([]);
+    expect(launchTarget(row[0]!)).toEqual({ id: "empty:games", params: {} });
+  });
+
+  it("lets X hide a real item, and nothing synthetic", () => {
+    const row = hubRow("apps", POINTS, SETTINGS_DEFAULTS);
+    expect(isHideable(row[0])).toBe(true);
+    expect(isHideable(row[row.length - 1])).toBe(false);
+    expect(isHideable(hubRow("games", [], SETTINGS_DEFAULTS)[0])).toBe(false);
+    expect(isHideable(SYSTEM_PANES[0])).toBe(false);
+    expect(isHideable(null)).toBe(false);
+    expect(isHideable(undefined)).toBe(false);
   });
 
   it("puts the settings panes on System, ahead of system apps", () => {
     const items = channelItems("system", POINTS, SETTINGS_DEFAULTS);
     expect(items.slice(0, SYSTEM_PANES.length)).toEqual(SYSTEM_PANES);
     expect(channelItems("apps", POINTS, SETTINGS_DEFAULTS)).not.toContain(SYSTEM_PANES[0]);
+  });
+
+  it("seats the dashboard's own settings beside the TV's, opened and never launched", () => {
+    const items = channelItems("system", POINTS, SETTINGS_DEFAULTS);
+    const pane = items[SYSTEM_PANES.length];
+    expect(pane?.id).toBe("xne:settings");
+    expect(isSettingsPane(pane)).toBe(true);
+    expect(isHideable(pane)).toBe(false);
+    expect(pageItems(items)).not.toContain(pane);
   });
 
   it("gives every synthetic pane a unique id, an icon and a target", () => {
@@ -49,10 +82,11 @@ describe("hubRow", () => {
 });
 
 describe("pages", () => {
-  it("lists the row without its All pane", () => {
+  it("lists the row without its All pane or its settings pane", () => {
     const row = hubRow("system", POINTS, SETTINGS_DEFAULTS);
     const items = pageItems(row);
-    expect(items).toHaveLength(row.length - 1);
+    expect(items).toHaveLength(row.length - 2);
+    expect(items.some((item) => isAllPane(item) || isSettingsPane(item))).toBe(false);
     const page = channelPage("system", items);
     expect(page.title).toBe("All System");
     expect(page.groups[0].items.map((item) => item.id)).toEqual(items.map((item) => item.id));

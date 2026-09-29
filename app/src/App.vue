@@ -7,6 +7,7 @@ import GuideOverlay from "./components/GuideOverlay.vue";
 import HubPane from "./components/HubPane.vue";
 import PageLayer from "./components/PageLayer.vue";
 import PromptBar from "./components/PromptBar.vue";
+import SettingsLayer from "./components/SettingsLayer.vue";
 import { stepFocus } from "./focus/row";
 import { BLADE_COUNT, BLADE_IDS } from "./guide";
 import {
@@ -42,12 +43,41 @@ import {
   type PooledPane,
   stepHub,
 } from "./hub";
-import { channelPage, hubRow, isAllPane, launchTarget, pageItems } from "./hubRows";
-import { PAGE_X, PAGE_Y, type PageFocus, ROOT_FOCUS, stepVertical } from "./pages";
+import {
+  channelPage,
+  hubRow,
+  isAllPane,
+  isEmptyPane,
+  isHideable,
+  isSettingsPane,
+  launchTarget,
+  pageItems,
+} from "./hubRows";
+import {
+  PAGE_X,
+  PAGE_Y,
+  type PageFocus,
+  type PageStack,
+  pop,
+  push,
+  ROOT_FOCUS,
+  rowCount,
+  shellPrompts,
+  stepVertical,
+  stepVerticalBy,
+  top,
+  WHOLE_ROWS,
+} from "./pages";
 import { paneArt } from "./panel";
-import { SELECT, promptsFor } from "./prompts";
 import { CANVAS_H, CANVAS_W } from "./ribbon";
-import { CHANNEL_ORDER, SECTIONS, START_CHANNEL } from "./sections";
+import { CHANNEL_ORDER, SECTIONS, startChannel } from "./sections";
+import {
+  settingsAction,
+  settingsDetail,
+  settingsPageFor,
+  settingsRoot,
+  type SettingDetail,
+} from "./settingsScreen";
 import { playSound } from "./sound";
 import { useAppsStore } from "./stores/apps";
 import { useSettingsStore } from "./stores/settings";
@@ -66,10 +96,12 @@ import { useSettingsStore } from "./stores/settings";
 const apps = useAppsStore();
 const settings = useSettingsStore();
 
-/** Where the user is. The labels follow it at once. */
-const hub = ref<HubState>({ channel: START_CHANNEL, item: 0 });
+/** Where the user is. The labels follow it at once. Resumes the stored
+ * channel rather than always starting on Apps. */
+const start = startChannel(settings.settings.lastChannel);
+const hub = ref<HubState>({ channel: start, item: 0 });
 /** What the row shows. It lags `hub` through a channel change's fade. */
-const shown = ref<HubState>({ channel: START_CHANNEL, item: 0 });
+const shown = ref<HubState>({ channel: start, item: 0 });
 
 /**
  * A channel change: `out` fades the row, `collapsed` swaps it in behind the
@@ -137,6 +169,45 @@ const listed = computed(() => pageItems(rows.value[hub.value.channel] ?? []));
 const page = computed(() => channelPage(CHANNEL_ORDER[hub.value.channel] ?? "apps", listed.value));
 
 /**
+ * The shell's prompt row: the hub's at the root, the open page's over it, and
+ * nothing under the Guide, which carries its own row inside its chrome. The
+ * settings drill carries its own stack and reads the same way a channel page
+ * does: `A` Select, `B` Back.
+ */
+const prompts = computed(() => {
+  if (settingsStack.value.length > 0) return shellPrompts(guide.value, settingsStack.value);
+  return shellPrompts(
+    guide.value,
+    pageOpen.value ? [{ page: page.value, focus: pageFocus.value }] : [],
+    canHide.value,
+  );
+});
+
+/** Whether X can hide the focused pane: a real item under the focus. */
+const canHide = computed(() => isHideable(rows.value[hub.value.channel]?.[hub.value.item]));
+
+/** Keep a state inside its channel's row, which hiding may have shortened. */
+function clampItem(state: HubState): HubState {
+  const length = rows.value[state.channel]?.length ?? 0;
+  return state.item > length - 1
+    ? { channel: state.channel, item: Math.max(0, length - 1) }
+    : state;
+}
+
+/**
+ * X hides the focused pane's item, which leaves the row. Silent on anything
+ * that cannot leave it, the way A is silent on a placeholder.
+ */
+function toggleHide(): void {
+  const item = rows.value[hub.value.channel]?.[hub.value.item];
+  if (!isHideable(item)) return;
+  settings.setAppHidden(item.id, !settings.isAppHidden(item.id));
+  playSound("option");
+  hub.value = clampItem(hub.value);
+  shown.value = clampItem(shown.value);
+}
+
+/**
  * The Guide's blades, mapped onto this TV: Settings is the System channel,
  * Games and Media are those channels, Marketplace is LG's store, and the
  * gamertag blade, the scene data's `home`, is the Apps channel. It opens on
@@ -184,6 +255,10 @@ function onGuideKey(event: KeyboardEvent): boolean {
     if (!row) return true;
     guide.value = false;
     playSound("decide");
+    if (isSettingsPane(row)) {
+      openSettings();
+      return true;
+    }
     const target = launchTarget(row);
     void apps.launch(target.id, { ...target.params });
     return true;
@@ -196,8 +271,8 @@ function openPage(): void {
   pageOpen.value = true;
 }
 
-function stepPage(delta: number): void {
-  const next = stepVertical([{ page: page.value, focus: pageFocus.value }], delta)[0];
+function stepPage(delta: number, step: typeof stepVertical = stepVertical): void {
+  const next = step([{ page: page.value, focus: pageFocus.value }], delta)[0];
   if (!next || next.focus === pageFocus.value) return;
   pageFocus.value = next.focus;
   playSound("cursor");
@@ -210,6 +285,72 @@ function launchListed(): void {
   const target = launchTarget(item);
   void apps.launch(target.id, { ...target.params });
 }
+
+/**
+ * The dashboard's own settings, as a real drill stack: the root names the
+ * categories, `A` pushes a category or writes one change, `B` pops a level.
+ * Opened from the System channel's XNE Settings pane or the Guide, never
+ * beside a channel page.
+ */
+const settingsStack = ref<PageStack>([]);
+
+/** Open the settings over the hub, from its System pane or the Guide. */
+function openSettings(): void {
+  pageOpen.value = false;
+  settingsStack.value = push([], settingsRoot());
+}
+
+function stepSettings(delta: number): void {
+  const next = stepVertical(settingsStack.value, delta);
+  if (next === settingsStack.value) return;
+  settingsStack.value = next;
+  playSound("cursor");
+}
+
+function activateSettings(): void {
+  const frame = top(settingsStack.value);
+  if (!frame) return;
+  const action = settingsAction(frame.page, frame.focus, settings.settings, apps.launchPoints);
+  if (!action) return;
+  playSound("decide");
+  if (action.kind === "push") {
+    settingsStack.value = push(settingsStack.value, action.page);
+    return;
+  }
+  settings.applyChange(action.change);
+  refreshSettingsTop();
+}
+
+function closeSettingsLevel(): void {
+  settingsStack.value = pop(settingsStack.value);
+  playSound("cancel");
+}
+
+/**
+ * Rebuild the open settings page after a change, keeping the focus where it
+ * was. Unhiding shrinks the Hidden Apps list under the focus, so the stored
+ * page would point past its end; the rebuilt one cannot. A rebuild is paint
+ * on a surface whose layer already exists.
+ */
+function refreshSettingsTop(): void {
+  const stack = settingsStack.value;
+  const frame = top(stack);
+  if (!frame) return;
+  const rebuilt = settingsPageFor(frame.page.id, settings.settings, apps.launchPoints);
+  if (!rebuilt) return;
+  const count = rowCount(rebuilt, frame.focus);
+  const focus =
+    count === 0 ? frame.focus : { ...frame.focus, item: Math.min(frame.focus.item, count - 1) };
+  settingsStack.value = [...stack.slice(0, -1), { page: rebuilt, focus }];
+}
+
+const settingsPage = computed(() => top(settingsStack.value)?.page ?? settingsRoot());
+const settingsFocus = computed(() => top(settingsStack.value)?.focus ?? ROOT_FOCUS);
+const settingsDetailShown = computed((): SettingDetail => {
+  const frame = top(settingsStack.value);
+  if (!frame) return { values: [], description: "" };
+  return settingsDetail(frame.page, frame.focus, settings.settings, apps.launchPoints);
+});
 
 const counts = computed(() => rows.value.map((row) => row.length));
 
@@ -357,6 +498,7 @@ function navigate(move: HubMove): void {
   hub.value = next;
   playSound(channelChanged ? "category" : "cursor");
   if (channelChanged) {
+    settings.updateSetting("lastChannel", CHANNEL_ORDER[next.channel] ?? "apps");
     void changeChannel();
     return;
   }
@@ -366,11 +508,16 @@ function navigate(move: HubMove): void {
   shown.value = next;
 }
 
-/** A launches the focused pane's item. */
+/** A launches the focused pane's item. A placeholder is drawn and nothing
+ * else: pressing A on it does nothing, the way B does nothing at the hub root. */
 function activate(): void {
   const item = rows.value[hub.value.channel]?.[hub.value.item];
-  if (!item) return;
+  if (!item || isEmptyPane(item)) return;
   playSound("decide");
+  if (isSettingsPane(item)) {
+    openSettings();
+    return;
+  }
   if (isAllPane(item)) {
     openPage();
     return;
@@ -399,6 +546,9 @@ const BACK_KEYS: ReadonlySet<number> = new Set([461, 403, 27, 8, 66]);
 /** The remote's yellow key, which NXE's Y button maps to here. */
 const YELLOW = 405;
 
+/** The remote's blue key, which NXE's X button maps to here. UNVERIFIED on the TV. */
+const BLUE = 406;
+
 function onKeyDown(event: KeyboardEvent): void {
   if (guide.value) {
     if (onGuideKey(event)) {
@@ -419,10 +569,28 @@ function onKeyDown(event: KeyboardEvent): void {
     }
     return;
   }
+  if (settingsStack.value.length > 0) {
+    if (event.keyCode === 38 || event.keyCode === 40) {
+      event.preventDefault();
+      stepSettings(event.keyCode === 40 ? 1 : -1);
+    } else if (event.keyCode === 13 || event.keyCode === 404) {
+      event.preventDefault();
+      activateSettings();
+    } else if (BACK_KEYS.has(event.keyCode)) {
+      event.preventDefault();
+      closeSettingsLevel();
+    }
+    return;
+  }
   if (pageOpen.value) {
     if (event.keyCode === 38 || event.keyCode === 40) {
       event.preventDefault();
       stepPage(event.keyCode === 40 ? 1 : -1);
+    } else if (event.keyCode === 33 || event.keyCode === 34) {
+      // Channel +/- pages the list by a window. The direction follows the
+      // hub's own 33/34 convention in MOVES above, whatever the buttons say.
+      event.preventDefault();
+      stepPage(event.keyCode === 33 ? WHOLE_ROWS : -WHOLE_ROWS, stepVerticalBy);
     } else if (event.keyCode === 13 || event.keyCode === 404) {
       event.preventDefault();
       launchListed();
@@ -442,6 +610,13 @@ function onKeyDown(event: KeyboardEvent): void {
   if (event.keyCode === 13 || event.keyCode === 404) {
     event.preventDefault();
     activate();
+    return;
+  }
+  // `X` on a desktop keyboard hides the focused pane; the remote's blue key on
+  // the TV, by the same analogy that maps red to B and yellow to Y.
+  if (event.keyCode === 88 || event.keyCode === BLUE) {
+    event.preventDefault();
+    toggleHide();
     return;
   }
   // `Y` on a desktop keyboard replays the boot.
@@ -478,6 +653,7 @@ function expose(): void {
     guide,
     pageOpen,
     pageFocus,
+    settingsStack,
     boot,
   };
 }
@@ -501,7 +677,7 @@ function expose(): void {
     </header>
     <div class="pic" :style="picStyle" />
     <div class="frame" data-frame :style="frameStyle">
-      <PromptBar :prompts="promptsFor({ a: SELECT.label })" />
+      <PromptBar :prompts="prompts" />
     </div>
     <div class="ripples">
       <i v-for="n in 6" :key="n" :class="`r${n}`" />
@@ -529,6 +705,13 @@ function expose(): void {
 
     <div class="frame" data-page-frame :style="pageFrameStyle">
       <PageLayer :page="page" :focus="pageFocus" :open="pageOpen" :rest="pageRestBox" />
+      <SettingsLayer
+        :page="settingsPage"
+        :focus="settingsFocus"
+        :open="settingsStack.length > 0"
+        :detail="settingsDetailShown"
+        :rest="pageRestBox"
+      />
     </div>
 
     <div class="frame" data-guide :style="frameStyle">

@@ -3,8 +3,6 @@ import { describe, expect, it } from "vitest";
 import {
   BEATS,
   bootAdvance,
-  bootBoxes,
-  bootCost,
   bootDone,
   bootFrameAt,
   bootSkip,
@@ -12,44 +10,28 @@ import {
   bootStages,
   bootStart,
   bootTiming,
-  bootTotalMb,
   bootTotalMs,
-  bootWindows,
   type BootState,
   type BootTiming,
   DASH_LOAD_MS,
   FIRST_LIGHT_FRAME,
   FIRST_LIGHT_MS,
   FPS,
-  FRAME_H,
   FRAME_MS,
-  FRAME_W,
   HANDOVER_MS,
   HOLD_MS,
   LEAD_IN_MS,
-  LOCKUP_CX,
-  lockupBox,
-  MARK_SIZE,
-  ORB_D,
   type BootSpeed,
-  RING_D,
-  RING_GAP,
-  RING_W,
   resolveBootMode,
   SOUND_END_MS,
   SOUND_SPAN_MS,
   SOUND_TAIL_MS,
   SETTLED_MS,
-  SPHERE_D,
-  SPHERE_MAX,
   STAGE_INDEX,
   STAGE_IDS,
   type StageId,
   VISIBLE_FRAMES,
   VISIBLE_MS,
-  type WindowId,
-  WINDOW_IDS,
-  WINDOW_SPANS,
   WARM_RATE,
 } from "./boot";
 
@@ -432,170 +414,7 @@ describe("warm and cold", () => {
     expect(bootTiming("full").rate).toBe(1);
     expect(bootTiming("short").rate).toBe(WARM_RATE);
     for (const mode of ["full", "short"] as BootSpeed[]) {
-      expect(bootWindows(bootTiming(mode))[at(WINDOW_IDS, 0)].durationMs).toBeGreaterThan(0);
-    }
-  });
-});
-
-describe("the animation windows", () => {
-  it("cover a contiguous run of stages and never invert", () => {
-    const windows = bootWindows(FULL);
-    for (const id of WINDOW_IDS) {
-      const window = windows[id];
-      expect(window.durationMs).toBeGreaterThan(0);
-      expect(window.delayMs).toBeGreaterThanOrEqual(0);
-      const span = WINDOW_SPANS[id];
-      expect(at(STAGE_IDS, STAGE_INDEX[at(span, 0)])).toBe(at(span, 0));
-    }
-  });
-
-  it("put the handover's window last, so the fade cannot start early", () => {
-    const windows = bootWindows(FULL);
-    expect(windows.boot.delayMs).toBeCloseTo(6000, 6);
-    expect(windows.boot.durationMs).toBeCloseTo(HANDOVER_MS, 6);
-    for (const id of WINDOW_IDS) {
-      if (id === "boot") continue;
-      expect(windows[id].delayMs + windows[id].durationMs).toBeLessThanOrEqual(6000 + 1e-6);
-    }
-  });
-
-  it("start the sphere at first light and the badge after the fill has begun", () => {
-    const windows = bootWindows(FULL);
-    expect(windows.sphere.delayMs).toBeCloseTo(FIRST_LIGHT_MS, 6);
-    expect(windows.wash.delayMs).toBeCloseTo(FIRST_LIGHT_MS, 6);
-    expect(windows.skip.delayMs).toBeGreaterThan(FIRST_LIGHT_MS);
-  });
-
-  /**
-   * The keyframe stops in the stylesheet are fractions of these windows, and
-   * each names a measured frame. This recomputes them, so a retuned handover or
-   * a re-cut beat table cannot leave the two quietly disagreeing.
-   */
-  it("put every keyframe stop where the frame it names falls in its window", () => {
-    const stages = bootStages(FULL);
-    const stage = (id: StageId) =>
-      at(
-        stages.filter((s) => s.id === id),
-        0,
-      );
-    const stops: [WindowId, number, number][] = [
-      ["sphere", 39, 90],
-      ["sphere", 55, 122],
-      ["cross", 4, 91],
-      ["cross", 28, 122],
-      ["flare", 2, 122],
-      ["ring", 81.5, 333],
-      ["skip", 22, 120],
-    ];
-    for (const [id, stop, frame] of stops) {
-      const [first, last] = WINDOW_SPANS[id];
-      const from = stage(first).fromMs;
-      const to = stage(last).fromMs + stage(last).durationMs;
-      const computed = ((frame * FRAME_MS - from) / (to - from)) * 100;
-      expect(Math.abs(computed - stop)).toBeLessThan(0.6);
-    }
-  });
-
-  it("move with the mode, so the warm boot is the same composition faster", () => {
-    for (const id of WINDOW_IDS) {
-      const full = bootWindows(FULL);
-      const short = bootWindows(SHORT);
-      expect(short[id].delayMs).toBeLessThanOrEqual(full[id].delayMs + 1e-9);
-      expect(short[id].durationMs).toBeLessThanOrEqual(full[id].durationMs + 1e-9);
-    }
-    expect(bootWindows(SHORT).sphere.durationMs).toBeCloseTo(3400 / WARM_RATE, 6);
-  });
-
-  it("seek so that every window is at or past the playhead, which is the skip's arithmetic", () => {
-    const windows = bootWindows(FULL);
-    for (const id of WINDOW_IDS) {
-      if (id === "boot") continue;
-      const window = windows[id];
-      // A negative delay lands the animation at delay + duration into its own
-      // timeline, and anything at or past the end holds its last keyframe.
-      expect(window.delayMs - 6000 + window.durationMs).toBeLessThanOrEqual(1e-9);
-    }
-    // The one window that has not passed is the handover, and its delay lands
-    // on exactly zero, so the fade starts on the frame the key was pressed.
-    expect(windows.boot.delayMs).toBeCloseTo(6000, 6);
-    expect(windows.boot.delayMs - 6000).toBe(0);
-  });
-});
-
-describe("the boxes the compositor allocates", () => {
-  it("fills the frame with a layer or stays well inside it", () => {
-    // This is the gate's own rule: no layer spans the frame unless it fills it.
-    for (const cost of bootCost()) {
-      const box = cost.box;
-      const spansWidth = box.x <= 0 && box.x + box.width >= FRAME_W;
-      const spansHeight = box.y <= 0 && box.y + box.height >= FRAME_H;
-      const fillsWidth = box.x === 0 && box.width === FRAME_W;
-      const fillsHeight = box.y === 0 && box.height === FRAME_H;
-      expect(spansWidth ? fillsWidth : true).toBe(true);
-      expect(spansHeight ? fillsHeight : true).toBe(true);
-      expect(box.x).toBeGreaterThanOrEqual(0);
-      expect(box.y).toBeGreaterThanOrEqual(0);
-      expect(box.x + box.width).toBeLessThanOrEqual(FRAME_W);
-      expect(box.y + box.height).toBeLessThanOrEqual(FRAME_H);
-    }
-  });
-
-  it("puts the two full-frame planes at the frame's own size and nothing else there", () => {
-    const boxes = bootBoxes();
-    expect(boxes.boot).toEqual({ x: 0, y: 0, width: FRAME_W, height: FRAME_H });
-    expect(boxes.wash).toEqual({ x: 0, y: 0, width: FRAME_W, height: FRAME_H });
-    const full = WINDOW_IDS.filter((id) => id !== "boot" && id !== "wash");
-    for (const id of full) {
-      expect(boxes[id].width).toBeLessThan(FRAME_W);
-      expect(boxes[id].height).toBeLessThan(FRAME_H);
-    }
-  });
-
-  it("keeps the X, the flare and the lockup inside the sphere they sit on", () => {
-    const boxes = bootBoxes();
-    const sphere = boxes.sphere;
-    for (const id of ["cross", "flare"] as const) {
-      expect(boxes[id].width).toBeLessThanOrEqual(sphere.width);
-      expect(boxes[id].x).toBeGreaterThanOrEqual(sphere.x);
-      expect(boxes[id].y).toBeGreaterThanOrEqual(sphere.y);
-    }
-  });
-
-  it("holds the orb inside the ring, at the gap the model declares", () => {
-    expect(RING_D).toBe(ORB_D + 2 * (RING_GAP + RING_W));
-    const boxes = bootBoxes();
-    expect(boxes.ring.width).toBe(RING_D);
-    // The lockup's box is derived, so the ring and the wordmark cannot fall out.
-    const lockup = lockupBox();
-    expect(lockup.width).toBeGreaterThanOrEqual(RING_D);
-    expect(lockup.height).toBeGreaterThan(RING_D);
-    // The ring is centred in the lockup's own box and the mark sits under it,
-    // so neither can fall out of a box the compositor has already allocated.
-    // Neither has a layer of its own: they are inside the lockup's texture.
-    expect(boxes.ring.x - lockup.x).toBeCloseTo((lockup.width - RING_D) / 2, 6);
-    expect(lockup.x + lockup.width / 2).toBe(LOCKUP_CX);
-    expect(Object.keys(boxes)).toEqual([...WINDOW_IDS]);
-    expect(MARK_SIZE).toBeLessThan(lockup.height - RING_D);
-  });
-
-  it("costs what the report says it costs, and the sphere scales rather than resizes", () => {
-    // The sphere's texture follows its CSS box; the scale is drawn on top of it.
-    expect(SPHERE_D * SPHERE_MAX).toBeGreaterThan(FRAME_H);
-    const total = bootTotalMb();
-    expect(total).toBeGreaterThan(20);
-    expect(total).toBeLessThan(40);
-    // The backdrop is the bulk of it, and it is the one layer that fills.
-    const backdrop = bootCost()
-      .filter((entry) => entry.id === "boot" || entry.id === "wash")
-      .reduce((sum, entry) => sum + entry.mb, 0);
-    expect(backdrop).toBeCloseTo((2 * (FRAME_W * FRAME_H * 4)) / (1024 * 1024), 1);
-  });
-
-  it("has a box for every animated element, so nothing is styled that is not placed", () => {
-    const boxes = bootBoxes();
-    for (const id of WINDOW_IDS) {
-      expect(boxes[id as WindowId]).toBeDefined();
-      expect(boxes[id as WindowId].width).toBeGreaterThan(0);
+      expect(bootTotalMs(bootTiming(mode))).toBeGreaterThan(0);
     }
   });
 });

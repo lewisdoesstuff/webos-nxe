@@ -36,6 +36,14 @@ const handlers: Record<string, (params: LunaParams) => unknown> = {
     const title = INPUT_TITLES[id];
     return title ? { returnValue: true, id, title } : NOT_FOUND;
   },
+  // `?serial=` previews another set's floor rings.
+  "com.webos.service.tv.systemproperty/getSystemInfo": (_params) => ({
+    returnValue: true,
+    serialNumber:
+      (typeof window === "undefined"
+        ? null
+        : new URLSearchParams(window.location.search).get("serial")) ?? "MOCK00XNE2008",
+  }),
   "com.webos.applicationManager/launch": (params) => ({
     returnValue: true,
     appId: params["id"],

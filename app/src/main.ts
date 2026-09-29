@@ -2,6 +2,7 @@ import { createVaporApp } from "@vue/runtime-vapor";
 import { createPinia } from "pinia";
 
 import App from "./App.vue";
+import { loadDeviceSeed } from "./deviceSeed";
 import { createPalmTransport, setTransport, type LunaTransport } from "./luna";
 
 import "./styles/main.css";
@@ -24,6 +25,7 @@ async function selectTransport(): Promise<LunaTransport> {
 
 async function boot(): Promise<void> {
   setTransport(await selectTransport());
+  await loadDeviceSeed();
   createVaporApp(App).use(createPinia()).mount("#app");
 }
 

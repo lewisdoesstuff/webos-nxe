@@ -8,6 +8,7 @@ import HubPane from "./components/HubPane.vue";
 import PageLayer from "./components/PageLayer.vue";
 import PromptBar from "./components/PromptBar.vue";
 import SettingsLayer from "./components/SettingsLayer.vue";
+import { deviceSeed } from "./deviceSeed";
 import { stepFocus } from "./focus/row";
 import { BLADE_COUNT, BLADE_IDS } from "./guide";
 import {
@@ -70,6 +71,7 @@ import {
 } from "./pages";
 import { paneArt } from "./panel";
 import { CANVAS_H, CANVAS_W } from "./ribbon";
+import { ringImage, ripplePattern } from "./ripples";
 import { CHANNEL_ORDER, SECTIONS, startChannel } from "./sections";
 import {
   settingsAction,
@@ -641,6 +643,18 @@ function onKeyDown(event: KeyboardEvent): void {
   }
 }
 
+const rings = ripplePattern(deviceSeed()).map((group) => ({
+  left: `${group.left}px`,
+  top: `${group.top}px`,
+  width: `${group.width}px`,
+  height: `${group.height}px`,
+  backgroundImage: ringImage(group),
+  animationDuration: `${group.periodMs}ms`,
+  animationDelay: `${group.delayMs}ms`,
+  "--from": String(group.from),
+  "--peak": String(group.peak),
+}));
+
 onMounted(() => {
   chooseBootMode();
   settleBoot();
@@ -688,7 +702,7 @@ function expose(): void {
       <PromptBar :prompts="prompts" />
     </div>
     <div class="ripples">
-      <i v-for="n in 3" :key="n" :class="`r${n}`" />
+      <i v-for="(ring, index) in rings" :key="index" :style="ring" />
     </div>
 
     <span
@@ -841,15 +855,13 @@ function expose(): void {
   top: 640px;
   width: 1220px;
   height: 440px;
-  background:
-    url("./assets/hub/rings.svg") 260px 190px no-repeat,
-    radial-gradient(
-      ellipse 640px 300px at 1037px 380px,
-      rgba(28, 35, 40, 0.94) 0%,
-      rgba(34, 42, 48, 0.8) 38%,
-      rgba(44, 52, 58, 0.4) 70%,
-      rgba(50, 58, 64, 0) 100%
-    );
+  background: radial-gradient(
+    ellipse 640px 300px at 1037px 380px,
+    rgba(28, 35, 40, 0.94) 0%,
+    rgba(34, 42, 48, 0.8) 38%,
+    rgba(44, 52, 58, 0.4) 70%,
+    rgba(50, 58, 64, 0) 100%
+  );
 }
 
 .ripples {
@@ -863,44 +875,22 @@ function expose(): void {
 
 .ripples i {
   position: absolute;
-  border: 2px solid rgba(214, 224, 232, 0.9);
-  border-radius: 50%;
+  background: center / 100% 100% no-repeat;
   opacity: 0.001;
   will-change: transform, opacity;
-  animation: ripple 16s linear infinite;
-}
-
-.ripples .r1 {
-  left: 1547px;
-  top: 963px;
-  width: 380px;
-  height: 90px;
-  animation-delay: -3s;
-}
-
-.ripples .r2 {
-  left: 1437px;
-  top: 949px;
-  width: 600px;
-  height: 140px;
-  animation-delay: -9s;
-}
-
-.ripples .r3 {
-  left: 1337px;
-  top: 935px;
-  width: 800px;
-  height: 190px;
-  animation-delay: -14s;
+  animation: ripple 20s linear infinite;
 }
 
 @keyframes ripple {
   0% {
-    transform: scale(0.6);
+    transform: scale(var(--from));
     opacity: 0.001;
   }
-  20% {
-    opacity: 0.32;
+  30% {
+    opacity: var(--peak);
+  }
+  60% {
+    opacity: var(--peak);
   }
   100% {
     transform: scale(1);
@@ -910,8 +900,7 @@ function expose(): void {
 
 @media (prefers-reduced-motion: reduce) {
   .ripples i {
-    animation: none;
-    opacity: 0.001;
+    animation-play-state: paused;
   }
 }
 

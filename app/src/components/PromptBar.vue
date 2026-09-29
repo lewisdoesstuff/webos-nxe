@@ -102,7 +102,15 @@ function promptStyle(prompt: Prompt): Record<string, string> {
   width: var(--disc);
   height: var(--disc);
   border-radius: 50%;
-  background: var(--fill);
+  background:
+    radial-gradient(
+      ellipse 72% 44% at 50% 26%,
+      rgba(255, 255, 255, 0.46),
+      rgba(255, 255, 255, 0) 100%
+    ),
+    radial-gradient(circle at 50% 112%, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0) 62%),
+    var(--fill);
+  box-shadow: inset 0 0 0 2px var(--ring, rgba(0, 0, 0, 0.25));
   color: var(--letter, #fff);
 }
 

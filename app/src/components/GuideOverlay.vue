@@ -33,7 +33,6 @@ import {
   PICPIC_Y,
   placeItems,
   placeSlabs,
-  PROMPT_CELL_W,
   PROMPT_FONT,
   PROMPT_H,
   promptDisc,
@@ -174,7 +173,6 @@ const rootStyle: Record<string, string> = {
   "--slab-h": `${SLAB_H}px`,
   "--slab-font": `${SLAB_LABEL_FONT}px`,
   "--line": `${ROTATED_LINE}px`,
-  "--prompt-cell": `${PROMPT_CELL_W}px`,
   "--prompt-h": `${PROMPT_H}px`,
   "--prompt-font": `${PROMPT_FONT}px`,
 };
@@ -432,8 +430,12 @@ const CLOCK: Box = { x: CLOCK_X, y: CLOCK_Y, width: CLOCK_W, height: CLOCK_H };
   position: absolute;
   will-change: transform;
   border-radius: 6px;
-  background: linear-gradient(180deg, #24364b 0%, #1b2a3b 100%);
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.55);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.12) 0, rgba(255, 255, 255, 0) 12%),
+    linear-gradient(180deg, #26384e 0%, #1b2a3b 100%);
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.3),
+    0 10px 28px rgba(0, 0, 0, 0.55);
 }
 
 .tab {
@@ -523,7 +525,15 @@ const CLOCK: Box = { x: CLOCK_X, y: CLOCK_Y, width: CLOCK_W, height: CLOCK_H };
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  background: var(--fill);
+  background:
+    radial-gradient(
+      ellipse 72% 44% at 50% 26%,
+      rgba(255, 255, 255, 0.46),
+      rgba(255, 255, 255, 0) 100%
+    ),
+    radial-gradient(circle at 50% 112%, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0) 62%),
+    var(--fill);
+  box-shadow: inset 0 0 0 2px var(--ring, rgba(0, 0, 0, 0.25));
 }
 
 .disc::before {

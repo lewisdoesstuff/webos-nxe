@@ -53,7 +53,8 @@ import {
   placeChannels,
   placeItems,
   placeSlabs,
-  PROMPT_CELL_W,
+  promptCellW,
+  PROMPT_XS,
   PROMPT_COUNT,
   PROMPT_H,
   PROMPT_X,
@@ -630,9 +631,10 @@ describe("the prompt row", () => {
     }
   });
 
-  it("runs left to right, one cell apart, and never overlaps", () => {
+  it("runs left to right at the measured, uneven pitch, and never overlaps", () => {
+    expect(PROMPT_XS.map((x, i) => (PROMPT_XS[i + 1] ?? x) - x)).toEqual([109, 94, 133, 0]);
     for (let i = 1; i < PROMPT_COUNT; i += 1) {
-      expect(promptDisc(i).x - promptDisc(i - 1).x).toBe(PROMPT_CELL_W);
+      expect(promptDisc(i).x - promptDisc(i - 1).x).toBe(promptCellW(i - 1));
       expect(promptDisc(i).x).toBeGreaterThanOrEqual(right(promptDisc(i - 1)));
     }
   });
@@ -640,7 +642,7 @@ describe("the prompt row", () => {
   it("keeps each caption inside its own cell", () => {
     for (let i = 0; i < PROMPT_COUNT; i += 1) {
       const label = promptLabel(i);
-      const cell = { x: promptDisc(i).x, y: PROMPT_Y, width: PROMPT_CELL_W, height: PROMPT_H };
+      const cell = { x: promptDisc(i).x, y: PROMPT_Y, width: promptCellW(i), height: PROMPT_H };
       expect(label.x).toBeGreaterThanOrEqual(cell.x);
       expect(right(label)).toBeLessThanOrEqual(right(cell));
       expect(label.height).toBe(PROMPT_H);
@@ -652,17 +654,18 @@ describe("the prompt row", () => {
     const row: Box = {
       x: PROMPT_X,
       y: PROMPT_Y,
-      width: PROMPT_CELL_W * PROMPT_COUNT,
+      width: 466,
       height: PROMPT_H,
     };
-    expect(row).toEqual({ x: 377, y: 528, width: 440, height: 22 });
+    expect(row).toEqual({ x: 377, y: 528, width: 466, height: 22 });
+    expect(PROMPT_XS[3] + promptCellW(3) - PROMPT_X).toBe(row.width);
   });
 
   it("sits inside the panel's own width, which is the alignment the clock shows", () => {
     const row: Box = {
       x: PROMPT_X,
       y: PROMPT_Y,
-      width: PROMPT_CELL_W * PROMPT_COUNT,
+      width: 466,
       height: PROMPT_H,
     };
     expect(row.x).toBeGreaterThanOrEqual(PANEL_X);

@@ -378,19 +378,22 @@ export const PROMPT_Y = 528;
 export const PROMPT_H = BUTTON_SIZE;
 
 /**
- * A cell's width and the row's x, both UNVERIFIED.
- *
- * Section 3.7 gives the band's y and no x at all. 132 is the widest caption
- * beside a 22px disc and an 8px gap, "Xbox Dashboard" at 13px, and the row is
- * centred on 640 like the panel and the gamerpic above it, which puts it at
- * 376-904. Inside the panel's 368-912, which is the alignment the clock's right
- * edge already shows the band has.
+ * Where each disc starts, read off retail `t144`: the captions are set close
+ * against their discs and the next disc follows the caption's end, so the
+ * pitch is uneven (109, 94, 133). MEASURED to about 3px. The last cell runs
+ * to the widest caption, "Xbox Dashboard".
  */
-export const PROMPT_CELL_W = 110;
-export const PROMPT_GAP = 8;
+export const PROMPT_XS = [377, 486, 580, 713] as const;
+export const PROMPT_LAST_W = 130;
+export const PROMPT_GAP = 2;
 export const PROMPT_FONT = 20;
-export const PROMPT_ROW_W = PROMPT_CELL_W * PROMPT_COUNT;
-export const PROMPT_X = 377;
+export const PROMPT_X = PROMPT_XS[0];
+
+/** A prompt's cell: from its disc to the next one's, and to the last caption's end for the last. */
+export function promptCellW(index: number): number {
+  const next = PROMPT_XS[index + 1];
+  return next === undefined ? PROMPT_LAST_W : next - (PROMPT_XS[index] ?? PROMPT_X);
+}
 
 export interface Slab {
   /** Step out from the panel, 0 being the slab against its right edge. */
@@ -620,7 +623,7 @@ export function highlightBox(selected: number): Box {
 /** One prompt's disc, the one measured size in the band. */
 export function promptDisc(index: number): Box {
   return {
-    x: PROMPT_X + PROMPT_CELL_W * index,
+    x: PROMPT_XS[index] ?? PROMPT_X,
     y: PROMPT_Y,
     width: BUTTON_SIZE,
     height: BUTTON_SIZE,
@@ -633,7 +636,7 @@ export function promptLabel(index: number): Box {
   return {
     x: disc.x + BUTTON_SIZE + PROMPT_GAP,
     y: PROMPT_Y,
-    width: PROMPT_CELL_W - BUTTON_SIZE - PROMPT_GAP,
+    width: promptCellW(index) - BUTTON_SIZE - PROMPT_GAP,
     height: PROMPT_H,
   };
 }

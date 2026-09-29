@@ -13,11 +13,17 @@ deploy — and `../weboshome-web/PLAN.md` before that.
 
 ## Read first
 
+- [`docs/STATUS.md`](./docs/STATUS.md) — **where this is, what is verified and
+  what is not, and what to do next.** Start here.
 - [`docs/PERF.md`](./docs/PERF.md) — the measured bandwidth ceiling and the rules
   that follow from it. **The design rests on this; read it before touching the
   DOM.**
+- [`docs/DESIGN-HUB.md`](./docs/DESIGN-HUB.md) — the pane, the channel column and
+  the spill, specified and not yet implemented. The art is the biggest remaining
+  gap and this is the spec that closes it.
 - [`docs/research/NXE-XUI.md`](./docs/research/NXE-XUI.md) — every layout number,
-  read out of retail build 9199's scene graphs.
+  read out of retail build 9199's scene graphs. **Section 1a is the correction;
+  section 1 above it is superseded and will mislead you.**
 - [`docs/research/NXE-EXISTING.md`](./docs/research/NXE-EXISTING.md) — where
   those numbers came from, the corroborating recreations, and the licensing
   position.

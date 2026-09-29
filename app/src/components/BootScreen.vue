@@ -442,11 +442,7 @@ watch(timing, () => {
   background:
     url("../assets/boot/xglow.png") calc(50% + var(--cross-dx) - var(--cross-d) / 2)
       calc(50% + var(--cross-dy) - var(--cross-d) / 2) / var(--cross-d) var(--cross-d) no-repeat,
-    repeating-linear-gradient(
-      96deg,
-      rgba(255, 255, 255, 0.05) 0 2px,
-      rgba(0, 0, 0, 0.045) 2px 5px
-    ),
+    repeating-linear-gradient(96deg, rgba(255, 255, 255, 0.05) 0 2px, rgba(0, 0, 0, 0.045) 2px 5px),
     radial-gradient(
       ellipse 96% 92% at 33% 22%,
       #b7c2b2 0%,

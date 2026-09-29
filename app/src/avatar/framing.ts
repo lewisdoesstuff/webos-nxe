@@ -19,8 +19,15 @@ export interface AvatarView {
   readonly foot: number;
 }
 
-/** CHOSEN: a long lens, so the figure reads flat like the hub's, with room above for a wave. */
-export const AVATAR_VIEW: AvatarView = { fov: 24, fill: 0.84, foot: 0.05 };
+/**
+ * CHOSEN: a long lens, so the figure reads flat like the hub's, with room
+ * above for a wave and below for its floor reflection, which fades out over
+ * `mirror` of its height as a pane's does over 144 of its 480px.
+ */
+export const AVATAR_VIEW: AvatarView = { fov: 24, fill: 0.68, foot: 0.21 };
+
+/** The floor reflection: its opacity at the feet, and how far it runs as a share of the figure. */
+export const AVATAR_MIRROR = { opacity: 0.34, length: 0.3 } as const;
 
 export interface CameraPlace {
   readonly distance: number;
@@ -37,11 +44,11 @@ export function frameAvatar(bottom: number, tall: number, view: AvatarView): Cam
 /**
  * The canvas, in stage pixels, at the size the figure stands when its pane is
  * focused: 432px tall in the 720p frame (t122), 648px here, which at `fill` is
- * a 771px canvas. 420px across leaves room for a wave. A 1.3MB layer, scaled
+ * a 953px canvas. 420px across leaves room for a wave. A 1.6MB layer, scaled
  * down by transform in the spill.
  */
 export const AVATAR_W = 420;
-export const AVATAR_H = 771;
+export const AVATAR_H = 953;
 
 /** Where the figure's centre and feet fall in the canvas. */
 export const AVATAR_CANVAS = {

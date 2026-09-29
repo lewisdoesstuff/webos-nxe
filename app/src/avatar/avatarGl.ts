@@ -1,20 +1,27 @@
 import {
   AnimationMixer,
   Box3,
+  AddEquation,
   CanvasTexture,
+  CustomBlending,
   DirectionalLight,
+  Group,
   HemisphereLight,
   LoopOnce,
   Mesh,
   MeshBasicMaterial,
   MeshStandardMaterial,
+  OrthographicCamera,
   PerspectiveCamera,
   PlaneGeometry,
   Scene,
+  ShaderMaterial,
+  SrcAlphaFactor,
   SRGBColorSpace,
   Timer,
   Vector3,
   WebGLRenderer,
+  ZeroFactor,
   type AnimationAction,
   type Material,
   type Object3D,
@@ -22,7 +29,7 @@ import {
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 
 import { fetchBytes } from "../sound/engine";
-import { AVATAR_VIEW, frameAvatar } from "./framing";
+import { AVATAR_MIRROR, AVATAR_VIEW, frameAvatar } from "./framing";
 import { firstIdle, nextIdle, planIdle, type IdlePlan, type IdleStep } from "./idle";
 
 /**
@@ -79,6 +86,47 @@ function shadowTexture(): CanvasTexture {
 }
 
 /**
+ * Multiplies what is already drawn by an alpha that runs from the reflection's
+ * opacity at the feet to nothing at its end, over the canvas below the feet.
+ * In clip space, so it is one quad drawn after the mirrored figure.
+ */
+function mirrorFade(): Mesh {
+  const feet = -1 + 2 * AVATAR_VIEW.foot;
+  const end = feet - 2 * AVATAR_VIEW.fill * AVATAR_MIRROR.length;
+  const material = new ShaderMaterial({
+    uniforms: {
+      feet: { value: feet },
+      end: { value: end },
+      opacity: { value: AVATAR_MIRROR.opacity },
+    },
+    vertexShader: `
+      varying float y;
+      void main() {
+        y = position.y;
+        gl_Position = vec4(position.xy, 0.0, 1.0);
+      }`,
+    fragmentShader: `
+      uniform float feet;
+      uniform float end;
+      uniform float opacity;
+      varying float y;
+      void main() {
+        gl_FragColor = vec4(0.0, 0.0, 0.0, opacity * clamp((y - end) / (feet - end), 0.0, 1.0));
+      }`,
+    transparent: true,
+    depthTest: false,
+    depthWrite: false,
+    blending: CustomBlending,
+    blendEquation: AddEquation,
+    blendSrc: ZeroFactor,
+    blendDst: SrcAlphaFactor,
+  });
+  const quad = new Mesh(new PlaneGeometry(2, feet + 1).translate(0, (feet - 1) / 2, 0), material);
+  quad.frustumCulled = false;
+  return quad;
+}
+
+/**
  * glTF defaults `metallicFactor` to 1, and with no environment to reflect a
  * metal surface draws black. Nothing on an avatar is metal except where a map
  * says so.
@@ -93,6 +141,11 @@ export class AvatarRenderer {
   private readonly renderer: WebGLRenderer;
   private readonly scene = new Scene();
   private readonly camera: PerspectiveCamera;
+  private readonly stand = new Group();
+  private readonly fade = new Scene();
+  private readonly flat = new OrthographicCamera(-1, 1, 1, -1, 0, 1);
+  private shadow: Mesh | null = null;
+  private floor = 0;
   private readonly timer = new Timer();
   private readonly interval: number;
   private readonly random: () => number;
@@ -125,6 +178,9 @@ export class AvatarRenderer {
       false,
     );
     this.renderer.setClearColor(0x000000, 0);
+    this.renderer.autoClear = false;
+    this.scene.add(this.stand);
+    this.fade.add(mirrorFade());
     this.renderer.outputColorSpace = SRGBColorSpace;
     this.camera = new PerspectiveCamera(AVATAR_VIEW.fov, options.width / options.height, 0.05, 50);
     this.scene.add(new HemisphereLight(SKY, GROUND, 2.2));
@@ -152,7 +208,7 @@ export class AvatarRenderer {
       materials.forEach(unmetal);
     });
     for (const prop of props) prop.removeFromParent();
-    this.scene.add(model);
+    this.stand.add(model);
 
     this.mixer = new AnimationMixer(model);
     for (const clip of gltf.animations) {
@@ -191,6 +247,8 @@ export class AvatarRenderer {
     shadow.rotation.x = -Math.PI / 2;
     shadow.position.set(centre.x, box.min.y + 0.001, centre.z);
     this.scene.add(shadow);
+    this.shadow = shadow;
+    this.floor = box.min.y;
   }
 
   private advance(): void {
@@ -213,8 +271,24 @@ export class AvatarRenderer {
     this.onClip?.(next.clip);
   }
 
+  /**
+   * The floor reflection first: the figure flipped about the floor, faded out
+   * below the feet, then the figure and its shadow over it. A mirrored
+   * transform turns the faces inside out, which three.js corrects for.
+   */
   private draw(): void {
-    this.renderer.render(this.scene, this.camera);
+    const renderer = this.renderer;
+    renderer.clear();
+    this.stand.scale.y = -1;
+    this.stand.position.y = 2 * this.floor;
+    if (this.shadow !== null) this.shadow.visible = false;
+    renderer.render(this.scene, this.camera);
+    renderer.render(this.fade, this.flat);
+    renderer.clearDepth();
+    this.stand.scale.y = 1;
+    this.stand.position.y = 0;
+    if (this.shadow !== null) this.shadow.visible = true;
+    renderer.render(this.scene, this.camera);
   }
 
   private tick = (now: number): void => {

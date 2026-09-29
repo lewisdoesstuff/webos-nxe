@@ -29,6 +29,7 @@ const rootStyle = { width: `${PANE_W}px`, height: `${PANE_H}px` };
         <img v-if="art" class="art" :src="art" alt="" />
         <span v-else class="initial">{{ initial }}</span>
       </div>
+      <div class="echo"><img v-if="art" class="art" :src="art" alt="" /></div>
       <div class="fade" />
       <span class="name">{{ props.item?.title ?? "" }}</span>
     </div>
@@ -39,6 +40,7 @@ const rootStyle = { width: `${PANE_W}px`, height: `${PANE_H}px` };
           <img v-if="art" class="art" :src="art" alt="" />
           <span v-else class="initial">{{ initial }}</span>
         </div>
+        <div class="echo"><img v-if="art" class="art" :src="art" alt="" /></div>
         <div class="fade" />
       </div>
     </div>
@@ -129,6 +131,24 @@ const rootStyle = { width: `${PANE_W}px`, height: `${PANE_H}px` };
     0 10px 24px rgba(20, 50, 0, 0.45),
     inset 0 0 0 2px rgba(255, 255, 255, 0.35);
   background: rgba(255, 255, 255, 0.14);
+}
+
+.echo {
+  position: absolute;
+  top: 334px;
+  left: 195px;
+  width: 240px;
+  height: 96px;
+  overflow: hidden;
+  opacity: 0.32;
+  -webkit-mask-image: linear-gradient(180deg, #000 0%, transparent 100%);
+  mask-image: linear-gradient(180deg, #000 0%, transparent 100%);
+}
+
+.echo .art {
+  height: 240px;
+  border-radius: 34px;
+  transform: scaleY(-1);
 }
 
 .tile::after {

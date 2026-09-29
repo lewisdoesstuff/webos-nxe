@@ -76,8 +76,10 @@ describe("hubRow", () => {
     expect(ids.size).toBe(SYSTEM_PANES.length);
     for (const pane of SYSTEM_PANES) {
       expect(pane.icon).toBeTruthy();
-      expect(pane.launch?.id).toBe("com.palm.app.settings");
+      expect(pane.launch?.id).toBeTruthy();
     }
+    const network = SYSTEM_PANES.find((pane) => pane.id === "system:network");
+    expect(network?.launch?.id).toBe("com.webos.app.firstuse-overlay");
   });
 });
 

@@ -31,11 +31,12 @@ export interface HubItem extends LaunchPoint {
 }
 
 const SETTINGS_APP = "com.palm.app.settings";
+const NETWORK_APP = "com.webos.app.firstuse-overlay";
 
 /**
- * The TV's own settings pages. The app id is VERIFIED (LG-XMB lists it as its
- * TV Settings entry); the `target` param names are UNVERIFIED and are the first
- * thing to check on the TV.
+ * The TV's own settings pages, VERIFIED on the TV. Settings maps `picture`,
+ * `sound` and `general` to its pages and falls back to Picture for anything
+ * else; it opens its own network page through the first-use overlay.
  */
 export const SYSTEM_PANES: readonly HubItem[] = [
   {
@@ -54,7 +55,7 @@ export const SYSTEM_PANES: readonly HubItem[] = [
     id: "system:network",
     title: "Network",
     icon: networkIcon,
-    launch: { id: SETTINGS_APP, params: { target: "network" } },
+    launch: { id: NETWORK_APP, params: { target: "network" } },
   },
   {
     id: "system:general",

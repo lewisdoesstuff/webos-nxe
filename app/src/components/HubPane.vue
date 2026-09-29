@@ -59,7 +59,7 @@ const rootStyle = { width: `${PANE_W}px`, height: `${PANE_H}px` };
   width: 630px;
   height: 480px;
   overflow: hidden;
-  border-radius: 3px;
+  border-radius: 6px;
 }
 
 .mirror {
@@ -84,7 +84,7 @@ const rootStyle = { width: `${PANE_W}px`, height: `${PANE_H}px` };
   background:
     radial-gradient(
       ellipse 90% 45% at 50% 0%,
-      rgba(255, 255, 200, 0.55),
+      rgba(235, 255, 130, 0.36),
       rgba(255, 255, 200, 0) 100%
     ),
     radial-gradient(
@@ -109,8 +109,12 @@ const rootStyle = { width: `${PANE_W}px`, height: `${PANE_H}px` };
       rgba(255, 255, 255, 0.1) 25px 28px,
       transparent 29px
     ),
-    linear-gradient(180deg, #d6f21c 0%, #b6de10 35%, #93c60c 70%, #7bb208 100%);
-  box-shadow: inset 0 3px 0 rgba(255, 255, 210, 0.75);
+    linear-gradient(180deg, #c2e80e 0%, #b6de10 35%, #93c60c 70%, #7bb208 100%);
+  box-shadow:
+    inset 0 2px 0 rgba(214, 255, 60, 1),
+    inset 1px 0 0 rgba(235, 255, 140, 0.4),
+    inset -1px 0 0 rgba(235, 255, 140, 0.25),
+    inset 0 -3px 0 rgba(0, 24, 0, 0.55);
 }
 
 .tile {

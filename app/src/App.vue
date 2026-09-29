@@ -168,11 +168,15 @@ const rows = computed(() =>
 const pageOpen = ref(false);
 const pageFocus = ref<PageFocus>(ROOT_FOCUS);
 /** What the open page shows, latched when it opens so a channel change never repaints its panes. */
-const pageLatch = ref<{ title: string; items: readonly PaneItem[] }>({ title: "", items: [] });
-
 const listed = computed(() => pageItems(rows.value[hub.value.channel] ?? []));
 
 const page = computed(() => channelPage(CHANNEL_ORDER[hub.value.channel] ?? "apps", listed.value));
+
+/** Seeded with a real title so the title's layer has painted content, and a texture, before any page opens. */
+const pageLatch = ref<{ title: string; items: readonly PaneItem[] }>({
+  title: page.value.title,
+  items: [],
+});
 
 /**
  * The shell's prompt row: the hub's at the root, the open page's over it, and
@@ -411,10 +415,13 @@ function paneItem(pane: PooledPane) {
 
 const moveTransition = `transform ${MOVE_MS}ms ${MOVE_EASE}, opacity ${MOVE_MS}ms ${MOVE_EASE}`;
 
+/** A page or the settings screen is over the hub; its promoted layers rest hidden and keep their textures. */
+const hubAway = computed(() => pageOpen.value || settingsStack.value.length > 0);
+
 function paneStyle(pane: PooledPane): Record<string, string> {
   let { x, y, scale, opacity } = pane.slot;
   let transition = moveTransition;
-  if (pageOpen.value || !loaded.value) {
+  if (hubAway.value || !loaded.value) {
     opacity = HIDDEN;
     transition = `opacity ${CHANNEL_OUT_MS}ms linear`;
   } else if (phase.value === "out") {
@@ -446,7 +453,7 @@ function labelStyle(index: number): Record<string, string> {
     "font-size": `${LABEL_FONT}px`,
     "line-height": `${LABEL_H}px`,
     transform: `translate3d(${slot.x}px, ${slot.y}px, 0) scale(${slot.scale})`,
-    opacity: `${pageOpen.value ? HIDDEN : slot.opacity}`,
+    opacity: `${hubAway.value ? HIDDEN : slot.opacity}`,
   };
 }
 
@@ -1040,14 +1047,13 @@ function expose(): void {
   transform-origin: 0 0;
 }
 
-/* The hub leaves once the settings panel has grown over it, and comes back at
-   once on close. Visibility, so no layer is created or resized by either. */
-.stage[data-settings] .label,
+/* The static parts of the hub leave once a page or the settings panel has grown
+   over them. They paint into the root layer, so visibility costs no layer; the
+   promoted labels and panes rest at opacity instead, or their textures drop. */
 .stage[data-settings] .bullet,
 .stage[data-settings] .counter,
 .stage[data-settings] .card,
 .stage[data-settings] .pic,
-.stage[data-settings] .row,
 .stage[data-page] .bullet,
 .stage[data-page] .card,
 .stage[data-page] .pic {

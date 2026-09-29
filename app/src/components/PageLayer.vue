@@ -105,12 +105,15 @@ const titleStyle = computed((): Record<string, string> => ({
   pointer-events: none;
 }
 
+/* Text alone at rest opacity is never drawn, so it would allocate on first open;
+   a background too faint to see keeps its texture from the start. */
 .title {
   position: absolute;
   color: #fff;
   font-size: 48px;
   white-space: nowrap;
   text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.004);
   will-change: opacity;
   transition: opacity 150ms linear;
 }

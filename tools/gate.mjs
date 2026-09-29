@@ -4,6 +4,7 @@
  *
  *   node tools/gate.mjs                    # arrow right, 700ms window
  *   node tools/gate.mjs --keys 37
+ *   node tools/gate.mjs --keys 13 --reset 461   # undo the first press before timing the second
  *   node tools/gate.mjs --at 60,150,300     # sample the layer tree at these ms
  *   node tools/gate.mjs --match localhost   # pick a CDP target by URL instead
  *   CDP_URL=http://localhost:9222 node tools/gate.mjs
@@ -41,6 +42,7 @@ const endpoint = process.env.CDP_URL ?? `http://${host}:${port}`;
 const appId = process.env.APP_ID ?? "ooo.lew.xne";
 const match = flag("match", appId);
 const keyCode = Number(flag("keys", "39"));
+const resetCode = flag("reset", null) === null ? null : Number(flag("reset", null));
 const span = Number(flag("window", "700"));
 const settle = Number(flag("settle", "500"));
 const samples = flag("at", "60,150,300")
@@ -284,11 +286,11 @@ async function armRecorder() {
   })()`);
 }
 
-async function pressKey() {
+async function pressKey(code = keyCode) {
   await evaluate(`(() => {
     for (const type of ["keydown", "keyup"]) {
       const e = new Event(type, { bubbles: true, cancelable: true });
-      Object.defineProperty(e, "keyCode", { value: ${keyCode} });
+      Object.defineProperty(e, "keyCode", { value: ${code} });
       window.dispatchEvent(e);
     }
     return true;
@@ -333,6 +335,10 @@ await sleep(Math.max(0, span - (during.at(-1) ?? 0)));
 const sampledTiming = await readTiming();
 
 await sleep(260);
+if (resetCode !== null) {
+  await pressKey(resetCode);
+  await sleep(span + 260);
+}
 await warm();
 
 const cleanTiming = await (async () => {

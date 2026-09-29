@@ -504,9 +504,7 @@ function expose(): void {
       <PromptBar :prompts="promptsFor({ a: SELECT.label })" />
     </div>
     <div class="ripples">
-      <i style="--i: 0" /><i style="--i: 1" /><i style="--i: 2" /><i style="--i: 3" /><i
-        style="--i: 4"
-      />
+      <i v-for="n in 6" :key="n" :class="`r${n}`" />
     </div>
 
     <span
@@ -630,41 +628,85 @@ function expose(): void {
 .orb::before {
   content: "";
   position: absolute;
-  left: -34px;
-  top: 31px;
-  width: 68px;
-  height: 18px;
+  left: -36px;
+  top: 44px;
+  width: 72px;
+  height: 22px;
   border-radius: 50%;
-  background: rgba(0, 0, 0, 0.35);
+  background: radial-gradient(
+    ellipse 50% 50% at 50% 50%,
+    rgba(20, 24, 30, 0.5) 0%,
+    rgba(20, 24, 30, 0.3) 55%,
+    rgba(20, 24, 30, 0) 100%
+  );
 }
 
 .ripples {
   position: absolute;
-  left: 1337px;
-  top: 872px;
-  width: 800px;
-  height: 232px;
+  left: 1297px;
+  top: 880px;
+  width: 880px;
+  height: 250px;
   pointer-events: none;
 }
 
 .ripples i {
   position: absolute;
   inset: 0;
-  border: 1.5px solid rgba(235, 243, 250, 0.8);
+  border: 2px solid rgba(240, 246, 252, 0.9);
   border-radius: 50%;
   opacity: 0;
   will-change: transform, opacity;
-  animation: ripple 4.8s cubic-bezier(0.2, 0.5, 0.4, 1) infinite;
-  animation-delay: calc(var(--i) * -0.96s);
+  animation: ripple 7s cubic-bezier(0.2, 0.5, 0.4, 1) infinite;
+}
+
+.ripples .r1 {
+  --a: 0.8;
+  animation-duration: 5.3s;
+  animation-delay: -1.1s;
+}
+
+.ripples .r2 {
+  --a: 0.5;
+  animation-duration: 6.7s;
+  animation-delay: -4.4s;
+}
+
+.ripples .r3 {
+  --a: 0.68;
+  animation-duration: 7.9s;
+  animation-delay: -2.3s;
+}
+
+.ripples .r4 {
+  --a: 0.4;
+  animation-duration: 9.1s;
+  animation-delay: -7.6s;
+}
+
+.ripples .r5 {
+  --a: 0.75;
+  animation-duration: 11.3s;
+  animation-delay: -5.2s;
+}
+
+.ripples .r6 {
+  --a: 0.45;
+  animation-duration: 13.7s;
+  animation-delay: -10.9s;
 }
 
 @keyframes ripple {
   0% {
-    transform: scale(0.1);
+    transform: scale(0.08);
     opacity: 0;
   }
-  12% {
-    opacity: 0.55;
+  6% {
+    opacity: var(--a);
+  }
+  78% {
+    transform: scale(1);
+    opacity: 0;
   }
   100% {
     transform: scale(1);
@@ -675,7 +717,7 @@ function expose(): void {
 @media (prefers-reduced-motion: reduce) {
   .ripples i {
     animation: none;
-    opacity: 0.25;
+    opacity: 0.22;
     transform: scale(0.5);
   }
 }

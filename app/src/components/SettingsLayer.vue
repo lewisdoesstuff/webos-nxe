@@ -259,8 +259,9 @@ const withIcons = computed(() => items.value.some((item) => item.icon !== undefi
   left: 0;
   width: 100%;
   height: 45px;
-  color: #c9d5db;
+  color: #b6c2c8;
   font-size: 22px;
+  font-weight: 400;
   letter-spacing: 0.6px;
   line-height: 45px;
   white-space: nowrap;
@@ -273,7 +274,7 @@ const withIcons = computed(() => items.value.some((item) => item.icon !== undefi
   right: 5px;
   bottom: 0;
   height: 1px;
-  background: rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.2);
 }
 
 .row[data-empty]::after {
@@ -330,7 +331,7 @@ const withIcons = computed(() => items.value.some((item) => item.icon !== undefi
 
 .row[data-focused] {
   color: #fff;
-  text-shadow: 0 1px 2px rgba(0, 40, 0, 0.45);
+  text-shadow: 1px 1px 2px rgba(0, 30, 0, 0.7);
 }
 
 .row[data-focused] .bar {

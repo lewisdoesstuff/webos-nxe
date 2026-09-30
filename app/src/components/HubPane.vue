@@ -1,7 +1,14 @@
 <script setup lang="ts" vapor>
 import { computed } from "vue";
 
-import { shownArt, shownEcho, shownFloorFace, shownFloorPatch } from "../artCache";
+import {
+  shownArt,
+  shownEcho,
+  shownFace,
+  shownFloorFace,
+  shownFloorOwn,
+  shownFloorPatch,
+} from "../artCache";
 import { PANE_H, PANE_W } from "../hub";
 import { initialsFor, paneArt, type PaneItem } from "../panel";
 import { formatGamerscore } from "../settingsScreen";
@@ -23,6 +30,8 @@ const source = computed(() => (props.item ? paneArt(props.item) : null));
 const art = computed(() => shownArt(source.value));
 const echo = computed(() => shownEcho(source.value));
 const floorPatch = computed(() => shownFloorPatch(source.value));
+const face = computed(() => shownFace(source.value));
+const floorOwn = computed(() => shownFloorOwn(source.value));
 const initial = computed(() => (props.item ? initialsFor(props.item.title) : ""));
 const profile = computed(() => props.item?.profile === true);
 const score = computed(() => formatGamerscore(props.item?.score ?? 0));
@@ -53,7 +62,9 @@ const rootStyle = { width: `${PANE_W}px`, height: `${PANE_H}px` };
         </div>
       </template>
       <template v-else>
-        <div class="tile" :class="{ bare: props.item?.bare }">
+        <img v-if="face" class="cface" :src="face" alt="" />
+        <img v-if="face && art" class="flat" :src="art" alt="" />
+        <div v-else class="tile" :class="{ bare: props.item?.bare }">
           <img v-if="art" class="art" :src="art" alt="" />
           <span v-else class="initial">{{ initial }}</span>
         </div>
@@ -63,7 +74,8 @@ const rootStyle = { width: `${PANE_W}px`, height: `${PANE_H}px` };
       </template>
     </div>
     <div class="mirror">
-      <img v-if="shownFloorFace()" class="floor" :src="shownFloorFace()!" alt="" />
+      <img v-if="floorOwn" class="floor" :src="floorOwn" alt="" />
+      <img v-else-if="shownFloorFace()" class="floor" :src="shownFloorFace()!" alt="" />
       <img v-if="floorPatch" class="patch" :src="floorPatch" alt="" />
     </div>
   </div>
@@ -165,6 +177,21 @@ const rootStyle = { width: `${PANE_W}px`, height: `${PANE_H}px` };
   left: 195px;
   width: 240px;
   height: 120px;
+}
+
+.cface {
+  position: absolute;
+  inset: 0;
+  width: 630px;
+  height: 480px;
+}
+
+.flat {
+  position: absolute;
+  top: 36px;
+  left: 165px;
+  width: 300px;
+  height: 300px;
 }
 
 .tile::after {

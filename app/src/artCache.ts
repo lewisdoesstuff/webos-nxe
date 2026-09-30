@@ -2,6 +2,7 @@ import { shallowReactive, shallowRef } from "vue";
 
 import { readAllArt, type StoredArt, writeArt } from "./artStore";
 import cardBokeh from "./assets/hub/card-bokeh.svg";
+import { edgeColor, faceStops } from "./tileColor";
 
 /**
  * Every pane's art, redrawn once at the size it is shown, with its reflections
@@ -22,7 +23,7 @@ import cardBokeh from "./assets/hub/card-bokeh.svg";
  */
 
 /** Bumped whenever what a bake draws changes, so older stored bakes are ignored. */
-const BAKE_VERSION = 1;
+const BAKE_VERSION = 2;
 const FLOOR_KEY = "floor-face";
 
 /** The size the hub shows art at, in CSS px, which is what this TV rasters at. */
@@ -60,9 +61,14 @@ const FACE_STOPS: readonly [number, string][] = [
 
 interface Baked {
   art: string;
-  echo: string;
+  echo: string | null;
   floor: string;
+  /** Set for an icon drawn on its own flat colour: the whole card, echo included, at half size. */
+  face?: string;
 }
+
+/** The logo of a flat-colour card, in card px, and the card scale it is baked at. */
+const FLAT = { x: 165, y: 36, size: 300, scale: 0.5 } as const;
 
 const baked = shallowReactive(new Map<string, Baked>());
 /** The mirror of a bare card, with a hole where the echo goes, and the patch for a card with no echo. */
@@ -86,8 +92,20 @@ export function shownFloorFace(): string | null {
 
 /** The mirror's echo patch for a source, the bare card's until the source has one. */
 export function shownFloorPatch(url: string | null): string | null {
-  const own = url === null ? undefined : baked.get(url)?.floor;
-  return own ?? floorFace.value?.patch ?? null;
+  const own = url === null ? undefined : baked.get(url);
+  if (own?.face) return null;
+  return own?.floor ?? floorFace.value?.patch ?? null;
+}
+
+/** The card face of an icon on a flat colour, or null for the lime card. */
+export function shownFace(url: string | null): string | null {
+  return url === null ? null : (baked.get(url)?.face ?? null);
+}
+
+/** The whole mirror of a flat-colour card, or null when the shared one serves. */
+export function shownFloorOwn(url: string | null): string | null {
+  const own = url === null ? undefined : baked.get(url);
+  return own?.face ? own.floor : null;
 }
 
 function canvas(w: number, h: number): [HTMLCanvasElement, CanvasRenderingContext2D] | null {
@@ -181,6 +199,25 @@ function fade(
   context.globalCompositeOperation = "source-over";
 }
 
+/** Fade the edges of a square to nothing, so an icon's own background melts into the card behind it. */
+function feather(context: CanvasRenderingContext2D, width: number): void {
+  const size = context.canvas.width;
+  const edge = width / size;
+  context.globalCompositeOperation = "destination-in";
+  for (const horizontal of [true, false]) {
+    const gradient = horizontal
+      ? context.createLinearGradient(0, 0, size, 0)
+      : context.createLinearGradient(0, 0, 0, size);
+    gradient.addColorStop(0, "rgba(0, 0, 0, 0)");
+    gradient.addColorStop(edge, "rgba(0, 0, 0, 1)");
+    gradient.addColorStop(1 - edge, "rgba(0, 0, 0, 1)");
+    gradient.addColorStop(1, "rgba(0, 0, 0, 0)");
+    context.fillStyle = gradient;
+    context.fillRect(0, 0, size, size);
+  }
+  context.globalCompositeOperation = "source-over";
+}
+
 const MIRROR_FADE: readonly [number, number][] = [
   [0, MIRROR.opacity],
   [1, 0],
@@ -254,8 +291,13 @@ export async function prepareArt(url: string): Promise<void> {
   if (baked.has(url)) return;
   const record = await storedFor(url);
   const urls = record ? await showAll(record.images) : null;
-  if (record && urls?.["art"] && urls["echo"] && urls["floor"]) {
-    baked.set(url, { art: urls["art"], echo: urls["echo"], floor: urls["floor"] });
+  if (record && urls?.["art"] && urls["floor"] && (urls["echo"] || urls["face"])) {
+    baked.set(url, {
+      art: urls["art"],
+      echo: urls["echo"] ?? null,
+      floor: urls["floor"],
+      ...(urls["face"] ? { face: urls["face"] } : {}),
+    });
     unchecked.set(url, record.hash);
     return;
   }
@@ -286,6 +328,12 @@ async function bake(url: string, unless: number | null): Promise<void> {
   const hash = hashPixels(context);
   if (hash === unless) return;
 
+  const edge = edgeColor(context.getImageData(0, 0, ART_PX, ART_PX).data, ART_PX);
+  if (edge) {
+    await bakeFlat(url, hash, source, edge.rgb);
+    return;
+  }
+
   const [echo, echoContext] = echoCanvas;
   echoContext.beginPath();
   echoContext.roundRect(0, 0, ART_PX, ART_PX, ART_RADIUS);
@@ -304,5 +352,68 @@ async function bake(url: string, unless: number | null): Promise<void> {
   const urls = await store(url, hash, { art: scaled, echo, floor: patch });
   if (urls?.["art"] && urls["echo"] && urls["floor"]) {
     baked.set(url, { art: urls["art"], echo: urls["echo"], floor: urls["floor"] });
+  }
+}
+
+/**
+ * An icon that sits on one flat colour: that colour is the card, the logo is
+ * drawn large with no frame, and the card and its mirror are baked at half
+ * size because a gradient and a soft echo lose nothing to it.
+ */
+async function bakeFlat(
+  url: string,
+  hash: number,
+  source: HTMLImageElement,
+  base: readonly [number, number, number],
+): Promise<void> {
+  const k = FLAT.scale;
+  const faceCanvas = canvas(CARD_W * k, CARD_H * k);
+  const artCanvas = canvas(FLAT.size, FLAT.size);
+  const mirrorCanvas = canvas(CARD_W * k, MIRROR.h * k);
+  if (!faceCanvas || !artCanvas || !mirrorCanvas) return;
+
+  const [face, faceContext] = faceCanvas;
+  const gradient = faceContext.createLinearGradient(0, 0, 0, face.height);
+  for (const [at, color] of faceStops(base)) gradient.addColorStop(at, color);
+  faceContext.fillStyle = gradient;
+  faceContext.fillRect(0, 0, face.width, face.height);
+  const dots = await decoded(cardBokeh);
+  if (dots) {
+    faceContext.globalAlpha = 0.2;
+    faceContext.drawImage(dots, 0, 0, face.width, face.height);
+    faceContext.globalAlpha = 1;
+  }
+
+  const [art, artContext] = artCanvas;
+  artContext.imageSmoothingQuality = "high";
+  const fit = Math.min(FLAT.size / source.naturalWidth, FLAT.size / source.naturalHeight);
+  const w = source.naturalWidth * fit;
+  const h = source.naturalHeight * fit;
+  artContext.drawImage(source, (FLAT.size - w) / 2, (FLAT.size - h) / 2, w, h);
+  feather(artContext, 36);
+
+  const echoH = 110;
+  const echoCanvas = canvas(FLAT.size, echoH);
+  if (!echoCanvas) return;
+  const [echo, echoContext] = echoCanvas;
+  echoContext.setTransform(1, 0, 0, -1, 0, echoH);
+  echoContext.drawImage(art, 0, echoH - FLAT.size);
+  echoContext.setTransform(1, 0, 0, 1, 0, 0);
+  fade(echoContext, 0, echoH, [
+    [0, 0.45],
+    [0.4, 0.2],
+    [1, 0],
+  ]);
+  faceContext.drawImage(echo, FLAT.x * k, (FLAT.y + FLAT.size) * k, FLAT.size * k, echoH * k);
+
+  const [mirror, mirrorContext] = mirrorCanvas;
+  mirrorContext.setTransform(1, 0, 0, -1, 0, face.height);
+  mirrorContext.drawImage(face, 0, 0);
+  mirrorContext.setTransform(1, 0, 0, 1, 0, 0);
+  fade(mirrorContext, 0, mirror.height, MIRROR_FADE);
+
+  const urls = await store(url, hash, { art, face, floor: mirror });
+  if (urls?.["art"] && urls["face"] && urls["floor"]) {
+    baked.set(url, { art: urls["art"], echo: null, floor: urls["floor"], face: urls["face"] });
   }
 }

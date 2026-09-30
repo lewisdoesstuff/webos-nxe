@@ -16,7 +16,7 @@ const keyIndex = argv.indexOf("--keys");
 const keyCode = Number(keyIndex === -1 ? "39" : argv[keyIndex + 1]);
 
 const host = process.env.TV_HOST ?? "192.168.1.37";
-const appId = process.env.APP_ID ?? "ooo.lew.xne";
+const appId = process.env.APP_ID ?? "ooo.lew.nxe";
 const endpoint = `http://${host}:9998`;
 
 const targets = await (await fetch(`${endpoint}/json/list`)).json();

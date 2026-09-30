@@ -235,7 +235,7 @@ export class BootRenderer {
       }
     }
     if (gl.getProgramParameter(program, gl.LINK_STATUS) !== true) {
-      console.error("[xne] boot shader", gl.getProgramInfoLog(program), ...this.shaderLogs());
+      console.error("[nxe] boot shader", gl.getProgramInfoLog(program), ...this.shaderLogs());
       this.program = null;
       return true;
     }

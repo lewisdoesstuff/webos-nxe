@@ -27,7 +27,7 @@ const burst = Number(flag("--burst") ?? 0);
 const interval = Number(flag("--interval") ?? 45);
 const wantState = argv.includes("--state");
 const host = process.env.TV_HOST ?? "192.168.1.37";
-const appId = process.env.APP_ID ?? "ooo.lew.xne";
+const appId = process.env.APP_ID ?? "ooo.lew.nxe";
 const endpoint = `http://${host}:9998`;
 
 const targets = await (await fetch(`${endpoint}/json/list`)).json();

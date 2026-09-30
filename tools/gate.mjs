@@ -40,7 +40,7 @@ function flag(name, fallback) {
 const host = process.env.TV_HOST ?? "192.168.1.37";
 const port = process.env.CDP_PORT ?? "9998";
 const endpoint = process.env.CDP_URL ?? `http://${host}:${port}`;
-const appId = process.env.APP_ID ?? "ooo.lew.xne";
+const appId = process.env.APP_ID ?? "ooo.lew.nxe";
 const match = flag("match", appId);
 const keyCode = Number(flag("keys", "39"));
 const resetCode = flag("reset", null) === null ? null : Number(flag("reset", null));

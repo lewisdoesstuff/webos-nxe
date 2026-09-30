@@ -1,4 +1,4 @@
-# AGENTS.md — XNE
+# AGENTS.md — NXE
 
 A recreation of the **Xbox 360 "New Xbox Experience" dashboard as it launched in
 November 2008**, built as a webOS home app. It runs from `file://` on a rooted LG
@@ -142,10 +142,10 @@ key takeover are in [`../webos-blades/docs/HOME-BUTTON.md`](../webos-blades/docs
 The short version:
 
 ```bash
-./build.sh && scp dist/ooo.lew.xne_*.ipk root@192.168.1.37:/tmp/
+./build.sh && scp dist/ooo.lew.nxe_*.ipk root@192.168.1.37:/tmp/
 ssh -tt root@192.168.1.37 "luna-send-pub -w 90000 -i \
   'luna://com.webos.appInstallService/dev/install' \
-  '{\"id\":\"com.ares.defaultName\",\"ipkUrl\":\"/tmp/ooo.lew.xne_0.1.0_all.ipk\",\"subscribe\":true}' < /dev/null"
+  '{\"id\":\"com.ares.defaultName\",\"ipkUrl\":\"/tmp/ooo.lew.nxe_0.1.0_all.ipk\",\"subscribe\":true}' < /dev/null"
 
 ./tools/deploy.sh       # build + sync into the installed dir + restart
 ./tools/restart.sh      # closeByAppId + launch

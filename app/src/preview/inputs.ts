@@ -41,7 +41,7 @@ export const PREVIEW_HEIGHT = 270;
 /** The capture service writes a file and returns no image data, so the file is
  *  the only channel out. It has to land inside our own origin to be loadable:
  *  the page is a `file://` app and cross-app reads are blocked. */
-const PREVIEW_DIR = "/media/developer/apps/usr/palm/applications/ooo.lew.xne";
+const PREVIEW_DIR = "/media/developer/apps/usr/palm/applications/ooo.lew.nxe";
 
 export function previewFileName(appId: string, slot: PreviewSlot): string {
   return `preview-${appId}-${slot}.jpg`;

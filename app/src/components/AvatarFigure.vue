@@ -63,14 +63,14 @@ async function begin(): Promise<void> {
     await own.load(props.src);
   } catch (cause: unknown) {
     if (props.fallback === "") {
-      console.error("[xne] avatar failed to load", cause);
+      console.error("[nxe] avatar failed to load", cause);
       emit("failed", cause);
       return;
     }
     try {
       await own.load(props.fallback);
     } catch (again: unknown) {
-      console.error("[xne] avatar failed to load", again);
+      console.error("[nxe] avatar failed to load", again);
       emit("failed", again);
       return;
     }

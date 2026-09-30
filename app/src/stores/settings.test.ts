@@ -80,7 +80,7 @@ describe("settings store", () => {
     store.setAppOrder(["b", "a"], false);
     expect(store.settings.appOrder).toEqual(["b", "a"]);
     const stored = () =>
-      JSON.parse(window.localStorage.getItem("ooo.lew.xne.settings") ?? "{}").appOrder;
+      JSON.parse(window.localStorage.getItem("ooo.lew.nxe.settings") ?? "{}").appOrder;
     expect(stored()).toEqual([]);
     store.persist();
     expect(stored()).toEqual(["b", "a"]);
@@ -124,7 +124,7 @@ describe("settings store", () => {
   });
 
   it("survives a stored document it cannot read", () => {
-    window.localStorage.setItem("ooo.lew.xne.settings", "not json");
+    window.localStorage.setItem("ooo.lew.nxe.settings", "not json");
     setActivePinia(createPinia());
     expect(useSettingsStore().settings).toEqual(SETTINGS_DEFAULTS);
   });

@@ -6,7 +6,7 @@
  * as empty and ignores writes, and the art is baked as if it had never been.
  */
 
-const DB_NAME = "ooo.lew.xne.art";
+const DB_NAME = "ooo.lew.nxe.art";
 const STORE = "art";
 
 export interface StoredArt {

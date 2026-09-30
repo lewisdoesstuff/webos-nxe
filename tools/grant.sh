@@ -7,7 +7,7 @@
 #   TV_HOST=root@192.168.1.40 ./tools/grant.sh --apply
 #
 # THIS EDITS A PERSISTENT FILE ON THE TV. It changes one line of
-# client-permissions.d/ooo.lew.xne.app.json, which survives a reboot, and
+# client-permissions.d/ooo.lew.nxe.app.json, which survives a reboot, and
 # survives a reinstall of the IPK only in the sense that the installer rewrites
 # the file. The change is one added ACL group: it widens what this app may ask
 # of the system, and nothing else about the TV is touched.
@@ -20,13 +20,13 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 TV_HOST="${TV_HOST:-root@192.168.1.37}"
-APP_ID="${APP_ID:-ooo.lew.xne}"
+APP_ID="${APP_ID:-ooo.lew.nxe}"
 
 # /etc/palm/client-permissions.d/ does not exist on this firmware. The live path
 # is under cmn_data, which is persistent.
 ACL_DIR="/mnt/lg/cmn_data/var/luna-service2-dev/client-permissions.d"
 ACL_FILE="${ACL_DIR}/${APP_ID}.app.json"
-SNAPSHOT_DIR="/var/lib/webosbrew/xne/backups"
+SNAPSHOT_DIR="/var/lib/webosbrew/nxe/backups"
 SNAPSHOT_FILE="${SNAPSHOT_DIR}/${APP_ID}.app.json"
 
 # The app id as the ACL file spells it, and the groups this app needs.

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  XNE_SETTINGS_PANE,
+  NXE_SETTINGS_PANE,
   channelItems,
   channelPage,
   hubRow,
@@ -55,7 +55,7 @@ describe("hubRow", () => {
     expect(isHideable(row[0])).toBe(true);
     expect(isHideable(row[row.length - 1])).toBe(false);
     expect(isHideable(hubRow("games", [], SETTINGS_DEFAULTS)[0])).toBe(false);
-    expect(isHideable(XNE_SETTINGS_PANE)).toBe(false);
+    expect(isHideable(NXE_SETTINGS_PANE)).toBe(false);
     expect(isHideable(null)).toBe(false);
     expect(isHideable(undefined)).toBe(false);
   });
@@ -68,7 +68,7 @@ describe("hubRow", () => {
     });
     const pane = items[1];
     expect(pane).toMatchObject({
-      id: "xne:profile",
+      id: "nxe:profile",
       title: "Matty",
       profile: true,
       score: 0,
@@ -98,7 +98,7 @@ describe("hubRow", () => {
   it("seats System Settings first on System, opened and never launched", () => {
     const items = channelItems("system", POINTS, SETTINGS_DEFAULTS);
     const pane = items[0];
-    expect(pane?.id).toBe("xne:settings");
+    expect(pane?.id).toBe("nxe:settings");
     expect(isSettingsPane(pane)).toBe(true);
     expect(isHideable(pane)).toBe(false);
     expect(items.some(isProfilePane)).toBe(false);
@@ -148,10 +148,10 @@ describe("moveStep", () => {
   );
 
   it("trades places with the next real item and steps over the profile pane", () => {
-    expect(ROW.map((item) => item.id)).toEqual(["a", "xne:profile", "b", "c"]);
-    expect(moveStep(ROW, 0, 1)).toEqual({ order: ["xne:profile", "a", "b", "c"], index: 1 });
-    expect(moveStep(ROW, 1, 1)).toEqual({ order: ["a", "b", "xne:profile", "c"], index: 2 });
-    expect(moveStep(ROW, 3, -1)).toEqual({ order: ["a", "xne:profile", "c", "b"], index: 2 });
+    expect(ROW.map((item) => item.id)).toEqual(["a", "nxe:profile", "b", "c"]);
+    expect(moveStep(ROW, 0, 1)).toEqual({ order: ["nxe:profile", "a", "b", "c"], index: 1 });
+    expect(moveStep(ROW, 1, 1)).toEqual({ order: ["a", "b", "nxe:profile", "c"], index: 2 });
+    expect(moveStep(ROW, 3, -1)).toEqual({ order: ["a", "nxe:profile", "c", "b"], index: 2 });
   });
 
   it("stops at the ends and refuses panes that cannot move", () => {
@@ -170,17 +170,17 @@ describe("the Home channel", () => {
 
   it("holds only the profile until something is pinned", () => {
     const row = hubRow("home", POINTS_HOME, SETTINGS_DEFAULTS);
-    expect(row.map((item) => item.id)).toEqual(["xne:profile"]);
+    expect(row.map((item) => item.id)).toEqual(["nxe:profile"]);
     const one = hubRow("home", POINTS_HOME, { ...SETTINGS_DEFAULTS, homeApps: ["a", "b"] });
-    expect(one.map((item) => item.id)).toEqual(["a", "xne:profile", "b"]);
+    expect(one.map((item) => item.id)).toEqual(["a", "nxe:profile", "b"]);
   });
 
   it("lists the pinned apps in pin order, and drops any the device no longer has", () => {
     const settings = { ...SETTINGS_DEFAULTS, homeApps: ["b", "gone", "a", "b"] };
     const row = hubRow("home", POINTS_HOME, settings);
-    expect(row.map((item) => item.id)).toEqual(["b", "xne:profile", "a"]);
+    expect(row.map((item) => item.id)).toEqual(["b", "nxe:profile", "a"]);
     expect(isHideable(row[0])).toBe(true);
-    expect(moveStep(row, 2, -1)).toEqual({ order: ["b", "a", "xne:profile"], index: 1 });
+    expect(moveStep(row, 2, -1)).toEqual({ order: ["b", "a", "nxe:profile"], index: 1 });
   });
 
   it("is never where an app is classified or sent by an override", () => {

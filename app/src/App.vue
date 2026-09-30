@@ -241,7 +241,7 @@ function signInToast(): void {
 }
 
 function onBootDone(payload: { reason: BootReason }): void {
-  if (payload.reason === "skipped") console.info("[xne] boot skipped");
+  if (payload.reason === "skipped") console.info("[nxe] boot skipped");
   booting.value = false;
   setTimeout(signInToast, 600);
 }
@@ -281,7 +281,7 @@ const rows = computed(() =>
       hubRow(channel.id, apps.launchPoints, rowSettings.value),
       rowSettings.value.appDescriptions,
     );
-    if (channel.id === "system") return withDetail(row, "xne:settings", storage.free);
+    if (channel.id === "system") return withDetail(row, "nxe:settings", storage.free);
     return channel.id === "inputs" ? nameInputs(row, inputs.statuses) : row;
   }),
 );
@@ -765,7 +765,7 @@ const bootReady = ref(false);
 function readyToBoot(reason: string): void {
   if (bootReady.value) return;
   bootReady.value = true;
-  console.info(`[xne] boot starts at ${Math.round(performance.now())}ms: ${reason}`);
+  console.info(`[nxe] boot starts at ${Math.round(performance.now())}ms: ${reason}`);
 }
 setTimeout(() => readyToBoot("waited the longest it may"), BOOT_WAIT_MS);
 
@@ -1249,7 +1249,7 @@ onMounted(() => {
 onUnmounted(() => window.removeEventListener("keydown", onKeyDown));
 
 function expose(): void {
-  (window as typeof window & { xneDebug?: unknown }).xneDebug = {
+  (window as typeof window & { nxeDebug?: unknown }).nxeDebug = {
     hub,
     shown,
     phase,

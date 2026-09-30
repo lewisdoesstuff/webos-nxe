@@ -44,7 +44,7 @@ if (fromFile) {
 }
 
 const host = process.env.TV_HOST ?? "192.168.1.37";
-const appId = process.env.APP_ID ?? "ooo.lew.xne";
+const appId = process.env.APP_ID ?? "ooo.lew.nxe";
 const endpoint = `http://${host}:9998`;
 
 if (!consoleMode && !expression && !screenshotPath) {

@@ -264,7 +264,7 @@ export function settingsCategoryPage(
           id: "descriptions",
           title: "App Descriptions",
           items: apps
-            .filter((app) => !app.id.startsWith("xne:") && !app.id.startsWith("all:"))
+            .filter((app) => !app.id.startsWith("nxe:") && !app.id.startsWith("all:"))
             .map((app) => {
               const art = paneArt(app);
               return {

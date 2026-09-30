@@ -30,9 +30,9 @@ async function boot(): Promise<void> {
 }
 
 void boot().catch((cause: unknown) => {
-  console.error("[xne] boot failed", cause);
+  console.error("[nxe] boot failed", cause);
   const root = document.querySelector("#app");
   if (root) {
-    root.textContent = `XNE failed to start. See the remote console. (${String(cause)})`;
+    root.textContent = `NXE failed to start. See the remote console. (${String(cause)})`;
   }
 });

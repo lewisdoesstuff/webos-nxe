@@ -20,7 +20,7 @@
 set -eu
 
 HOME_APP_ID=com.webos.app.home
-OUR_APP_ID="${BLADES_APP_ID:-ooo.lew.xne}"
+OUR_APP_ID="${BLADES_APP_ID:-ooo.lew.nxe}"
 TARGET=/usr/lib/qml/KeyFilters/systemUi.js
 PATCHED=/tmp/blades-systemUi.js
 STATE=/tmp/blades-homerung3.state

@@ -26,7 +26,7 @@
 set -uo pipefail
 
 TV_HOST="${TV_HOST:-root@192.168.1.37}"
-APP_ID="${APP_ID:-ooo.lew.xne}"
+APP_ID="${APP_ID:-ooo.lew.nxe}"
 HERE="$(cd "$(dirname "$0")" && pwd)"
 SERVICE="$HERE/../service"
 
@@ -725,7 +725,7 @@ usage: tools/homectl.sh <command>
   watch-discover    log key events from every input device
   revert            disarm + unquarantine, in one command
 
-environment: TV_HOST (default root@192.168.1.37)  APP_ID (default ooo.lew.xne)
+environment: TV_HOST (default root@192.168.1.37)  APP_ID (default ooo.lew.nxe)
 EOF
 }
 

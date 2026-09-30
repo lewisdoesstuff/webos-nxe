@@ -139,7 +139,7 @@ describe("preview store", () => {
   });
 
   it("clears the in flight mark after a failure, so a later visit can try again", async () => {
-    transport({ foreground: "ooo.lew.xne" });
+    transport({ foreground: "ooo.lew.nxe" });
     const previews = usePreviewStore();
 
     await previews.capture(HDMI);

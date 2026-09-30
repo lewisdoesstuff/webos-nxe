@@ -9,7 +9,7 @@
 set -euo pipefail
 
 TV_HOST="${TV_HOST:-root@192.168.1.37}"
-APP_ID="${APP_ID:-ooo.lew.xne}"
+APP_ID="${APP_ID:-ooo.lew.nxe}"
 
 ssh -tt "$TV_HOST" "
   luna-send -n 1 -f luna://com.webos.applicationManager/closeByAppId \

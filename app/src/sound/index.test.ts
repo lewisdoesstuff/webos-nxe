@@ -7,7 +7,7 @@ import { MENU_SOUND_COUNT } from "./voices";
 
 type Sound = typeof import("./index");
 
-const TRACK = "/media/internal/ooo.lew.xne/theme.mp3";
+const TRACK = "/media/internal/ooo.lew.nxe/theme.mp3";
 
 /** A fresh module, so every test gets its own engine and player. */
 async function load(): Promise<Sound> {

@@ -86,7 +86,7 @@ const handlers: Record<string, (params: LunaParams) => unknown> = {
     serialNumber:
       (typeof window === "undefined"
         ? null
-        : new URLSearchParams(window.location.search).get("serial")) ?? "MOCK00XNE2008",
+        : new URLSearchParams(window.location.search).get("serial")) ?? "MOCK00NXE2008",
   }),
   "com.webos.settingsservice/getSystemSettings": (params) => {
     const category = String(params["category"] ?? "");

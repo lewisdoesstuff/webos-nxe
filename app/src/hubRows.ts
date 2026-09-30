@@ -38,8 +38,8 @@ export interface HubItem extends LaunchPoint {
 }
 
 /** System settings, first on System. It opens a page rather than launching anything. */
-export const XNE_SETTINGS_PANE: HubItem = {
-  id: "xne:settings",
+export const NXE_SETTINGS_PANE: HubItem = {
+  id: "nxe:settings",
   title: "System Settings",
   icon: settingsIcon,
   bare: true,
@@ -59,7 +59,7 @@ export const PROFILE_RECENT = 3;
 
 export function profilePane(settings: Settings, points: readonly Reported[] = []): HubItem {
   return {
-    id: "xne:profile",
+    id: "nxe:profile",
     title: settings.gamertag || "Player1",
     profile: true,
     score: settings.gamerscore,
@@ -192,7 +192,7 @@ export function channelItems(
   settings: Settings,
 ): HubItem[] {
   const rows: HubItem[] = sectionRows(channel, points, settings);
-  if (channel === "system") return [XNE_SETTINGS_PANE, ...rows];
+  if (channel === "system") return [NXE_SETTINGS_PANE, ...rows];
   if (channel === "home") return homeItems(rows, profilePane(settings, points), settings);
   return rows;
 }

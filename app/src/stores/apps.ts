@@ -14,7 +14,7 @@ const LAUNCH = "luna://com.webos.applicationManager/launch";
 const GET_APP_INFO = "luna://com.webos.applicationManager/getAppInfo";
 
 /** The last list Luna gave, so a cold start can draw before Luna answers. */
-const LAST_POINTS_KEY = "ooo.lew.xne.launchPoints";
+const LAST_POINTS_KEY = "ooo.lew.nxe.launchPoints";
 
 function lastPoints(): LaunchPoint[] {
   const saved = readJson(LAST_POINTS_KEY);

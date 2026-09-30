@@ -79,7 +79,7 @@ export const SETTINGS_DEFAULTS: Settings = {
   sortModes: {},
   recentApps: [],
   background: "none",
-  wallpaperPath: "/media/internal/ooo.lew.xne/wallpaper.jpg",
+  wallpaperPath: "/media/internal/ooo.lew.nxe/wallpaper.jpg",
   backgroundBrightness: 1,
   navSound: true,
   musicPath: "",

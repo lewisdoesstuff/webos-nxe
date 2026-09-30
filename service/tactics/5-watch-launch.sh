@@ -14,7 +14,7 @@
 # `verify` alone instead is the bug that makes a silent no-op look healthy.
 set -eu
 
-OUR_APP_ID="${BLADES_APP_ID:-ooo.lew.xne}"
+OUR_APP_ID="${BLADES_APP_ID:-ooo.lew.nxe}"
 # The node number is NOT stable. This device was event2 in the groundwork, event3
 # on 2026-09-16, and event2 again today, because a third M-RCU node appeared.
 # A hardcoded path watches the wrong device and fails silently, so resolve by name

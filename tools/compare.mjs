@@ -26,14 +26,14 @@ const flag = (name, fallback = null) => {
 
 const url = flag("--url", "http://localhost:5173/?boot=off");
 const ref = flag("--ref");
-const out = flag("--out", "/tmp/xne-compare.png");
+const out = flag("--out", "/tmp/nxe-compare.png");
 const keys = (flag("--keys") ?? "").split(",").filter(Boolean).map(Number);
 const waitMs = Number(flag("--wait", 1200));
 const keyGapMs = Number(flag("--key-gap", 450));
 const blend = flag("--blend");
 const chrome = process.env.CHROME ?? "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 const port = 9300 + Math.floor(Math.random() * 500);
-const profile = mkdtempSync(join(tmpdir(), "xne-compare-"));
+const profile = mkdtempSync(join(tmpdir(), "nxe-compare-"));
 
 const browser = spawn(
   chrome,

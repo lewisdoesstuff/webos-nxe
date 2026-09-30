@@ -11,7 +11,7 @@ import { readJson, writeJson } from "../storage";
  * drive the UI immediately — there is no storage to wait for, so nothing blocks
  * render.
  */
-const SETTINGS_KEY = "ooo.lew.xne.settings";
+const SETTINGS_KEY = "ooo.lew.nxe.settings";
 
 /** How many launches the recently used list keeps. */
 const RECENT_LIMIT = 32;

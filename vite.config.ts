@@ -40,7 +40,7 @@ function copyPackageFiles(): Plugin {
 function serveMockTv(): Plugin {
   const mirror = resolve(root, "mock-tv");
   return {
-    name: "xne:mock-tv",
+    name: "nxe:mock-tv",
     apply: "serve",
     configureServer(server) {
       server.middlewares.use("/hack", (request, response, next) => {

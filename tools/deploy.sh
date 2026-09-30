@@ -8,7 +8,7 @@
 # Only syncs into an app that is already installed. It never touches
 # appinfo.json on the TV, because changing the manifest needs a reinstall.
 #
-# --service copies service/ to /var/lib/webosbrew/xne/service. It is opt-in
+# --service copies service/ to /var/lib/webosbrew/nxe/service. It is opt-in
 # and nothing in there runs by itself: there is no init.d hook and none is ever
 # created, so a copy on the TV is inert files. tools/homectl.sh does not need it,
 # because it streams each script over ssh on stdin instead. It is here for when
@@ -17,15 +17,15 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 TV_HOST="${TV_HOST:-root@192.168.1.37}"
-APP_ID="${APP_ID:-ooo.lew.xne}"
+APP_ID="${APP_ID:-ooo.lew.nxe}"
 APP_ROOT="/media/developer/apps/usr/palm/applications/${APP_ID}"
-SERVICE_ROOT="/var/lib/webosbrew/xne/service"
+SERVICE_ROOT="/var/lib/webosbrew/nxe/service"
 
 # /etc/palm/client-permissions.d/ does not exist on this firmware. The live path
 # is under cmn_data, which is persistent.
 ACL_DIR="/mnt/lg/cmn_data/var/luna-service2-dev/client-permissions.d"
 ACL_FILE="${ACL_DIR}/${APP_ID}.app.json"
-SNAPSHOT_DIR="/var/lib/webosbrew/xne/backups"
+SNAPSHOT_DIR="/var/lib/webosbrew/nxe/backups"
 
 SYNC_SERVICE=0
 for arg in "$@"; do

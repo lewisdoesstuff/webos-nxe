@@ -35,7 +35,7 @@ export const RING_PERIOD_MS = 4800;
 const PAD = 3;
 
 /** Used when the TV will not say who it is, and in tests. */
-export const FALLBACK_SEED = "xne";
+export const FALLBACK_SEED = "nxe";
 
 export interface RingLine {
   /** Horizontal radius at full size, in stage pixels. */

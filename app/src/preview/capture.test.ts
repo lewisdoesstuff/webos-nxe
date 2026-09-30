@@ -73,7 +73,7 @@ describe("captureStill", () => {
     await captureStill(APP, "a", optionsFor(call));
 
     expect(call).toHaveBeenCalledWith(CAPTURE_URI, {
-      path: "/media/developer/apps/usr/palm/applications/ooo.lew.xne/preview-com.webos.app.hdmi2-a.jpg",
+      path: "/media/developer/apps/usr/palm/applications/ooo.lew.nxe/preview-com.webos.app.hdmi2-a.jpg",
       method: "screen",
       width: 480,
       height: 270,
@@ -120,7 +120,7 @@ describe("captureStill", () => {
   });
 
   it("takes nothing when the launcher is the thing on the panel, rather than photographing Blades", async () => {
-    const call = harness("ooo.lew.xne");
+    const call = harness("ooo.lew.nxe");
 
     await expect(captureStill(APP, "a", optionsFor(call, { maxCalls: 3 }))).resolves.toEqual({
       ok: false,
@@ -203,8 +203,8 @@ describe("captureStill", () => {
     await captureStill(APP, "b", optionsFor(call, { attempts: 2 }));
 
     expect(shotsOf(call)).toEqual([
-      "/media/developer/apps/usr/palm/applications/ooo.lew.xne/preview-com.webos.app.hdmi2-b.jpg",
-      "/media/developer/apps/usr/palm/applications/ooo.lew.xne/preview-com.webos.app.hdmi2-b.jpg",
+      "/media/developer/apps/usr/palm/applications/ooo.lew.nxe/preview-com.webos.app.hdmi2-b.jpg",
+      "/media/developer/apps/usr/palm/applications/ooo.lew.nxe/preview-com.webos.app.hdmi2-b.jpg",
     ]);
   });
 

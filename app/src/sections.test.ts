@@ -50,7 +50,7 @@ const TV: Reported[] = [
   { id: "ooo.lew.lemmonlauncher", title: "LemmonLauncher" },
   { id: "ooo.lew.blades", title: "Blades" },
   { id: "org.local.openxmb.c5", title: "Home" },
-  { id: "ooo.lew.xne", title: "XNE" },
+  { id: "ooo.lew.nxe", title: "NXE" },
   { id: "com.webos.app.livetv", title: "Live TV" },
   { id: "com.webos.app.hdmi1", title: "HDMI 1" },
   { id: "com.webos.app.hdmi2", title: "HDMI 2" },
@@ -254,7 +254,7 @@ describe("groupRows", () => {
 describe("the unclassified apps", () => {
   it("fold into Apps, so an installed app is never off the hub", () => {
     expect(ids(sectionRows("apps", TV, SETTINGS_DEFAULTS))).toContain("org.webosbrew.hbchannel");
-    expect(ids(sectionRows("apps", TV, SETTINGS_DEFAULTS))).toContain("ooo.lew.xne");
+    expect(ids(sectionRows("apps", TV, SETTINGS_DEFAULTS))).toContain("ooo.lew.nxe");
   });
 
   it("come back on their own, for a screen that wants to show what was not recognised", () => {
@@ -267,14 +267,14 @@ describe("the unclassified apps", () => {
       "ooo.lew.lemmonlauncher",
       "ooo.lew.blades",
       "org.local.openxmb.c5",
-      "ooo.lew.xne",
+      "ooo.lew.nxe",
     ]);
   });
 
   it("leave the residual when the user has given them a section", () => {
-    const settings = { ...SETTINGS_DEFAULTS, appSection: { "ooo.lew.xne": "system" } };
-    expect(ids(unclassifiedRows(TV, settings))).not.toContain("ooo.lew.xne");
-    expect(ids(sectionRows("system", TV, settings))).toContain("ooo.lew.xne");
+    const settings = { ...SETTINGS_DEFAULTS, appSection: { "ooo.lew.nxe": "system" } };
+    expect(ids(unclassifiedRows(TV, settings))).not.toContain("ooo.lew.nxe");
+    expect(ids(sectionRows("system", TV, settings))).toContain("ooo.lew.nxe");
   });
 });
 
@@ -417,10 +417,10 @@ describe("recentlyLaunched", () => {
   it("reads the history newest first and drops what the device no longer has", () => {
     const settings = {
       ...SETTINGS_DEFAULTS,
-      recentApps: ["ooo.lew.xne", "com.webos.app.hdmi1", "netflix", "com.example.gone"],
+      recentApps: ["ooo.lew.nxe", "com.webos.app.hdmi1", "netflix", "com.example.gone"],
     };
     expect(ids(recentlyLaunched(TV, settings))).toEqual([
-      "ooo.lew.xne",
+      "ooo.lew.nxe",
       "com.webos.app.hdmi1",
       "netflix",
     ]);

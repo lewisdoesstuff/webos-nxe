@@ -14,11 +14,11 @@ import {
   ripplePattern,
 } from "./ripples";
 
-const SERIALS = ["301TXNE0A1B2", "412MAPZ3K001", "MOCK00XNE2008", "A", ""];
+const SERIALS = ["301TNXE0A1B2", "412MAPZ3K001", "MOCK00NXE2008", "A", ""];
 
 describe("hashSeed", () => {
   it("is stable", () => {
-    expect(hashSeed("xne")).toBe(hashSeed("xne"));
+    expect(hashSeed("nxe")).toBe(hashSeed("nxe"));
     expect(hashSeed("")).toBe(0x811c9dc5);
   });
 
@@ -29,7 +29,7 @@ describe("hashSeed", () => {
 
 describe("ripplePattern", () => {
   it("draws the same pattern for the same set", () => {
-    expect(ripplePattern("301TXNE0A1B2")).toEqual(ripplePattern("301TXNE0A1B2"));
+    expect(ripplePattern("301TNXE0A1B2")).toEqual(ripplePattern("301TNXE0A1B2"));
   });
 
   it("draws a different pattern for another set", () => {
@@ -91,14 +91,14 @@ describe("ripplePattern", () => {
 
 describe("ringSvg", () => {
   it("draws one ellipse per line at the layer's centre", () => {
-    const [group] = ripplePattern("xne");
+    const [group] = ripplePattern("nxe");
     const svg = ringSvg(group!);
     expect(svg.match(/<ellipse/g)).toHaveLength(group!.lines.length);
     expect(svg).toContain(`cx="${group!.width / 2}"`);
   });
 
   it("encodes as a CSS url", () => {
-    const [group] = ripplePattern("xne");
+    const [group] = ripplePattern("nxe");
     expect(ringImage(group!)).toMatch(/^url\("data:image\/svg\+xml,%3Csvg/);
   });
 });

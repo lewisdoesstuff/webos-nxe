@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "xne",
+      "name": "nxe",
       "dependencies": {
         "@vue/runtime-vapor": "3.6.0-rc.8",
         "pinia": "4.0.3",

@@ -42,7 +42,7 @@ describe("preview paths", () => {
     // The capture service runs as root and the app directory is world writable,
     // so the only place we can both write and read a still is our own directory.
     expect(previewPath("com.webos.app.hdmi2", "b")).toBe(
-      "/media/developer/apps/usr/palm/applications/ooo.lew.xne/preview-com.webos.app.hdmi2-b.jpg",
+      "/media/developer/apps/usr/palm/applications/ooo.lew.nxe/preview-com.webos.app.hdmi2-b.jpg",
     );
   });
 

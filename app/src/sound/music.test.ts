@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { breakMedia, FakeMedia, installAudio, uninstallAudio } from "./fakeAudio";
 import { createMusicPlayer, mediaSource, type MusicPlayer } from "./music";
 
-const TRACK = "/media/internal/ooo.lew.xne/theme.mp3";
+const TRACK = "/media/internal/ooo.lew.nxe/theme.mp3";
 
 let player: MusicPlayer | null = null;
 
@@ -21,12 +21,12 @@ afterEach(() => {
 
 describe("mediaSource", () => {
   it("puts an absolute path through the app-dir symlink, as an icon does", () => {
-    expect(mediaSource(TRACK)).toBe("hack/media/internal/ooo.lew.xne/theme.mp3");
+    expect(mediaSource(TRACK)).toBe("hack/media/internal/ooo.lew.nxe/theme.mp3");
   });
 
   it("puts a file URL through the same symlink", () => {
-    expect(mediaSource(`file://${TRACK}`)).toBe("hack/media/internal/ooo.lew.xne/theme.mp3");
-    expect(mediaSource(`file:${TRACK}`)).toBe("hack/media/internal/ooo.lew.xne/theme.mp3");
+    expect(mediaSource(`file://${TRACK}`)).toBe("hack/media/internal/ooo.lew.nxe/theme.mp3");
+    expect(mediaSource(`file:${TRACK}`)).toBe("hack/media/internal/ooo.lew.nxe/theme.mp3");
   });
 
   it("leaves what is already inside our own origin alone", () => {
@@ -81,10 +81,10 @@ describe("the music player", () => {
   it("swaps the file when the path changes", () => {
     const music = armed();
     music.start(TRACK, 0.5, false);
-    music.start("/media/internal/ooo.lew.xne/other.mp3", 0.5, false);
+    music.start("/media/internal/ooo.lew.nxe/other.mp3", 0.5, false);
     const audio = FakeMedia.last();
-    expect(audio?.src).toBe("hack/media/internal/ooo.lew.xne/other.mp3");
-    expect(music.status().path).toBe("/media/internal/ooo.lew.xne/other.mp3");
+    expect(audio?.src).toBe("hack/media/internal/ooo.lew.nxe/other.mp3");
+    expect(music.status().path).toBe("/media/internal/ooo.lew.nxe/other.mp3");
   });
 
   it("holds the volume inside the range the element accepts", () => {

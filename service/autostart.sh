@@ -17,7 +17,7 @@
 #
 # If that trade is ever worth making, the whole of it is:
 #
-#   ln -sf /var/lib/webosbrew/xne/service/autostart.sh \
+#   ln -sf /var/lib/webosbrew/nxe/service/autostart.sh \
 #          /var/lib/webosbrew/init.d/60-blades-homekey
 #   reboot
 #

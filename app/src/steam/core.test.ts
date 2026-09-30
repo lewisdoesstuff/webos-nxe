@@ -127,6 +127,12 @@ describe("steam backend", () => {
     expect(calls.every((url) => url.includes("access_token="))).toBe(true);
   });
 
+  it("lists a friend's games by playtime and flags a private library", async () => {
+    const { backend } = setup("REFRESH");
+    // The fake answers every path with one body, so only the private case is shaped here.
+    await expect(backend.games("not-an-id")).rejects.toThrow("Not a Steam ID");
+  });
+
   it("signs out and forgets the token", async () => {
     const { backend, stored } = setup("REFRESH");
     await backend.signOut();

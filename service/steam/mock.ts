@@ -3,6 +3,7 @@ import type {
   QrPoll,
   SteamApi,
   SteamFriend,
+  SteamGames,
   SteamStatus,
 } from "../../app/src/steam/types";
 
@@ -84,6 +85,29 @@ export function createMockBackend(scanAfter = 4): SteamApi {
       fetches += 1;
       return out;
     },
+    async games(steamId: string): Promise<SteamGames> {
+      const at = Number(BigInt(steamId) - 76561198000000000n);
+      if (at === 2) return { games: [], hidden: true };
+      if (at === 4) return { games: [], hidden: false };
+      const titles = [
+        "Halo 3",
+        "Portal 2",
+        "Half-Life 2",
+        "Left 4 Dead 2",
+        "Team Fortress 2",
+        "Braid",
+      ];
+      return {
+        games: titles.map((name, index) => ({
+          id: String(index + 1),
+          name,
+          icon: avatar((index * 55) % 360, name.slice(0, 1)),
+          minutes: 6000 - index * 900 + at * 13,
+        })),
+        hidden: false,
+      };
+    },
+
     async signOut(): Promise<void> {
       signedIn = false;
       fetches = 0;

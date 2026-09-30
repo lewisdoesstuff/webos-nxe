@@ -30,6 +30,20 @@ export interface QrPoll {
   readonly message?: string;
 }
 
+export interface SteamGame {
+  readonly id: string;
+  readonly name: string;
+  readonly icon: string;
+  /** Minutes played, in all. */
+  readonly minutes: number;
+}
+
+/** A friend's games, most played first. `hidden` when their profile keeps them private. */
+export interface SteamGames {
+  readonly games: readonly SteamGame[];
+  readonly hidden: boolean;
+}
+
 /** The backend's whole surface. The page holds no token: it only ever sees these shapes. */
 export interface SteamApi {
   status(): Promise<SteamStatus>;
@@ -37,7 +51,15 @@ export interface SteamApi {
   pollQr(): Promise<QrPoll>;
   friends(): Promise<readonly SteamFriend[]>;
   signOut(): Promise<void>;
+  games(steamId: string): Promise<SteamGames>;
 }
 
-export const STEAM_METHODS = ["status", "beginQr", "pollQr", "friends", "signOut"] as const;
+export const STEAM_METHODS = [
+  "status",
+  "beginQr",
+  "pollQr",
+  "friends",
+  "signOut",
+  "games",
+] as const;
 export type SteamMethod = (typeof STEAM_METHODS)[number];

@@ -8,25 +8,30 @@ interface Reply {
   result?: unknown;
 }
 
-function build(call: (method: SteamMethod) => Promise<unknown>): SteamApi {
-  const api: Partial<Record<SteamMethod, () => Promise<unknown>>> = {};
-  for (const method of STEAM_METHODS) api[method] = () => call(method);
+type Call = (method: SteamMethod, args: Record<string, string>) => Promise<unknown>;
+
+function build(call: Call): SteamApi {
+  const api: Partial<Record<SteamMethod, (steamId?: string) => Promise<unknown>>> = {};
+  for (const method of STEAM_METHODS) {
+    api[method] = (steamId) => call(method, steamId === undefined ? {} : { steamId });
+  }
   return api as unknown as SteamApi;
 }
 
 /** The backend service on the TV, reached over Luna. */
 export function lunaSteam(): SteamApi {
-  return build(async (method) => {
-    const reply = await callLuna<Reply>(`${STEAM_SERVICE}/${method}`, {});
+  return build(async (method, args) => {
+    const reply = await callLuna<Reply>(`${STEAM_SERVICE}/${method}`, args);
     return reply.result;
   });
 }
 
 /** The dev server's `/steam/*`. `mock` asks it for the backend that never leaves the machine. */
 export function httpSteam(mock: boolean): SteamApi {
-  return build(async (method) => {
+  return build(async (method, args) => {
+    const query = new URLSearchParams(args).toString();
     const response = await fetch(
-      `/steam/${method}`,
+      `/steam/${method}${query ? `?${query}` : ""}`,
       mock ? { headers: { "x-steam-mock": "1" } } : {},
     );
     const body: unknown = await response.json();

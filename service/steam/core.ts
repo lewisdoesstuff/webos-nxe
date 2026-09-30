@@ -3,6 +3,7 @@ import type {
   QrPoll,
   SteamApi,
   SteamFriend,
+  SteamGames,
   SteamStatus,
 } from "../../app/src/steam/types";
 
@@ -36,6 +37,9 @@ const API = "https://api.steampowered.com";
 
 /** `EFriendRelationship.Friend`; the list also carries requests and ignored accounts. */
 const FRIEND = 3;
+
+/** The most games one friend's list carries. */
+const GAMES_SHOWN = 300;
 
 const STATES: readonly PersonaState[] = [
   "offline",
@@ -229,6 +233,40 @@ export function createSteamBackend(deps: SteamDeps): SteamApi {
         .filter((friend) => friend.efriendrelationship === FRIEND)
         .map((friend) => friend.ulfriendid);
       return (await summaries(ids)).map(toFriend);
+    },
+
+    async games(steamId: string): Promise<SteamGames> {
+      if (!/^\d{1,20}$/.test(steamId)) throw new Error("Not a Steam ID.");
+      const reply = await get<{
+        response?: {
+          game_count?: number;
+          games?: {
+            appid: number;
+            name?: string;
+            img_icon_url?: string;
+            playtime_forever?: number;
+          }[];
+        };
+      }>("/IPlayerService/GetOwnedGames/v1/", {
+        steamid: steamId,
+        include_appinfo: "true",
+        include_played_free_games: "true",
+      });
+      const body = reply.response ?? {};
+      // A private profile answers with an empty object, a library of none with a count of 0.
+      const hidden = body.game_count === undefined && body.games === undefined;
+      const games = (body.games ?? [])
+        .map((game) => ({
+          id: String(game.appid),
+          name: game.name ?? String(game.appid),
+          icon: game.img_icon_url
+            ? `https://media.steampowered.com/steamcommunity/public/images/apps/${game.appid}/${game.img_icon_url}.jpg`
+            : "",
+          minutes: game.playtime_forever ?? 0,
+        }))
+        .sort((a, b) => b.minutes - a.minutes)
+        .slice(0, GAMES_SHOWN);
+      return { games, hidden };
     },
 
     async signOut(): Promise<void> {

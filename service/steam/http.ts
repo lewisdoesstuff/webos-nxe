@@ -10,12 +10,17 @@ export function steamHandler(
   backendFor: (request: IncomingMessage) => SteamApi,
 ): (request: IncomingMessage, response: ServerResponse, next: () => void) => void {
   return (request, response, next) => {
-    const method = (request.url ?? "").split("?")[0]?.replace(/^\//, "") ?? "";
+    const [path = "", query = ""] = (request.url ?? "").split("?");
+    const method = path.replace(/^\//, "");
+    const steamId = new URLSearchParams(query).get("steamId") ?? "";
     if (!(STEAM_METHODS as readonly string[]).includes(method)) return next();
     const api = backendFor(request);
     void (async () => {
       try {
-        const result = await api[method as SteamMethod]();
+        const result =
+          method === "games"
+            ? await api.games(steamId)
+            : await api[method as Exclude<SteamMethod, "games">]();
         response.setHeader("Content-Type", "application/json");
         response.end(JSON.stringify(result ?? null));
       } catch (error) {

@@ -1,7 +1,14 @@
 import type { ListPage } from "../pages";
 import { CARD_ITEMS } from "./card";
 import { presenceLine } from "./presence";
-import type { QrPoll, SteamFriend, SteamStatus } from "./types";
+import type { QrPoll, SteamFriend, SteamGame, SteamStatus } from "./types";
+
+/** One friend's games as the page knows them. */
+export type GamesState =
+  | { readonly kind: "loading" }
+  | { readonly kind: "hidden" }
+  | { readonly kind: "error"; readonly message: string }
+  | { readonly kind: "loaded"; readonly games: readonly SteamGame[] };
 
 /** What the Steam screens draw from. */
 export interface SteamView {
@@ -9,6 +16,7 @@ export interface SteamView {
   readonly friends: readonly SteamFriend[];
   readonly qr: QrPoll | null;
   readonly error: string;
+  readonly games: Readonly<Record<string, GamesState>>;
 }
 
 export const EMPTY_STEAM: SteamView = {
@@ -16,12 +24,26 @@ export const EMPTY_STEAM: SteamView = {
   friends: [],
   qr: null,
   error: "",
+  games: {},
 };
 
 export const STEAM_ROOT = "settings:steam";
 export const STEAM_QR = "settings:steam-qr";
 export const STEAM_FRIENDS = "settings:steam-friends";
 export const STEAM_FRIEND = "settings:steam-friend:";
+export const STEAM_GAMES = "settings:steam-games:";
+
+export function gamesPageId(friendId: string): string {
+  return `${STEAM_GAMES}${friendId}`;
+}
+
+/** `12.4 hours`, `45 minutes`, or `Not played`. */
+export function playtime(minutes: number): string {
+  if (minutes <= 0) return "Not played";
+  if (minutes < 60) return `${minutes} minutes`;
+  const hours = Math.round((minutes / 60) * 10) / 10;
+  return `${hours.toLocaleString("en-US")} hours`;
+}
 
 /** The page for one friend: what A on their pane opens. */
 export function friendPageId(friendId: string): string {
@@ -38,7 +60,11 @@ export const STEAM_DESCRIPTION = "Sign in with the Steam mobile app to see your 
 /** The pages this module builds, by id. */
 export function isSteamPage(id: string): boolean {
   return (
-    id === STEAM_ROOT || id === STEAM_QR || id === STEAM_FRIENDS || id.startsWith(STEAM_FRIEND)
+    id === STEAM_ROOT ||
+    id === STEAM_QR ||
+    id === STEAM_FRIENDS ||
+    id.startsWith(STEAM_FRIEND) ||
+    id.startsWith(STEAM_GAMES)
   );
 }
 
@@ -64,6 +90,31 @@ export function steamPage(id: string, view: SteamView): ListPage | null {
       friend.name,
       CARD_ITEMS.map((label) => ({ id: `friend:${label}`, label })),
     );
+  }
+  if (id.startsWith(STEAM_GAMES)) {
+    const friendId = id.slice(STEAM_GAMES.length);
+    const name = view.friends.find((entry) => entry.id === friendId)?.name ?? "Games";
+    const state = view.games[friendId];
+    if (state?.kind === "loaded" && state.games.length > 0) {
+      return list(
+        id,
+        `${name}'s Games`,
+        state.games.map((game) => ({
+          id: `game:${game.id}`,
+          label: game.name,
+          ...(game.icon ? { icon: game.icon } : {}),
+        })),
+      );
+    }
+    const row =
+      state === undefined || state.kind === "loading"
+        ? "Loading games"
+        : state.kind === "hidden"
+          ? "Games are private"
+          : state.kind === "error"
+            ? "Could not load games"
+            : "No games to show";
+    return list(id, `${name}'s Games`, [{ id: "game:none", label: row }]);
   }
   if (id === STEAM_QR)
     return list(id, "Steam Sign In", [{ id: "steam:qr", label: "Scan the Code" }]);
@@ -113,6 +164,28 @@ export function steamDetail(pageId: string, itemId: string, view: SteamView): St
     if (!friend) return { values: [], description: "" };
     return { values: [], description: "" };
   }
+  if (pageId.startsWith(STEAM_GAMES)) {
+    const friendId = pageId.slice(STEAM_GAMES.length);
+    const state = view.games[friendId];
+    const name = view.friends.find((entry) => entry.id === friendId)?.name ?? "This friend";
+    if (state?.kind === "loaded") {
+      const game = state.games.find((entry) => `game:${entry.id}` === itemId);
+      // A friend who hides their playtime reports none for every game.
+      const shown = state.games.some((entry) => entry.minutes > 0);
+      if (game && shown)
+        return { values: [playtime(game.minutes)], description: "Time played in all." };
+      if (game) return { values: [], description: `${name} keeps their playtime private.` };
+      return { values: [], description: `${name} has no games to show.` };
+    }
+    if (state?.kind === "hidden") {
+      return {
+        values: [],
+        description: `${name} keeps their game details private on Steam.`,
+      };
+    }
+    if (state?.kind === "error") return { values: [], description: state.message };
+    return { values: [], description: "Asking Steam for the list." };
+  }
   if (pageId === STEAM_FRIENDS) {
     const friend = view.friends.find((entry) => `friend:${entry.id}` === itemId);
     return friend
@@ -153,9 +226,11 @@ export function steamAction(
   view: SteamView,
 ): { push: ListPage } | { op: SteamOp } | { url: string } | null {
   if (pageId.startsWith(STEAM_FRIEND)) {
-    const base = profileUrl(pageId.slice(STEAM_FRIEND.length));
-    if (itemId === "friend:View Profile") return { url: base };
-    return itemId === "friend:View Games" ? { url: `${base}/games/?tab=all` } : null;
+    const friendId = pageId.slice(STEAM_FRIEND.length);
+    if (itemId === "friend:View Profile") return { url: profileUrl(friendId) };
+    if (itemId !== "friend:View Games") return null;
+    const next = steamPage(gamesPageId(friendId), view);
+    return next ? { push: next } : null;
   }
   if (pageId !== STEAM_ROOT) return null;
   if (itemId === "steam:signin") {

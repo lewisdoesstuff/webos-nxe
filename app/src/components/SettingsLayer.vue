@@ -169,7 +169,13 @@ const withIcons = computed(() => items.value.some((item) => item.icon !== undefi
           :style="{ top: `${slot.y}px` }"
         >
           <span class="bar" />
-          <img v-if="slot.icon" class="icon" :src="slot.icon" alt="" />
+          <img
+            v-if="slot.icon"
+            class="icon"
+            :src="slot.icon"
+            alt=""
+            @error="($event.target as HTMLElement).style.visibility = 'hidden'"
+          />
           <span class="label">{{ slot.label }}</span>
         </div>
       </div>

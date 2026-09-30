@@ -60,3 +60,57 @@ describe("steam settings", () => {
     expect(detail.values).toEqual(["Playing Halo 3"]);
   });
 });
+
+describe("friend games", () => {
+  const friend = { id: "2", name: "Ann", avatar: "", state: "offline" as const };
+  const base = { ...EMPTY_STEAM, status: signedIn.status, friends: [friend] };
+
+  it("opens the games page from the card and not a link", () => {
+    const card = steamPage("settings:steam-friend:2", base)!;
+    const action = settingsAction(
+      card,
+      { group: 0, item: 1 },
+      SETTINGS_DEFAULTS,
+      [],
+      undefined,
+      base,
+    );
+    expect(action).toMatchObject({ kind: "push", page: { id: "settings:steam-games:2" } });
+  });
+
+  it("lists games with icons and playtime, and says why when there are none", () => {
+    const loaded: SteamView = {
+      ...base,
+      games: {
+        "2": {
+          kind: "loaded",
+          games: [{ id: "10", name: "Half-Life", icon: "i.jpg", minutes: 90 }],
+        },
+      },
+    };
+    const page = steamPage("settings:steam-games:2", loaded)!;
+    expect(page.groups[0]!.items[0]).toMatchObject({ label: "Half-Life", icon: "i.jpg" });
+    const detail = settingsDetail(
+      page,
+      { group: 0, item: 0 },
+      SETTINGS_DEFAULTS,
+      [],
+      undefined,
+      loaded,
+    );
+    expect(detail.values).toEqual(["1.5 hours"]);
+
+    const hidden: SteamView = { ...base, games: { "2": { kind: "hidden" } } };
+    const closed = steamPage("settings:steam-games:2", hidden)!;
+    expect(closed.groups[0]!.items[0]!.label).toBe("Games are private");
+    const why = settingsDetail(
+      closed,
+      { group: 0, item: 0 },
+      SETTINGS_DEFAULTS,
+      [],
+      undefined,
+      hidden,
+    );
+    expect(why.description).toContain("private");
+  });
+});

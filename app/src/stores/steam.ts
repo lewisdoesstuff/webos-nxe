@@ -2,6 +2,7 @@ import { defineStore } from "pinia";
 import { ref, shallowRef } from "vue";
 
 import { pickSteam } from "../steam/client";
+import type { GamesState } from "../steam/pages";
 import { onlineToasts, sortFriends } from "../steam/presence";
 import type { QrPoll, SteamApi, SteamFriend, SteamStatus } from "../steam/types";
 import type { Toast } from "../toasts";
@@ -23,6 +24,7 @@ export const useSteamStore = defineStore("steam", () => {
   const friends = ref<readonly SteamFriend[]>([]);
   const qr = ref<QrPoll | null>(null);
   const error = ref("");
+  const games = ref<Readonly<Record<string, GamesState>>>({});
   let toast: (toast: Toast) => void = () => undefined;
   let last: readonly SteamFriend[] | null = null;
   let friendsTimer: ReturnType<typeof setInterval> | null = null;
@@ -56,6 +58,7 @@ export const useSteamStore = defineStore("steam", () => {
     friendsTimer = null;
     last = null;
     friends.value = [];
+    games.value = {};
   }
 
   /** Asks the backend who is signed in, and starts following friends if someone is. */
@@ -115,6 +118,22 @@ export const useSteamStore = defineStore("steam", () => {
     if (qr.value.state === "pending") qrTimer = setTimeout(() => void pollQr(), QR_POLL_MS);
   }
 
+  /** Fetches a friend's games, once; a page opened again shows what it has. */
+  async function loadGames(steamId: string): Promise<void> {
+    if (games.value[steamId]?.kind === "loaded") return;
+    games.value = { ...games.value, [steamId]: { kind: "loading" } };
+    try {
+      const reply = await backend().games(steamId);
+      games.value = {
+        ...games.value,
+        [steamId]: reply.hidden ? { kind: "hidden" } : { kind: "loaded", games: reply.games },
+      };
+    } catch (cause) {
+      const message = cause instanceof Error ? cause.message : String(cause);
+      games.value = { ...games.value, [steamId]: { kind: "error", message } };
+    }
+  }
+
   function cancelQr(): void {
     stopQr();
     qr.value = null;
@@ -127,5 +146,17 @@ export const useSteamStore = defineStore("steam", () => {
     status.value = { state: "signedOut" };
   }
 
-  return { status, friends, qr, error, start, beginQr, cancelQr, signOut, refreshFriends };
+  return {
+    status,
+    friends,
+    qr,
+    error,
+    games,
+    loadGames,
+    start,
+    beginQr,
+    cancelQr,
+    signOut,
+    refreshFriends,
+  };
 });

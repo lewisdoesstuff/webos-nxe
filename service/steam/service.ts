@@ -7,6 +7,7 @@ import { createLiveBackend } from "./index";
  * The refresh token lives in this process's data directory and never crosses Luna.
  */
 interface Message {
+  payload?: { steamId?: string };
   respond(payload: Record<string, unknown>): void;
 }
 interface ServiceHandle {
@@ -20,7 +21,11 @@ const backend = createLiveBackend(process.env["NXE_STEAM_DIR"] ?? "/media/develo
 
 for (const method of STEAM_METHODS) {
   service.register(method, (message) => {
-    backend[method]().then(
+    const call =
+      method === "games"
+        ? backend.games(String(message.payload?.steamId ?? ""))
+        : backend[method]();
+    call.then(
       (result) => message.respond({ returnValue: true, result: result ?? null }),
       (error: unknown) =>
         message.respond({

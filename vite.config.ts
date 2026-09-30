@@ -89,6 +89,7 @@ function lazy(load: () => Promise<SteamApi>): SteamApi {
     pollQr: async () => (await load()).pollQr(),
     friends: async () => (await load()).friends(),
     signOut: async () => (await load()).signOut(),
+    games: async (steamId) => (await load()).games(steamId),
   };
 }
 

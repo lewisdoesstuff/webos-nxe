@@ -112,7 +112,7 @@ import {
 } from "./settingsScreen";
 import { playBladeSound, playSound, playToastSound, type Sound } from "./sound";
 import { friendCard as makeFriendCard, type FriendCard } from "./steam/card";
-import { friendPageId, STEAM_FRIEND, STEAM_QR, type SteamView } from "./steam/pages";
+import { friendPageId, STEAM_FRIEND, STEAM_GAMES, STEAM_QR, type SteamView } from "./steam/pages";
 import { useAppsStore } from "./stores/apps";
 import { useInputsStore } from "./stores/inputs";
 import { useSettingsStore } from "./stores/settings";
@@ -142,6 +142,7 @@ const steamView = computed((): SteamView => ({
   friends: steam.friends,
   qr: steam.qr,
   error: steam.error,
+  games: steam.games,
 }));
 const inputs = useInputsStore();
 const storage = useStorageStore();
@@ -644,6 +645,9 @@ function activateSettings(): void {
     settingsStack.value = pushed;
     const pageId = action.page.id.slice("settings:".length);
     if (action.page.id === STEAM_QR) void steam.beginQr();
+    if (action.page.id.startsWith(STEAM_GAMES)) {
+      void steam.loadGames(action.page.id.slice(STEAM_GAMES.length));
+    }
     if (pageId === "system") void tv.loadSystem().then(refreshSettingsTop);
     else if (pageId.startsWith("tv-")) void tv.loadPage(pageId).then(refreshSettingsTop);
     return;
@@ -658,6 +662,12 @@ function activateSettings(): void {
     return;
   }
   if (action.kind === "launch") {
+    const target = action.params["target"];
+    // Desktop Chrome has no TV browser to launch, so the page opens in a tab.
+    if (typeof target === "string" && typeof window.PalmServiceBridge !== "function") {
+      window.open(target, "_blank", "noopener");
+      return;
+    }
     void apps.launch(action.id, { ...action.params });
     return;
   }
@@ -741,21 +751,12 @@ const friendCard = computed((): FriendCard | null => {
   return friend ? makeFriendCard(friend) : null;
 });
 
-/** The friend pane the row rests on, whose gamertag the speech bubble carries. */
+/** Whether the row rests on a friend pane, which the prompt row and the figure read. */
 const restingFriend = computed(() => {
   const item = rows.value[hub.value.channel]?.[hub.value.item];
   return isFriendPane(item) ? item : null;
 });
 const onFriendPane = restingFriend;
-const bubbleShown = computed(
-  () =>
-    restingFriend.value !== null &&
-    phase.value === "rest" &&
-    !pageOpen.value &&
-    settingsStack.value.length === 0 &&
-    !guide.value &&
-    !booting.value,
-);
 
 /** The Friends channel swaps the gamerscore for how many friends are online, as retail's card did. */
 const onFriends = computed(
@@ -1009,7 +1010,8 @@ const avatarStyle = computed((): Record<string, string> => {
   const motion = paneMotion(pane);
   const place = avatarPlace(motion, pane.offset, AVATAR_CANVAS, onFriendsChannel.value);
   if (onFriendsChannel.value) {
-    const still = !settling.value && phase.value === "rest" && friendLook.value !== null;
+    const still =
+      !settling.value && !hubAway.value && phase.value === "rest" && friendLook.value !== null;
     return {
       transform: `translate3d(${place.x}px, ${place.y}px, 0) scale(${place.scale})`,
       opacity: still ? "1" : `${HIDDEN}`,
@@ -1357,7 +1359,7 @@ watch([hubAway, guide], settle);
 
 /** The Steam screens follow the store, and the code is dropped once its page is left. */
 watch(
-  () => [steam.status, steam.friends, steam.qr],
+  () => [steam.status, steam.friends, steam.qr, steam.games],
   () => {
     const id = top(settingsStack.value)?.page.id ?? "";
     if (id === STEAM_QR && steam.status.state === "signedIn") {
@@ -1427,9 +1429,6 @@ function expose(): void {
       >
     </header>
     <div class="pic" :style="picStyle" />
-    <div class="bubble" :data-shown="bubbleShown || undefined">
-      <span>{{ restingFriend?.title }}</span>
-    </div>
     <div class="frame" data-frame :style="frameStyle">
       <PromptBar
         v-if="settings.settings.hintBar"
@@ -1724,45 +1723,6 @@ function expose(): void {
 .row :deep(.pane) {
   transform-origin: 0 0;
   will-change: transform, opacity;
-}
-
-.bubble {
-  position: absolute;
-  left: 640px;
-  top: 274px;
-  max-width: 420px;
-  padding: 0 28px;
-  border-radius: 34px;
-  background: #f3f6f7;
-  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.3);
-  color: #1d2328;
-  font-size: 30px;
-  line-height: 66px;
-  white-space: nowrap;
-  opacity: 0.001;
-  will-change: opacity;
-  transition: opacity 120ms linear;
-}
-
-.bubble span {
-  display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.bubble::after {
-  content: "";
-  position: absolute;
-  left: 34px;
-  bottom: -20px;
-  width: 34px;
-  height: 26px;
-  background: #f3f6f7;
-  clip-path: polygon(0 0, 100% 0, 0 100%);
-}
-
-.bubble[data-shown] {
-  opacity: 1;
 }
 
 .counter {

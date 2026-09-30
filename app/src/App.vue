@@ -775,16 +775,26 @@ watch(loaded, (is) => is && void prepareShown(), { immediate: true });
 let baking = 0;
 /** Past the boot's last frame and the teardown of its layer. */
 const BAKE_DELAY_MS = 1500;
+/** How long the hub must be left alone before the next bake, so a bake never lands inside a transition. */
+const QUIET_MS = 600;
+let lastKeyAt = 0;
+
+async function quiet(): Promise<void> {
+  while (performance.now() - lastKeyAt < QUIET_MS) await nextFrame();
+}
+
 async function bakeArt(): Promise<void> {
   const mine = ++baking;
   await prepareFloor();
   for (const url of artOf(rows.value.flat())) {
     if (mine !== baking) return;
+    await quiet();
     await prepareArt(url);
     await nextFrame();
   }
   for (const url of artOf(rows.value.flat())) {
     if (mine !== baking) return;
+    await quiet();
     await checkArt(url);
     await nextFrame();
   }
@@ -1095,6 +1105,7 @@ const GREEN = 404;
 const BLUE = 406;
 
 function onKeyDown(event: KeyboardEvent): void {
+  lastKeyAt = performance.now();
   if (draft.value !== null) return;
   if (guide.value) {
     if (onGuideKey(event)) {

@@ -278,7 +278,7 @@ export const BLADE_COUNT = BLADE_IDS.length;
 export const SLAB_COUNT = 4;
 
 /** The slab's own box, the panel's height, so the stack lines up with it. */
-export const SLAB_W = 44;
+export const SLAB_W = 50;
 export const SLAB_H = PANEL_H;
 
 /** How far the nearest slab's right edge runs under the panel. */
@@ -312,7 +312,7 @@ export const SLAB_PIVOT_Y = SLAB_H / 2;
  * because the label is its child and has to scale with it. The x centres the
  * turned text in the slab's width.
  */
-export const SLAB_LABEL_X = SLAB_W / 2 + ROTATED_LINE / 2;
+export const SLAB_LABEL_X = SLAB_W - 22 + ROTATED_LINE / 2;
 export const SLAB_LABEL_Y = 0;
 export const SLAB_LABEL_FONT = 20;
 export const SLAB_LABEL_RUN = SLAB_H;

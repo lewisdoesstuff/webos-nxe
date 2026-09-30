@@ -8,15 +8,31 @@
  * apps and resolves an `A` press to either a deeper page or one `SettingChange`.
  *
  * Only settings with a live reader are listed. A toggle with nothing reading
- * it is a dead control, so the clock, the hint bar, motion, the backdrop and
- * the screensaver stay out until their features land, each of which adds its
- * rows here as data. What is here: the two flags something reads, and the
- * hidden apps, which no other screen can bring back.
+ * it is a dead control, so the backdrop and the screensaver stay out until
+ * their features land, each of which adds its rows here as data. What is here:
+ * the flags something reads, the hidden apps, which no other screen can bring
+ * back, and the TV's own sound and option settings and system information.
  */
 
 import type { ListPage, Page, PageFocus } from "./pages";
 import { paneArt, type PaneItem } from "./panel";
 import type { FlagKeys, LevelKeys, SettingChange, Settings } from "./settings";
+import {
+  choicesFor,
+  detailControl,
+  EMPTY_TV,
+  infoRows,
+  stepTvValue,
+  tvDef,
+  tvHint,
+  tvId,
+  tvPage,
+  TV_PAGES,
+  tvValue,
+  type DetailControl,
+  type TvDef,
+  type TvSnapshot,
+} from "./tvSettings";
 
 /** An installed app as the screen reads it: its name, and any art for its row. */
 export type SettingsApp = PaneItem;
@@ -34,6 +50,16 @@ export const SETTINGS_CATEGORIES: readonly SettingsCategory[] = [
     id: "hidden",
     title: "Hidden Apps",
     description: "Apps put away with X. Select one to bring it back.",
+  },
+  ...TV_PAGES.map((page) => ({
+    id: page.id,
+    title: page.title,
+    description: page.description,
+  })),
+  {
+    id: "system",
+    title: "System Information",
+    description: "The TV's model, software and connection.",
   },
 ];
 
@@ -76,7 +102,65 @@ export const GENERAL_DEFS: readonly SettingDef[] = [
     title: "Input Previews",
     description: "Photograph an input on the way out of it, and show it on its row.",
   },
+  {
+    kind: "flag",
+    key: "showClock",
+    title: "Show Clock",
+    description: "The time on the Guide's title band.",
+  },
+  {
+    kind: "flag",
+    key: "clock24h",
+    title: "24-Hour Clock",
+    description: "Off shows the Guide's clock as 12-hour time.",
+  },
+  {
+    kind: "flag",
+    key: "toasts",
+    title: "Notifications",
+    description: "The pop-up over the hub when you sign in.",
+  },
+  {
+    kind: "flag",
+    key: "hintBar",
+    title: "Button Hints",
+    description: "The A, B, X and Y prompts along the foot of the screen.",
+  },
+  {
+    kind: "flag",
+    key: "reduceMotion",
+    title: "Skip Boot Animation",
+    description: "Start straight on the dashboard instead of playing the boot.",
+  },
 ];
+
+const PICK = "settings:pick:";
+
+/** The page that lists a choice's options, opened by A on the choice's row. */
+function pickPage(def: TvDef, tv: TvSnapshot): ListPage {
+  return {
+    kind: "list",
+    id: `${PICK}${tvId(def)}`,
+    title: def.title,
+    groups: [
+      {
+        id: "pick",
+        title: def.title,
+        items: choicesFor(def, tv).map((option) => ({
+          id: `opt:${option.value}`,
+          label: option.label,
+        })),
+      },
+    ],
+  };
+}
+
+/** The index of the option a choice is on now, for the picker to open there. */
+export function pickFocus(def: TvDef, tv: TvSnapshot): number {
+  const current = tv.values[tvId(def)];
+  const at = choicesFor(def, tv).findIndex((option) => String(option.value) === String(current));
+  return Math.max(0, at);
+}
 
 /** The root's own page, listing the categories. */
 export function settingsRoot(): ListPage {
@@ -104,7 +188,37 @@ export function settingsCategoryPage(
   category: string,
   settings: Settings,
   apps: readonly SettingsApp[],
+  tv: TvSnapshot = EMPTY_TV,
 ): ListPage | null {
+  const page = tvPage(category);
+  if (page) {
+    return {
+      kind: "list",
+      id: `settings:${category}`,
+      title: page.title,
+      groups: [
+        {
+          id: category,
+          title: page.title,
+          items: page.defs.map((def) => ({ id: tvId(def), label: def.title })),
+        },
+      ],
+    };
+  }
+  if (category === "system") {
+    return {
+      kind: "list",
+      id: "settings:system",
+      title: "System Information",
+      groups: [
+        {
+          id: "system",
+          title: "System Information",
+          items: infoRows(tv).map((row) => ({ id: `info:${row.id}`, label: row.label })),
+        },
+      ],
+    };
+  }
   if (category === "general") {
     return {
       kind: "list",
@@ -226,11 +340,16 @@ export function settingsPageFor(
   id: string,
   settings: Settings,
   apps: readonly SettingsApp[],
+  tv: TvSnapshot = EMPTY_TV,
 ): ListPage | null {
   if (id === "settings") return settingsRoot();
+  if (id.startsWith(PICK)) {
+    const def = tvDef(id.slice(PICK.length));
+    return def === undefined ? null : pickPage(def, tv);
+  }
   if (id === "profile") return profilePage();
   if (id.startsWith("settings:"))
-    return settingsCategoryPage(id.slice("settings:".length), settings, apps);
+    return settingsCategoryPage(id.slice("settings:".length), settings, apps, tv);
   return null;
 }
 
@@ -254,6 +373,8 @@ export function advanceLevel(def: LevelDef, current: number): number {
 export interface SettingDetail {
   readonly values: readonly string[];
   readonly description: string;
+  /** A drawn control for the focused row, in place of its value text. */
+  readonly control?: DetailControl;
 }
 
 function categoryDetail(id: string): SettingDetail {
@@ -270,9 +391,34 @@ export function settingsDetail(
   focus: PageFocus,
   settings: Settings,
   apps: readonly SettingsApp[],
+  tv: TvSnapshot = EMPTY_TV,
 ): SettingDetail {
   if (page.kind !== "list") return { values: [], description: "" };
   const item = page.groups[focus.group]?.items[focus.item];
+  if (page.id.startsWith(PICK)) {
+    const def = tvDef(page.id.slice(PICK.length));
+    return {
+      values: [],
+      description: def === undefined ? "" : `Press A to use this for ${def.title}.`,
+    };
+  }
+  const group = tvPage(page.id.slice("settings:".length));
+  if (group && page.id.startsWith("settings:")) {
+    const def = group.defs.find((entry) => tvId(entry) === item?.id);
+    if (def === undefined) return { values: [], description: "" };
+    const control = detailControl(def, tv);
+    return {
+      values: control?.kind === "slider" || control?.kind === "toggle" ? [] : [tvValue(def, tv)],
+      description: tvHint(def, tv),
+      ...(control ? { control } : {}),
+    };
+  }
+  if (page.id === "settings:system") {
+    const row = infoRows(tv).find((entry) => `info:${entry.id}` === item?.id);
+    return row === undefined
+      ? { values: [], description: "" }
+      : { values: [row.value], description: row.description };
+  }
   if (page.id === "profile") return profileDetail(item?.id ?? "", settings);
   if (page.id === "settings" || item === undefined) {
     return categoryDetail(item?.id ?? "");
@@ -310,9 +456,16 @@ export function settingsWindow(count: number, focus: number, slots = SETTINGS_RO
 
 /** What `A` does on the focused row: open a deeper page, or write one change. */
 export type SettingsAction =
-  | { readonly kind: "push"; readonly page: ListPage }
+  | { readonly kind: "push"; readonly page: ListPage; readonly focusItem?: number }
   | { readonly kind: "change"; readonly change: SettingChange }
   | { readonly kind: "edit"; readonly key: "gamertag" | "gamerscore" }
+  | {
+      readonly kind: "tv";
+      readonly def: TvDef;
+      readonly value: string | number;
+      /** The picker closes once it has written. */
+      readonly pop?: boolean;
+    }
   | {
       readonly kind: "launch";
       readonly id: string;
@@ -332,10 +485,28 @@ export function settingsAction(
   focus: PageFocus,
   settings: Settings,
   apps: readonly SettingsApp[],
+  tv: TvSnapshot = EMPTY_TV,
 ): SettingsAction | null {
   if (page.kind !== "list") return null;
   const item = page.groups[focus.group]?.items[focus.item];
   if (item === undefined) return null;
+  if (page.id.startsWith(PICK)) {
+    const def = tvDef(page.id.slice(PICK.length));
+    if (def === undefined || !item.id.startsWith("opt:")) return null;
+    const option = choicesFor(def, tv).find((entry) => `opt:${entry.value}` === item.id);
+    return option === undefined ? null : { kind: "tv", def, value: option.value, pop: true };
+  }
+  const group = tvPage(page.id.slice("settings:".length));
+  if (group && page.id.startsWith("settings:")) {
+    const def = group.defs.find((entry) => tvId(entry) === item.id);
+    if (def === undefined) return null;
+    if (def.kind === "choice") {
+      if (choicesFor(def, tv).length === 0) return null;
+      return { kind: "push", page: pickPage(def, tv), focusItem: pickFocus(def, tv) };
+    }
+    const value = def.kind === "bool" ? stepTvValue(def, tv, 1) : null;
+    return value === null ? null : { kind: "tv", def, value };
+  }
   if (page.id === "profile") {
     if (item.id === "gamertag") return { kind: "edit", key: "gamertag" };
     if (item.id === "gamerscore") return { kind: "edit", key: "gamerscore" };
@@ -345,7 +516,7 @@ export function settingsAction(
     return null;
   }
   if (page.id === "settings") {
-    const next = settingsPageFor(`settings:${item.id}`, settings, apps);
+    const next = settingsPageFor(`settings:${item.id}`, settings, apps, tv);
     return next === null ? null : { kind: "push", page: next };
   }
   if (page.id === "settings:general") {
@@ -368,4 +539,24 @@ export function settingsAction(
     };
   }
   return null;
+}
+
+/**
+ * Left or right on the focused row: flips a toggle, steps a choice along its
+ * options, moves a slider one step. Null where the row has no such control.
+ */
+export function settingsStep(
+  page: Page,
+  focus: PageFocus,
+  tv: TvSnapshot,
+  dir: number,
+): SettingsAction | null {
+  if (page.kind !== "list" || page.id.startsWith(PICK)) return null;
+  const item = page.groups[focus.group]?.items[focus.item];
+  const group = tvPage(page.id.slice("settings:".length));
+  if (item === undefined || group === undefined || !page.id.startsWith("settings:")) return null;
+  const def = group.defs.find((entry) => tvId(entry) === item.id);
+  if (def === undefined) return null;
+  const value = stepTvValue(def, tv, dir);
+  return value === null ? null : { kind: "tv", def, value };
 }

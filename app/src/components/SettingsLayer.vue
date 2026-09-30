@@ -75,6 +75,16 @@ const PANEL: Box = { x: 196, y: 111, width: 889, height: 481 };
 
 const parked = useParked(() => props.open, DRILL_MS);
 
+/** The focused row's drawn control, split so the template reads each shape plainly. */
+const toggle = computed(() => {
+  const control = props.detail.control;
+  return control?.kind === "toggle" ? control : null;
+});
+const slider = computed(() => {
+  const control = props.detail.control;
+  return control?.kind === "slider" ? control : null;
+});
+
 const rest = computed(() => pageRest(props.rest ?? HUB_PANEL_BOX, PANEL));
 
 const panelStyle = computed((): Record<string, string> => {
@@ -158,7 +168,18 @@ const withIcons = computed(() => items.value.some((item) => item.icon !== undefi
       </div>
 
       <div class="detail">
-        <span v-if="detail.values.length > 0" class="current">Current Setting</span>
+        <span v-if="detail.values.length > 0 || toggle || slider" class="current"
+          >Current Setting</span
+        >
+        <span v-if="toggle" class="switch" :data-on="toggle.on || undefined"
+          ><i class="knob" /><b>{{ toggle.on ? "On" : "Off" }}</b></span
+        >
+        <span v-if="slider" class="slider"
+          ><i class="track" /><i
+            class="fill"
+            :style="{ transform: `scaleX(${slider.fill})` }"
+          /><b>{{ slider.text }}</b></span
+        >
         <input
           v-if="draft != null"
           ref="entry"
@@ -370,6 +391,84 @@ const withIcons = computed(() => items.value.some((item) => item.icon !== undefi
   background: #eef4f6;
   color: #1d2328;
   font: inherit;
+}
+
+.switch {
+  position: relative;
+  display: block;
+  height: 30px;
+  margin: 6px 0 4px 8px;
+}
+
+.switch::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 2px;
+  width: 64px;
+  height: 26px;
+  border-radius: 13px;
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.switch[data-on]::before {
+  background: #7ac70c;
+}
+
+.knob {
+  position: absolute;
+  left: 3px;
+  top: 5px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #f4f7f8;
+}
+
+.switch[data-on] .knob {
+  left: 41px;
+}
+
+.switch b {
+  position: absolute;
+  left: 78px;
+  top: 0;
+  font-weight: 400;
+  color: #eef4f6;
+}
+
+.slider {
+  position: relative;
+  display: block;
+  height: 30px;
+  margin: 6px 0 4px 8px;
+}
+
+.track,
+.fill {
+  position: absolute;
+  left: 0;
+  top: 9px;
+  width: 240px;
+  height: 12px;
+  border-radius: 6px;
+}
+
+.track {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.fill {
+  background: #7ac70c;
+  transform-origin: 0 50%;
+}
+
+.slider b {
+  position: absolute;
+  left: 256px;
+  top: 0;
+  font-weight: 400;
+  color: #eef4f6;
 }
 
 .about {

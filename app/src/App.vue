@@ -12,6 +12,7 @@ import HubPane from "./components/HubPane.vue";
 import PageLayer from "./components/PageLayer.vue";
 import PromptBar from "./components/PromptBar.vue";
 import SettingsLayer from "./components/SettingsLayer.vue";
+import ToastLayer from "./components/ToastLayer.vue";
 import { deviceSeed } from "./deviceSeed";
 import { stepFocus } from "./focus/row";
 import { BLADE_COUNT, BLADE_IDS } from "./guide";
@@ -88,14 +89,17 @@ import {
   parseGamerscore,
   profilePage,
   settingsAction,
+  settingsStep,
   settingsDetail,
   settingsPageFor,
   settingsRoot,
   type SettingDetail,
 } from "./settingsScreen";
-import { playSound } from "./sound";
+import { playSound, playToastSound } from "./sound";
 import { useAppsStore } from "./stores/apps";
 import { useSettingsStore } from "./stores/settings";
+import { useTvStore } from "./stores/tv";
+import { advance, enqueue, EMPTY_TOASTS, TOAST_FADE_MS, TOAST_MS, type Toast } from "./toasts";
 
 /**
  * The hub: the channel list at the top left, the channel's row of panes below
@@ -110,6 +114,7 @@ import { useSettingsStore } from "./stores/settings";
 
 const apps = useAppsStore();
 const settings = useSettingsStore();
+const tv = useTvStore();
 
 /** Where the user is. The labels follow it at once. Resumes the stored
  * channel rather than always starting on Apps. */
@@ -154,17 +159,70 @@ const bootMode = ref<BootSpeed | "off">("full");
 function chooseBootMode(): void {
   const asked = new URLSearchParams(window.location.search).get("boot");
   const preference = asked === "off" || asked === "full" || asked === "short" ? asked : "auto";
-  bootMode.value = resolveBootMode(preference, { cold: true });
+  bootMode.value = resolveBootMode(preference, {
+    cold: true,
+    reduceMotion: settings.settings.reduceMotion,
+  });
+}
+
+const toastQueue = ref(EMPTY_TOASTS);
+const toastShown = ref(false);
+const toastText = ref<Toast | null>(null);
+
+function playToast(): void {
+  const current = toastQueue.value.current;
+  if (current === null) return;
+  toastText.value = current;
+  toastShown.value = true;
+  playToastSound();
+  setTimeout(() => {
+    toastShown.value = false;
+    setTimeout(() => {
+      toastQueue.value = advance(toastQueue.value);
+      playToast();
+    }, TOAST_FADE_MS);
+  }, TOAST_MS);
+}
+
+/** Shows a toast over the hub, or queues it behind the one showing. */
+function notify(toast: Toast): void {
+  if (!settings.settings.toasts) return;
+  const idle = toastQueue.value.current === null;
+  toastQueue.value = enqueue(toastQueue.value, toast);
+  if (idle && toastQueue.value.current !== null) playToast();
+}
+
+/** `?toast=friend|achievement` previews those toasts in development. */
+const DEMO_TOASTS: Record<string, Toast> = {
+  friend: { title: "Halo Fan 42", body: "is online", icon: "friend" },
+  achievement: {
+    title: "Achievement unlocked",
+    body: "100G - True Dedication",
+    icon: "achievement",
+  },
+};
+
+function signInToast(): void {
+  const demo = DEMO_TOASTS[new URLSearchParams(window.location.search).get("toast") ?? ""];
+  if (demo) {
+    notify(demo);
+    return;
+  }
+  notify({ title: settings.settings.gamertag || "Player1", body: "Signed in", icon: "xbox" });
 }
 
 function onBootDone(payload: { reason: BootReason }): void {
   if (payload.reason === "skipped") console.info("[xne] boot skipped");
   booting.value = false;
+  setTimeout(signInToast, 600);
 }
 
 /** A boot resolved to off never mounts, so the dashboard is simply the first thing shown. */
 function settleBoot(): void {
-  if (bootMode.value === "off") booting.value = false;
+  if (bootMode.value === "off") {
+    booting.value = false;
+    setTimeout(signInToast, 900);
+  }
 }
 
 const channels = CHANNEL_ORDER.map(
@@ -349,6 +407,7 @@ const settingsStack = ref<PageStack>([]);
 function openSettings(): void {
   pageOpen.value = false;
   settingsStack.value = push([], settingsRoot());
+  void tv.loadSystem().then(refreshSettingsTop);
 }
 
 /** The profile's menu, opened by A on the profile pane, in the settings screen's layout. */
@@ -397,11 +456,25 @@ function stepSettings(delta: number): void {
 function activateSettings(): void {
   const frame = top(settingsStack.value);
   if (!frame) return;
-  const action = settingsAction(frame.page, frame.focus, settings.settings, apps.launchPoints);
+  const action = settingsAction(
+    frame.page,
+    frame.focus,
+    settings.settings,
+    apps.launchPoints,
+    tv.snapshot,
+  );
   if (!action) return;
   playSound("decide");
   if (action.kind === "push") {
-    settingsStack.value = push(settingsStack.value, action.page);
+    const pushed = [...push(settingsStack.value, action.page)];
+    const last = pushed[pushed.length - 1];
+    if (last && action.focusItem !== undefined) {
+      pushed[pushed.length - 1] = { ...last, focus: { ...last.focus, item: action.focusItem } };
+    }
+    settingsStack.value = pushed;
+    const pageId = action.page.id.slice("settings:".length);
+    if (pageId === "system") void tv.loadSystem().then(refreshSettingsTop);
+    else if (pageId.startsWith("tv-")) void tv.loadPage(pageId).then(refreshSettingsTop);
     return;
   }
   if (action.kind === "edit") {
@@ -416,7 +489,24 @@ function activateSettings(): void {
     void apps.launch(action.id, { ...action.params });
     return;
   }
+  if (action.kind === "tv") {
+    tv.apply(action.def, action.value);
+    if (action.pop) settingsStack.value = pop(settingsStack.value);
+    refreshSettingsTop();
+    return;
+  }
   settings.applyChange(action.change);
+  refreshSettingsTop();
+}
+
+/** Left or right on a TV row: a toggle flips, a choice steps, a slider moves. */
+function stepSettingsValue(dir: number): void {
+  const frame = top(settingsStack.value);
+  if (!frame) return;
+  const action = settingsStep(frame.page, frame.focus, tv.snapshot, dir);
+  if (!action || action.kind !== "tv") return;
+  tv.apply(action.def, action.value);
+  playSound("cursor");
   refreshSettingsTop();
 }
 
@@ -435,7 +525,7 @@ function refreshSettingsTop(): void {
   const stack = settingsStack.value;
   const frame = top(stack);
   if (!frame) return;
-  const rebuilt = settingsPageFor(frame.page.id, settings.settings, apps.launchPoints);
+  const rebuilt = settingsPageFor(frame.page.id, settings.settings, apps.launchPoints, tv.snapshot);
   if (!rebuilt) return;
   const count = rowCount(rebuilt, frame.focus);
   const focus =
@@ -448,7 +538,7 @@ const settingsFocus = computed(() => top(settingsStack.value)?.focus ?? ROOT_FOC
 const settingsDetailShown = computed((): SettingDetail => {
   const frame = top(settingsStack.value);
   if (!frame) return { values: [], description: "" };
-  return settingsDetail(frame.page, frame.focus, settings.settings, apps.launchPoints);
+  return settingsDetail(frame.page, frame.focus, settings.settings, apps.launchPoints, tv.snapshot);
 });
 
 const counts = computed(() => rows.value.map((row) => row.length));
@@ -841,6 +931,9 @@ function onKeyDown(event: KeyboardEvent): void {
     if (event.keyCode === 38 || event.keyCode === 40) {
       event.preventDefault();
       stepSettings(event.keyCode === 40 ? 1 : -1);
+    } else if (event.keyCode === 37 || event.keyCode === 39) {
+      event.preventDefault();
+      stepSettingsValue((event.keyCode === 39 ? 1 : -1) * (event.repeat ? 5 : 1));
     } else if (event.keyCode === 13 || event.keyCode === 404) {
       event.preventDefault();
       activateSettings();
@@ -966,7 +1059,7 @@ function expose(): void {
     </header>
     <div class="pic" :style="picStyle" />
     <div class="frame" data-frame :style="frameStyle">
-      <PromptBar :prompts="prompts" />
+      <PromptBar v-if="settings.settings.hintBar" :prompts="prompts" />
     </div>
     <div class="ripples">
       <i v-for="(ring, index) in rings" :key="index" :style="ring" />
@@ -1030,8 +1123,12 @@ function expose(): void {
         :item="guideItem"
         :items="guideItems"
         :pic="gamerpic"
+        :show-clock="settings.settings.showClock"
+        :clock24h="settings.settings.clock24h"
       />
     </div>
+
+    <ToastLayer :toast="toastText" :shown="toastShown" />
 
     <!--
       Mounted over the dashboard, which is already mounted. The handover is the

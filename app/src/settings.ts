@@ -24,6 +24,8 @@ export interface Settings {
   showClock: boolean;
   /** The A/B/X/Y + LB/RB row at the foot of the screen. */
   hintBar: boolean;
+  /** Toasts over the hub, such as the sign-in. */
+  toasts: boolean;
   reduceMotion: boolean;
   /** Explicit app order within a section; anything unlisted keeps its position. */
   appOrder: string[];
@@ -57,6 +59,7 @@ export const SETTINGS_DEFAULTS: Settings = {
   clock24h: true,
   showClock: true,
   hintBar: true,
+  toasts: true,
   reduceMotion: false,
   appOrder: [],
   hiddenApps: [],
@@ -139,6 +142,7 @@ export function mergeSettings(stored: unknown): { settings: Settings; migrated: 
     clock24h: booleanOr(source["clock24h"], SETTINGS_DEFAULTS.clock24h),
     showClock: booleanOr(source["showClock"], SETTINGS_DEFAULTS.showClock),
     hintBar: booleanOr(source["hintBar"], SETTINGS_DEFAULTS.hintBar),
+    toasts: booleanOr(source["toasts"], SETTINGS_DEFAULTS.toasts),
     reduceMotion: booleanOr(source["reduceMotion"], SETTINGS_DEFAULTS.reduceMotion),
     appOrder: stringArrayOr(source["appOrder"], SETTINGS_DEFAULTS.appOrder),
     hiddenApps: stringArrayOr(source["hiddenApps"], SETTINGS_DEFAULTS.hiddenApps),

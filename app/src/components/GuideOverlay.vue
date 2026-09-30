@@ -105,10 +105,12 @@ const props = withDefaults(
     items?: readonly string[];
     /** The Guide's clock, already formatted by the caller. */
     clock?: string;
+    showClock?: boolean;
+    clock24h?: boolean;
     /** The gamer picture, when there is one to replace the default. */
     pic?: string;
   }>(),
-  { open: false, blade: 4, item: 0, clock: "" },
+  { open: false, blade: 4, item: 0, clock: "", showClock: true, clock24h: true },
 );
 
 const bladeIds = BLADE_IDS;
@@ -124,7 +126,10 @@ watch(
   (open) => {
     if (!open) return;
     const d = new Date();
-    stamp.value = `${d.getHours() % 12 || 12}:${String(d.getMinutes()).padStart(2, "0")}`;
+    const hours = props.clock24h
+      ? String(d.getHours()).padStart(2, "0")
+      : `${d.getHours() % 12 || 12}`;
+    stamp.value = `${hours}:${String(d.getMinutes()).padStart(2, "0")}`;
   },
   { immediate: true },
 );
@@ -259,7 +264,7 @@ const CLOCK: Box = { x: CLOCK_X, y: CLOCK_Y, width: CLOCK_W, height: CLOCK_H };
         :style="pic ? { ...at(PIC), backgroundImage: `url(${pic})` } : at(PIC)"
       />
 
-      <div class="clock" :style="at(CLOCK)">{{ clock || stamp }}</div>
+      <div class="clock" :style="at(CLOCK)">{{ showClock ? clock || stamp : "" }}</div>
 
       <div class="slabs">
         <div

@@ -17,12 +17,14 @@ import categoryUrl from "../assets/sounds/category.ogg";
 import cursorUrl from "../assets/sounds/cursor.ogg";
 import decideUrl from "../assets/sounds/decide.ogg";
 import optionUrl from "../assets/sounds/option.ogg";
+import toastUrl from "../assets/sounds/toast.ogg";
 import { SETTINGS_DEFAULTS, type Settings } from "../settings";
 import { useSettingsStore } from "../stores/settings";
 import { createBootSound } from "./bootSound";
 import { createSoundEngine } from "./engine";
 import { createMusicPlayer } from "./music";
 import type { SoundStatus } from "./status";
+import { createToastSound } from "./toastSound";
 import type { SoundName } from "./voices";
 
 export { MENU_SOUND_COUNT, SOUND_NAMES, type SoundName } from "./voices";
@@ -39,6 +41,7 @@ const engine = createSoundEngine({
 });
 const music = createMusicPlayer();
 const boot = createBootSound(bootUrl);
+const toast = createToastSound(toastUrl);
 
 /**
  * The boot's audio, as one handle. Every call is a no-op with `navSound` off, so
@@ -78,6 +81,11 @@ function stored(): Settings {
 export function playSound(name: SoundName): void {
   if (!stored().navSound) return;
   engine.play(name);
+}
+
+/** The toast cue, silent with `navSound` off. */
+export function playToastSound(): void {
+  if (stored().navSound) toast.play();
 }
 
 /**

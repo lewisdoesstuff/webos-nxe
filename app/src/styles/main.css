@@ -69,3 +69,27 @@ body {
   font-style: normal;
   font-display: block;
 }
+
+@font-face {
+  font-family: "Segoe UI";
+  src: url("../assets/fonts/segoeui-semilight.woff2") format("woff2");
+  font-weight: 300;
+  font-style: normal;
+  font-display: block;
+}
+
+@font-face {
+  font-family: "Segoe UI";
+  src: url("../assets/fonts/segoeui-normal.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: block;
+}
+
+@font-face {
+  font-family: "Segoe UI";
+  src: url("../assets/fonts/segoeui-semibold.woff2") format("woff2");
+  font-weight: 600;
+  font-style: normal;
+  font-display: block;
+}

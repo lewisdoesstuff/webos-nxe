@@ -31,6 +31,8 @@ SNAPSHOT_FILE="${SNAPSHOT_DIR}/${APP_ID}.app.json"
 
 # The app id as the ACL file spells it, and the groups this app needs.
 #
+# `settings` is what the settings service requires for getSystemSettings and
+# setSystemSettings, which the TV Picture and TV Sound pages use.
 # `applications.internal` is what `listLaunchPoints` requires, so without it the
 # app list comes back empty and silently. `capture.client` is what taking an HDMI
 # still requires. A fresh install writes `["public"]` and nothing else, so both
@@ -39,7 +41,7 @@ CLIENT_KEY="${APP_ID}-*"
 # Space separated so it drops straight into a python list.
 # Not named GROUPS: that is a bash special variable holding the caller's group
 # ids, so an assignment to it is silently ignored and reads back as a bare GID.
-NEEDED="applications.internal capture.client"
+NEEDED="applications.internal capture.client settings notifications"
 GROUP="applications.internal"
 
 MODE="show"
@@ -60,10 +62,14 @@ read_state() {
 }
 
 has_group() {
-  case "$1" in
-    *"$GROUP"*) return 0 ;;
-    *) return 1 ;;
-  esac
+  local group
+  for group in $NEEDED; do
+    case "$1" in
+      *"\"$group\""*) ;;
+      *) return 1 ;;
+    esac
+  done
+  return 0
 }
 
 # Rewrite the file with $GROUP appended to the app's list, leaving every other
@@ -122,9 +128,9 @@ if [[ $MODE == "show" ]]; then
   echo "ACL file: $ACL_FILE"
   echo "  now:     $current"
   if has_group "$current"; then
-    echo "  status:  $GROUP is already granted. Nothing to do."
+    echo "  status:  every needed group is already granted. Nothing to do."
   else
-    echo "  status:  $GROUP is NOT granted."
+    echo "  status:  not every needed group is granted."
     echo "  --apply would add it, leaving every other group untouched:"
     echo "    $current"
     echo "     -> the app's key, with these groups added, every other key untouched:"
@@ -155,7 +161,7 @@ if has_group "$current"; then
   exit 0
 fi
 
-if ! has_group "$(ssh_q "cat '$SNAPSHOT_FILE' 2>/dev/null" || true)"; then
+if ! ssh_q "test -s '$SNAPSHOT_FILE'" 2>/dev/null; then
   # Only snapshot while the grant is absent, so the pre-grant original is never
   # replaced by an already-granted file.
   ssh_q "mkdir -p '$SNAPSHOT_DIR' && printf '%s\n' '$current' > '$SNAPSHOT_FILE'"

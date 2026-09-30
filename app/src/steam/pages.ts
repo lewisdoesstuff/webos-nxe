@@ -1,5 +1,6 @@
 import type { ListPage } from "../pages";
-import { presenceLine, stateLabel } from "./presence";
+import { CARD_ITEMS } from "./card";
+import { presenceLine } from "./presence";
 import type { QrPoll, SteamFriend, SteamStatus } from "./types";
 
 /** What the Steam screens draw from. */
@@ -58,11 +59,11 @@ export function steamPage(id: string, view: SteamView): ListPage | null {
   if (id.startsWith(STEAM_FRIEND)) {
     const friend = view.friends.find((entry) => entry.id === id.slice(STEAM_FRIEND.length));
     if (!friend) return null;
-    return list(id, friend.name, [
-      { id: "friend:status", label: "Status" },
-      ...(friend.game ? [{ id: "friend:game", label: "Playing" }] : []),
-      { id: "friend:profile", label: "View Profile" },
-    ]);
+    return list(
+      id,
+      friend.name,
+      CARD_ITEMS.map((label) => ({ id: `friend:${label}`, label })),
+    );
   }
   if (id === STEAM_QR)
     return list(id, "Steam Sign In", [{ id: "steam:qr", label: "Scan the Code" }]);
@@ -110,11 +111,7 @@ export function steamDetail(pageId: string, itemId: string, view: SteamView): St
   if (pageId.startsWith(STEAM_FRIEND)) {
     const friend = view.friends.find((entry) => entry.id === pageId.slice(STEAM_FRIEND.length));
     if (!friend) return { values: [], description: "" };
-    if (itemId === "friend:game") return { values: [friend.game ?? ""], description: "" };
-    if (itemId === "friend:profile") {
-      return { values: [], description: `Opens ${friend.name}'s Steam profile in the browser.` };
-    }
-    return { values: [stateLabel(friend)], description: "" };
+    return { values: [], description: "" };
   }
   if (pageId === STEAM_FRIENDS) {
     const friend = view.friends.find((entry) => `friend:${entry.id}` === itemId);
@@ -156,9 +153,9 @@ export function steamAction(
   view: SteamView,
 ): { push: ListPage } | { op: SteamOp } | { url: string } | null {
   if (pageId.startsWith(STEAM_FRIEND)) {
-    return itemId === "friend:profile"
-      ? { url: profileUrl(pageId.slice(STEAM_FRIEND.length)) }
-      : null;
+    const base = profileUrl(pageId.slice(STEAM_FRIEND.length));
+    if (itemId === "friend:View Profile") return { url: base };
+    return itemId === "friend:View Games" ? { url: `${base}/games/?tab=all` } : null;
   }
   if (pageId !== STEAM_ROOT) return null;
   if (itemId === "steam:signin") {

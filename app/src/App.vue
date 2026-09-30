@@ -8,6 +8,7 @@ import { AVATAR_CANVAS } from "./avatar/framing";
 import { type BootReason, type BootSpeed, resolveBootMode } from "./boot";
 import AvatarFigure from "./components/AvatarFigure.vue";
 import BootScreen from "./components/BootScreen.vue";
+import FriendCardLayer from "./components/FriendCard.vue";
 import GuideOverlay from "./components/GuideOverlay.vue";
 import HubPane from "./components/HubPane.vue";
 import LiveInput from "./components/LiveInput.vue";
@@ -109,7 +110,8 @@ import {
   type SettingDetail,
 } from "./settingsScreen";
 import { playBladeSound, playSound, playToastSound, type Sound } from "./sound";
-import { friendPageId, STEAM_QR, type SteamView } from "./steam/pages";
+import { friendCard as makeFriendCard, type FriendCard } from "./steam/card";
+import { friendPageId, STEAM_FRIEND, STEAM_QR, type SteamView } from "./steam/pages";
 import { useAppsStore } from "./stores/apps";
 import { useInputsStore } from "./stores/inputs";
 import { useSettingsStore } from "./stores/settings";
@@ -728,6 +730,14 @@ const settingsDetailShown = computed((): SettingDetail => {
 });
 
 const counts = computed(() => rows.value.map((row) => row.length));
+
+/** The friend card shown while a friend's page is the open settings page. */
+const friendCard = computed((): FriendCard | null => {
+  const id = top(settingsStack.value)?.page.id ?? "";
+  if (!id.startsWith(STEAM_FRIEND)) return null;
+  const friend = steam.friends.find((entry) => entry.id === id.slice(STEAM_FRIEND.length));
+  return friend ? makeFriendCard(friend) : null;
+});
 
 /** The Friends channel swaps the gamerscore for how many friends are online, as retail's card did. */
 const onFriends = computed(
@@ -1420,7 +1430,7 @@ function expose(): void {
       <SettingsLayer
         :page="settingsPage"
         :focus="settingsFocus"
-        :open="settingsStack.length > 0"
+        :open="settingsStack.length > 0 && !friendCard"
         :detail="settingsDetailShown"
         :rest="settingsRestBox"
         :draft="draft"
@@ -1428,6 +1438,10 @@ function expose(): void {
         @commit="commitDraft"
         @cancel="cancelDraft"
       />
+    </div>
+
+    <div class="frame" data-friend :style="frameStyle">
+      <FriendCardLayer :card="friendCard" :focus="settingsFocus.item" :open="friendCard !== null" />
     </div>
 
     <div class="frame" data-guide :style="frameStyle">

@@ -53,6 +53,9 @@ interface Summary {
   avatarfull?: string;
   personastate?: number;
   gameextrainfo?: string;
+  gameid?: string;
+  lastlogoff?: number;
+  timecreated?: number;
 }
 
 /** The expiry of a JWT access token, in ms, or 0 when it cannot be read. */
@@ -74,7 +77,19 @@ export function toFriend(summary: Summary): SteamFriend {
     avatar: summary.avatarfull ?? "",
     state: STATES[summary.personastate ?? 0] ?? "offline",
   };
-  return summary.gameextrainfo ? { ...base, state: "play", game: summary.gameextrainfo } : base;
+  const extra = {
+    ...(summary.lastlogoff ? { lastSeen: summary.lastlogoff * 1000 } : {}),
+    ...(summary.timecreated ? { since: summary.timecreated * 1000 } : {}),
+  };
+  return summary.gameextrainfo
+    ? {
+        ...base,
+        ...extra,
+        state: "play",
+        game: summary.gameextrainfo,
+        ...(summary.gameid ? { gameId: summary.gameid } : {}),
+      }
+    : { ...base, ...extra };
 }
 
 interface Session {

@@ -9,6 +9,12 @@ export interface SteamFriend {
   readonly state: PersonaState;
   /** The game being played, when there is one. */
   readonly game?: string;
+  /** The game's Steam app id, for its capsule art. */
+  readonly gameId?: string;
+  /** When they last went offline, in ms. */
+  readonly lastSeen?: number;
+  /** When the account was made, in ms. */
+  readonly since?: number;
 }
 
 export type SteamStatus =

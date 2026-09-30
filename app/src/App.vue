@@ -331,6 +331,7 @@ const prompts = computed(() => {
     moving.value !== null,
     pinLabel.value ?? (onHome(hub.value.channel) ? "Remove" : null),
     canMove.value,
+    onFriendPane.value ? "View Details" : null,
   );
 });
 
@@ -738,6 +739,22 @@ const friendCard = computed((): FriendCard | null => {
   const friend = steam.friends.find((entry) => entry.id === id.slice(STEAM_FRIEND.length));
   return friend ? makeFriendCard(friend) : null;
 });
+
+/** The friend pane the row rests on, whose gamertag the speech bubble carries. */
+const restingFriend = computed(() => {
+  const item = rows.value[hub.value.channel]?.[hub.value.item];
+  return isFriendPane(item) ? item : null;
+});
+const onFriendPane = restingFriend;
+const bubbleShown = computed(
+  () =>
+    restingFriend.value !== null &&
+    phase.value === "rest" &&
+    !pageOpen.value &&
+    settingsStack.value.length === 0 &&
+    !guide.value &&
+    !booting.value,
+);
 
 /** The Friends channel swaps the gamerscore for how many friends are online, as retail's card did. */
 const onFriends = computed(
@@ -1378,6 +1395,9 @@ function expose(): void {
       >
     </header>
     <div class="pic" :style="picStyle" />
+    <div class="bubble" :data-shown="bubbleShown || undefined">
+      <span>{{ restingFriend?.title }}</span>
+    </div>
     <div class="frame" data-frame :style="frameStyle">
       <PromptBar
         v-if="settings.settings.hintBar"
@@ -1671,6 +1691,45 @@ function expose(): void {
 .row :deep(.pane) {
   transform-origin: 0 0;
   will-change: transform, opacity;
+}
+
+.bubble {
+  position: absolute;
+  left: 640px;
+  top: 274px;
+  max-width: 420px;
+  padding: 0 28px;
+  border-radius: 34px;
+  background: #f3f6f7;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.3);
+  color: #1d2328;
+  font-size: 30px;
+  line-height: 66px;
+  white-space: nowrap;
+  opacity: 0.001;
+  will-change: opacity;
+  transition: opacity 120ms linear;
+}
+
+.bubble span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bubble::after {
+  content: "";
+  position: absolute;
+  left: 34px;
+  bottom: -20px;
+  width: 34px;
+  height: 26px;
+  background: #f3f6f7;
+  clip-path: polygon(0 0, 100% 0, 0 100%);
+}
+
+.bubble[data-shown] {
+  opacity: 1;
 }
 
 .counter {

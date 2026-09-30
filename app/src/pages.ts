@@ -593,12 +593,13 @@ export function shellPrompts(
   moving = false,
   pin: string | null = null,
   canMove = canHide,
+  select: string | null = SELECT.label,
 ): Prompt[] {
   if (guideOpen) return [];
   if (stack.length === 0) {
     if (moving) return promptsFor({ a: PLACE.label, b: CANCEL.label, ...(pin ? { x: pin } : {}) });
     return promptsFor({
-      a: SELECT.label,
+      a: select ?? SELECT.label,
       ...(canHide ? { x: pin ?? HIDE.label } : {}),
       ...(canMove ? { y: MOVE.label } : {}),
     });

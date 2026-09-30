@@ -65,6 +65,7 @@ const width = computed(() => {
 <style scoped>
 .toast {
   position: absolute;
+  z-index: 100;
   left: calc(960px - var(--w) / 2);
   top: 862px;
   width: var(--w);

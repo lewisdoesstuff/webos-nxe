@@ -137,6 +137,12 @@ const apps = useAppsStore();
 const settings = useSettingsStore();
 const tv = useTvStore();
 const steam = useSteamStore();
+/** The gamertag shown: the Steam persona name while signed in to Steam, else the stored one. */
+const gamertag = computed(() => {
+  const status = steam.status;
+  if (status.state === "signedIn" && status.name) return status.name;
+  return settings.settings.gamertag || "Player1";
+});
 const steamView = computed((): SteamView => ({
   status: steam.status,
   friends: steam.friends,
@@ -252,7 +258,7 @@ function signInToast(): void {
     notify(demo);
     return;
   }
-  notify({ title: settings.settings.gamertag || "Player1", body: "Signed in", icon: "xbox" });
+  notify({ title: gamertag.value, body: "Signed in", icon: "xbox" });
 }
 
 function onBootDone(payload: { reason: BootReason }): void {
@@ -299,6 +305,9 @@ const rows = computed(() =>
       hubRow(channel.id, apps.launchPoints, rowSettings.value),
       rowSettings.value.appDescriptions,
     );
+    if (channel.id === "home") {
+      return row.map((item) => (item.profile ? { ...item, title: gamertag.value } : item));
+    }
     if (channel.id === "system") return withDetail(row, "nxe:settings", storage.free);
     return channel.id === "inputs" ? nameInputs(row, inputs.statuses) : row;
   }),
@@ -1101,8 +1110,14 @@ const picStyle = computed(() => ({
   top: `${CARD_PIC_Y}px`,
   width: `${CARD_PIC}px`,
   height: `${CARD_PIC}px`,
-  ...(gamerpic.value ? { backgroundImage: `url(${gamerpic.value})` } : {}),
+  ...(shownPic.value ? { backgroundImage: `url(${shownPic.value})` } : {}),
 }));
+
+/** The signed-in Steam account's picture in place of the avatar's portrait, while there is one. */
+const shownPic = computed(() => {
+  const status = steam.status;
+  return status.state === "signedIn" && status.avatar ? status.avatar : gamerpic.value;
+});
 
 /** The 720p frame's own size, which the prompt row and the Guide are authored in. */
 const frameStyle = {
@@ -1422,7 +1437,7 @@ function expose(): void {
     <span class="bullet" :style="bulletStyle" />
     <span class="counter" :style="counterStyle">{{ counter }}</span>
     <header class="card" :style="cardStyle">
-      <span class="tag">{{ settings.settings.gamertag || "Player1" }}</span>
+      <span class="tag">{{ gamertag }}</span>
       <span v-if="onFriends" class="score">{{ onlineCount }} online</span>
       <span v-else class="score"
         >{{ formatGamerscore(settings.settings.gamerscore) }}<i class="coin">G</i></span
@@ -1502,7 +1517,7 @@ function expose(): void {
         :blade="guideBlade"
         :item="guideItem"
         :items="guideItems"
-        :pic="gamerpic"
+        :pic="shownPic"
         :show-clock="settings.settings.showClock"
         :clock24h="settings.settings.clock24h"
         :remote="settings.settings.remoteHints"

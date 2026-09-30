@@ -61,7 +61,12 @@ export function createMockBackend(scanAfter = 4): SteamApi {
   return {
     async status(): Promise<SteamStatus> {
       return signedIn
-        ? { state: "signedIn", steamId: "76561198000000999", name: "Player1" }
+        ? {
+            state: "signedIn",
+            steamId: "76561198000000999",
+            name: "Player1",
+            avatar: avatar(90, "P"),
+          }
         : { state: "signedOut" };
     },
     async beginQr(): Promise<QrPoll> {

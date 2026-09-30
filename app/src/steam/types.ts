@@ -19,7 +19,13 @@ export interface SteamFriend {
 
 export type SteamStatus =
   | { readonly state: "signedOut" }
-  | { readonly state: "signedIn"; readonly steamId: string; readonly name: string };
+  | {
+      readonly state: "signedIn";
+      readonly steamId: string;
+      readonly name: string;
+      /** The account's own picture, when Steam has one. */
+      readonly avatar?: string;
+    };
 
 export type QrState = "pending" | "scanned" | "signedIn" | "expired" | "error";
 

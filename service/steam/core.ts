@@ -101,6 +101,7 @@ interface Session {
   access: string;
   expires: number;
   name: string;
+  avatar: string;
 }
 
 /**
@@ -124,6 +125,7 @@ export function createSteamBackend(deps: SteamDeps): SteamApi {
       access: fresh.accessToken,
       expires: tokenExpiry(fresh.accessToken),
       name: session?.name ?? "",
+      avatar: session?.avatar ?? "",
     };
     refresh = refreshToken;
   }
@@ -175,9 +177,16 @@ export function createSteamBackend(deps: SteamDeps): SteamApi {
       if (session.name === "") {
         const id = session.steamId;
         const all = await summaries([id]).catch(() => []);
-        session.name = all.find((entry) => entry.steamid === id)?.personaname ?? id;
+        const me = all.find((entry) => entry.steamid === id);
+        session.name = me?.personaname ?? id;
+        session.avatar = me?.avatarfull ?? "";
       }
-      return { state: "signedIn", steamId: session.steamId, name: session.name };
+      return {
+        state: "signedIn",
+        steamId: session.steamId,
+        name: session.name,
+        ...(session.avatar ? { avatar: session.avatar } : {}),
+      };
     },
 
     async beginQr(): Promise<QrPoll> {
@@ -202,6 +211,7 @@ export function createSteamBackend(deps: SteamDeps): SteamApi {
           access: next.accessToken,
           expires: tokenExpiry(next.accessToken),
           name: "",
+          avatar: "",
         };
         refresh = token;
         restored = Promise.resolve();

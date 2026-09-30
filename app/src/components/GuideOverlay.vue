@@ -397,7 +397,20 @@ const CLOCK: Box = { x: CLOCK_X, y: CLOCK_Y, width: CLOCK_W, height: CLOCK_H };
 .slab {
   position: absolute;
   transform-origin: 100% 50%;
-  border-radius: 10px 3px 0 22px / 10px 3px 0 75%;
+  border-radius: 10px 3px 0 0;
+  clip-path: polygon(
+    0 0,
+    100% 0,
+    100% 100%,
+    0 100%,
+    1% 92%,
+    3.5% 80%,
+    6% 66%,
+    8% 50%,
+    6% 34%,
+    3.5% 20%,
+    1% 8%
+  );
   background: linear-gradient(90deg, #cbd6da 0%, #e2ebee 45%, #f1f6f8 100%);
   box-shadow: -3px 0 8px rgba(0, 0, 0, 0.5);
   will-change: transform;

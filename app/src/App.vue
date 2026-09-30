@@ -179,19 +179,31 @@ const toastQueue = ref(EMPTY_TOASTS);
 const toastShown = ref(false);
 const toastText = ref<Toast | null>(null);
 
+/** The toast's face, loaded before the first toast so its words are never held back by a font still arriving. */
+let toastFont: Promise<unknown> | null = null;
+function loadToastFont(): Promise<unknown> {
+  toastFont ??= Promise.all([
+    document.fonts.load('400 40px "Segoe UI"'),
+    document.fonts.load('400 40px "Inter"'),
+  ]).catch(() => undefined);
+  return toastFont;
+}
+
 function playToast(): void {
   const current = toastQueue.value.current;
   if (current === null) return;
-  toastText.value = current;
-  toastShown.value = true;
-  playToastSound();
-  setTimeout(() => {
-    toastShown.value = false;
+  void loadToastFont().then(() => {
+    toastText.value = current;
+    toastShown.value = true;
+    playToastSound();
     setTimeout(() => {
-      toastQueue.value = advance(toastQueue.value);
-      playToast();
-    }, TOAST_FADE_MS);
-  }, TOAST_MS);
+      toastShown.value = false;
+      setTimeout(() => {
+        toastQueue.value = advance(toastQueue.value);
+        playToast();
+      }, TOAST_FADE_MS);
+    }, TOAST_MS);
+  });
 }
 
 /** Shows a toast over the hub, or queues it behind the one showing. */
@@ -1186,6 +1198,7 @@ onMounted(() => {
   settleBoot();
   window.addEventListener("keydown", onKeyDown);
   void apps.load();
+  void loadToastFont();
   useSystemToastsStore().start(notify);
   expose();
 });

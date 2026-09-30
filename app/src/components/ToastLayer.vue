@@ -11,6 +11,9 @@ import type { Toast } from "../toasts";
  * an achievement or a friend, cross-fades to a trophy or a friends icon
  * through black every one and a half seconds.
  *
+ * It is authored 116px tall and drawn at 0.828, which takes retail's 64px at
+ * 720p to 96px at 1080p.
+ *
  * Everything that moves is its own promoted layer resting at rest, so opening
  * changes transforms and opacities on layers that already exist: the pill's
  * body grows by `scaleX` and its right cap rides the growing edge.
@@ -67,7 +70,7 @@ const width = computed(() => {
   width: var(--w);
   height: 116px;
   opacity: 0.001;
-  transform: translate3d(0, 20px, 0);
+  transform: translate3d(0, 20px, 0) scale(0.828);
   transition:
     transform 260ms ease-out,
     opacity 200ms ease-out;
@@ -77,7 +80,7 @@ const width = computed(() => {
 
 .toast[data-shown] {
   opacity: 1;
-  transform: translate3d(0, 0, 0);
+  transform: translate3d(0, 0, 0) scale(0.828);
 }
 
 .cap-l,

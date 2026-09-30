@@ -1,3 +1,4 @@
+import { describeApp } from "./appDescriptions";
 import allIcon from "./assets/system/all.svg?inline";
 import settingsIcon from "./assets/system/settings.png?inline";
 import type { ListPage } from "./pages";
@@ -170,6 +171,18 @@ function homeItems(rows: readonly HubItem[], profile: HubItem, settings: Setting
 export function withDetail(row: readonly HubItem[], id: string, detail: string): HubItem[] {
   if (detail === "") return [...row];
   return row.map((item) => (item.id === id ? { ...item, detail } : item));
+}
+
+/** A row with each launchable app's description under its name, leaving panes that already have a second line. */
+export function withDescriptions(
+  row: readonly HubItem[],
+  overrides: Readonly<Record<string, string>>,
+): HubItem[] {
+  return row.map((item) => {
+    if (item.detail || item.all || item.empty || item.settings || item.profile) return item;
+    const detail = describeApp(item.id, overrides);
+    return detail === "" ? item : { ...item, detail };
+  });
 }
 
 /** The channel's items, without the "All" pane. Empty when there are none. */

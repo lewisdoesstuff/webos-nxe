@@ -14,6 +14,7 @@
  * back, and the TV's own sound and option settings and system information.
  */
 
+import { describeApp } from "./appDescriptions";
 import type { ListPage, Page, PageFocus } from "./pages";
 import { paneArt, type PaneItem } from "./panel";
 import type { FlagKeys, LevelKeys, SettingChange, Settings } from "./settings";
@@ -50,6 +51,11 @@ export const SETTINGS_CATEGORIES: readonly SettingsCategory[] = [
     id: "hidden",
     title: "Hidden Apps",
     description: "Apps put away with X. Select one to bring it back.",
+  },
+  {
+    id: "descriptions",
+    title: "App Descriptions",
+    description: "The line under an app's name on its tile. Select an app to type your own.",
   },
   ...TV_PAGES.map((page) => ({
     id: page.id,
@@ -186,6 +192,9 @@ export function settingsRoot(): ListPage {
 
 const SHOW_ALL_ID = "show-all";
 
+/** Prefix of a description row's id and of the draft key while one is typed. */
+export const DESCRIPTION_KEY = "description:";
+
 /** The row that empties the hidden list. */
 export const SHOW_ALL_LABEL = "Show All Apps";
 
@@ -235,6 +244,29 @@ export function settingsCategoryPage(
           id: "general",
           title: "General",
           items: GENERAL_DEFS.map((def) => ({ id: def.key, label: def.title })),
+        },
+      ],
+    };
+  }
+  if (category === "descriptions") {
+    return {
+      kind: "list",
+      id: "settings:descriptions",
+      title: "App Descriptions",
+      groups: [
+        {
+          id: "descriptions",
+          title: "App Descriptions",
+          items: apps
+            .filter((app) => !app.id.startsWith("xne:") && !app.id.startsWith("all:"))
+            .map((app) => {
+              const art = paneArt(app);
+              return {
+                id: `${DESCRIPTION_KEY}${app.id}`,
+                label: app.title,
+                ...(art ? { icon: art } : {}),
+              };
+            }),
         },
       ],
     };
@@ -429,6 +461,13 @@ export function settingsDetail(
   if (page.id === "settings" || item === undefined) {
     return categoryDetail(item?.id ?? "");
   }
+  if (page.id === "settings:descriptions") {
+    const appId = item.id.slice(DESCRIPTION_KEY.length);
+    return {
+      values: [describeApp(appId, settings.appDescriptions) || "None"],
+      description: "Press A and type a description. Leave it empty to restore the default.",
+    };
+  }
   if (page.id === "settings:general") {
     const def = GENERAL_DEFS.find((entry) => entry.key === item.id);
     if (def === undefined) return { values: [], description: "" };
@@ -464,7 +503,7 @@ export function settingsWindow(count: number, focus: number, slots = SETTINGS_RO
 export type SettingsAction =
   | { readonly kind: "push"; readonly page: ListPage; readonly focusItem?: number }
   | { readonly kind: "change"; readonly change: SettingChange }
-  | { readonly kind: "edit"; readonly key: "gamertag" | "gamerscore" }
+  | { readonly kind: "edit"; readonly key: string }
   | {
       readonly kind: "tv";
       readonly def: TvDef;
@@ -535,6 +574,9 @@ export function settingsAction(
       kind: "change",
       change: { kind: "level", key: def.key, value: advanceLevel(def, settings[def.key]) },
     };
+  }
+  if (page.id === "settings:descriptions") {
+    return item.id.startsWith(DESCRIPTION_KEY) ? { kind: "edit", key: item.id } : null;
   }
   if (page.id === "settings:hidden") {
     if (item.id === SHOW_ALL_ID) return { kind: "change", change: { kind: "hidden-clear" } };

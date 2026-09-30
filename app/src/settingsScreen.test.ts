@@ -276,3 +276,35 @@ describe("profile menu", () => {
     });
   });
 });
+
+describe("app descriptions", () => {
+  const apps = [
+    { id: "netflix", title: "Netflix" },
+    { id: "org.example.app", title: "Example" },
+  ] as never;
+
+  it("lists every app on the descriptions page", () => {
+    const page = settingsCategoryPage("descriptions", SETTINGS_DEFAULTS, apps);
+    expect(page?.groups[0]?.items.map((item) => item.id)).toEqual([
+      "description:netflix",
+      "description:org.example.app",
+    ]);
+  });
+
+  it("opens an edit for the focused app", () => {
+    const page = settingsCategoryPage("descriptions", SETTINGS_DEFAULTS, apps)!;
+    expect(settingsAction(page, focus(0, 1), SETTINGS_DEFAULTS, apps)).toEqual({
+      kind: "edit",
+      key: "description:org.example.app",
+    });
+  });
+
+  it("shows the shipped line, or the user's over it", () => {
+    const page = settingsCategoryPage("descriptions", SETTINGS_DEFAULTS, apps)!;
+    expect(settingsDetail(page, focus(0, 0), SETTINGS_DEFAULTS, apps).values).toEqual([
+      "Instantly watch TV episodes and movies",
+    ]);
+    const own = { ...SETTINGS_DEFAULTS, appDescriptions: { netflix: "Movie night" } };
+    expect(settingsDetail(page, focus(0, 0), own, apps).values).toEqual(["Movie night"]);
+  });
+});

@@ -36,6 +36,8 @@ export interface Settings {
   homeApps: string[];
   /** Apps the user has moved to a different section, by app id. */
   appSection: Record<string, string>;
+  /** The second line under an app's name, by app id. Blank or missing means the shipped line, if any. */
+  appDescriptions: Record<string, string>;
   /** Sort per section, by section id. Anything missing is `default`. */
   sortModes: Record<string, SortMode>;
   /** Most recently launched app ids, newest first. */
@@ -68,6 +70,7 @@ export const SETTINGS_DEFAULTS: Settings = {
   reduceMotion: false,
   appOrder: [],
   hiddenApps: [],
+  appDescriptions: {},
   homeApps: [],
   appSection: {},
   sortModes: {},
@@ -155,6 +158,7 @@ export function mergeSettings(stored: unknown): { settings: Settings; migrated: 
     hiddenApps: stringArrayOr(source["hiddenApps"], SETTINGS_DEFAULTS.hiddenApps),
     homeApps: stringArrayOr(source["homeApps"], SETTINGS_DEFAULTS.homeApps),
     appSection: stringMapOr(source["appSection"], SETTINGS_DEFAULTS.appSection),
+    appDescriptions: stringMapOr(source["appDescriptions"], SETTINGS_DEFAULTS.appDescriptions),
     sortModes: sortModesOr(source["sortModes"], SETTINGS_DEFAULTS.sortModes),
     recentApps: stringArrayOr(source["recentApps"], SETTINGS_DEFAULTS.recentApps),
     background: stringOr(source["background"], SETTINGS_DEFAULTS.background),
@@ -222,6 +226,7 @@ export type SettingChange =
   | { readonly kind: "choice"; readonly key: ChoiceKeys; readonly value: string }
   | { readonly kind: "sort"; readonly section: string; readonly mode: SortMode }
   | { readonly kind: "app-section"; readonly appId: string; readonly section: string }
+  | { readonly kind: "app-description"; readonly appId: string; readonly text: string }
   | { readonly kind: "app-hidden"; readonly appId: string; readonly hidden: boolean }
   | { readonly kind: "app-order"; readonly order: readonly string[] }
   | { readonly kind: "hidden-clear" }

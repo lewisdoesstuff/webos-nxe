@@ -84,6 +84,13 @@ export const useSettingsStore = defineStore("settings", () => {
     updateSetting("sortModes", { ...settings.value.sortModes, [section]: mode });
   }
 
+  /** Set an app's description, or take the user's text away so the shipped line returns. */
+  function setAppDescription(appId: string, text: string): void {
+    const { [appId]: _dropped, ...rest } = settings.value.appDescriptions;
+    const trimmed = text.trim();
+    updateSetting("appDescriptions", trimmed === "" ? rest : { ...rest, [appId]: trimmed });
+  }
+
   function clearHiddenApps(): void {
     updateSetting("hiddenApps", []);
   }
@@ -126,6 +133,9 @@ export const useSettingsStore = defineStore("settings", () => {
         return;
       case "app-section":
         setAppSection(change.appId, change.section);
+        return;
+      case "app-description":
+        setAppDescription(change.appId, change.text);
         return;
       case "app-hidden":
         setAppHidden(change.appId, change.hidden);

@@ -1,6 +1,7 @@
 <script setup lang="ts" vapor>
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 
+import { describeApp } from "./appDescriptions";
 import { checkArt, prepareArt, prepareFloor } from "./artCache";
 import avatarUrl from "./assets/avatar/avatar.glb?url";
 import { AVATAR_CANVAS } from "./avatar/framing";
@@ -68,6 +69,7 @@ import {
   launchTarget,
   moveStep,
   pageItems,
+  withDescriptions,
   withDetail,
 } from "./hubRows";
 import { PAGE_COUNTER_X, PAGE_COUNTER_Y } from "./pageRow";
@@ -95,6 +97,7 @@ import {
   AVATAR_DOWNLOAD,
   formatGamerscore,
   parseGamerscore,
+  DESCRIPTION_KEY,
   profilePage,
   settingsAction,
   settingsStep,
@@ -262,6 +265,7 @@ const ROW_KEYS = [
   "recentApps",
   "appOrder",
   "appSection",
+  "appDescriptions",
   "sortModes",
   "gamertag",
   "gamerscore",
@@ -273,7 +277,10 @@ const rowSettings = computed((previous?: Settings) => {
 
 const rows = computed(() =>
   channels.map((channel) => {
-    const row = hubRow(channel.id, apps.launchPoints, rowSettings.value);
+    const row = withDescriptions(
+      hubRow(channel.id, apps.launchPoints, rowSettings.value),
+      rowSettings.value.appDescriptions,
+    );
     if (channel.id === "system") return withDetail(row, "xne:settings", storage.free);
     return channel.id === "inputs" ? nameInputs(row, inputs.statuses) : row;
   }),
@@ -537,7 +544,7 @@ function openProfile(): void {
 
 /** What is being typed in the profile menu, or null. While it is set, keys belong to the entry. */
 const draft = ref<string | null>(null);
-const draftKey = ref<"gamertag" | "gamerscore">("gamertag");
+const draftKey = ref<string>("gamertag");
 
 /** Keep a typed value. An empty gamertag or a gamerscore that is not a number is refused and kept open. */
 function commitDraft(value: string): void {
@@ -548,6 +555,9 @@ function commitDraft(value: string): void {
       return;
     }
     settings.applyChange({ kind: "level", key: "gamerscore", value: score });
+  } else if (draftKey.value.startsWith(DESCRIPTION_KEY)) {
+    const appId = draftKey.value.slice(DESCRIPTION_KEY.length);
+    settings.applyChange({ kind: "app-description", appId, text: value });
   } else {
     if (value === "") {
       playSound("cancel");
@@ -598,8 +608,9 @@ function activateSettings(): void {
   }
   if (action.kind === "edit") {
     draftKey.value = action.key;
-    draft.value =
-      action.key === "gamerscore"
+    draft.value = action.key.startsWith(DESCRIPTION_KEY)
+      ? describeApp(action.key.slice(DESCRIPTION_KEY.length), settings.settings.appDescriptions)
+      : action.key === "gamerscore"
         ? String(settings.settings.gamerscore)
         : settings.settings.gamertag || "Player1";
     return;

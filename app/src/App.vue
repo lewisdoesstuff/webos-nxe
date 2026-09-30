@@ -101,6 +101,7 @@ import { playSound, playToastSound } from "./sound";
 import { useAppsStore } from "./stores/apps";
 import { useInputsStore } from "./stores/inputs";
 import { useSettingsStore } from "./stores/settings";
+import { useSystemToastsStore } from "./stores/systemToasts";
 import { useTvStore } from "./stores/tv";
 import { advance, enqueue, EMPTY_TOASTS, TOAST_FADE_MS, TOAST_MS, type Toast } from "./toasts";
 
@@ -1059,6 +1060,7 @@ onMounted(() => {
   settleBoot();
   window.addEventListener("keydown", onKeyDown);
   void apps.load();
+  useSystemToastsStore().start(notify);
   expose();
 });
 

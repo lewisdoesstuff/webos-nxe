@@ -14,6 +14,12 @@ export type LunaPayload = Record<string, unknown>;
 export interface LunaTransport {
   /** Parsed payload on success; rejects with `LunaCallError` on failure. */
   request(uri: string, params: LunaParams): Promise<LunaPayload>;
+  /** Keeps a subscription open; every payload goes to `onPayload`. Returns a function that ends it. */
+  subscribe?(
+    uri: string,
+    params: LunaParams,
+    onPayload: (payload: LunaPayload) => void,
+  ): () => void;
 }
 
 export class LunaCallError extends Error {
@@ -90,6 +96,30 @@ export function createPalmTransport(): LunaTransport {
         bridge.call(uri, JSON.stringify(params), onPayload);
       });
     },
+
+    subscribe(uri, params, onPayload) {
+      const Bridge = window.PalmServiceBridge;
+      if (typeof Bridge !== "function") return () => undefined;
+      const bridge = new Bridge();
+      const handle = (raw: string): void => {
+        try {
+          const payload: unknown = JSON.parse(raw);
+          if (typeof payload === "object" && payload !== null) onPayload(payload as LunaPayload);
+        } catch {
+          // A payload that will not parse is not one anything can act on.
+        }
+      };
+      bridge.onservicecallback = handle;
+      bridge.call(uri, JSON.stringify({ ...params, subscribe: true }), handle);
+      return () => {
+        bridge.onservicecallback = null;
+        try {
+          bridge.cancel();
+        } catch {
+          // Already gone.
+        }
+      };
+    },
   };
 }
 
@@ -108,4 +138,13 @@ export function callLuna<T extends object = LunaPayload>(
     return Promise.reject(new LunaCallError(uri, "NO_TRANSPORT", "no transport configured"));
   }
   return active.request(uri, params) as unknown as Promise<T>;
+}
+
+/** Follows a subscription until the returned function is called. A no-op with no transport or no support for it. */
+export function subscribeLuna(
+  uri: string,
+  params: LunaParams,
+  onPayload: (payload: LunaPayload) => void,
+): () => void {
+  return active?.subscribe?.(uri, params, onPayload) ?? (() => undefined);
 }

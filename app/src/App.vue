@@ -252,13 +252,20 @@ const DEMO_TOASTS: Record<string, Toast> = {
   },
 };
 
+/** Steam's answer to who is signed in, which the sign-in toast waits for so it names the right account. */
+let steamStarted: Promise<void> = Promise.resolve();
+const STEAM_WAIT_MS = 2500;
+
 function signInToast(): void {
   const demo = DEMO_TOASTS[new URLSearchParams(window.location.search).get("toast") ?? ""];
   if (demo) {
     notify(demo);
     return;
   }
-  notify({ title: gamertag.value, body: "Signed in", icon: "xbox" });
+  const waited = new Promise<void>((resolve) => setTimeout(resolve, STEAM_WAIT_MS));
+  void Promise.race([steamStarted, waited]).then(() =>
+    notify({ title: gamertag.value, body: "Signed in", icon: "xbox" }),
+  );
 }
 
 function onBootDone(payload: { reason: BootReason }): void {
@@ -1398,7 +1405,7 @@ onMounted(() => {
   void apps.load();
   void loadToastFont();
   useSystemToastsStore().start(notify);
-  void steam.start(notify);
+  steamStarted = steam.start(notify);
   expose();
 });
 

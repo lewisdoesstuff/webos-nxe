@@ -454,17 +454,16 @@ const CLOCK: Box = { x: CLOCK_X, y: CLOCK_Y, width: CLOCK_W, height: CLOCK_H };
 }
 
 /*
- * The ring above the tab label, the Guide's spinner: eight grey dashes with a
- * lime arc on the upper left. It is not animated, since the Guide's content is
- * already resident and there is nothing in flight to spin for.
+ * The ring above the tab label, the controller indicator: four quadrants, the
+ * upper left lit for player one. It is not animated.
  */
 .spinner {
   position: absolute;
   border-radius: 50%;
   background: repeating-conic-gradient(
-    from 6deg,
-    rgba(214, 222, 228, 0.75) 0deg 33deg,
-    rgba(0, 0, 0, 0) 33deg 45deg
+    from 5deg,
+    rgba(214, 222, 228, 0.75) 0deg 80deg,
+    rgba(0, 0, 0, 0) 80deg 90deg
   );
   -webkit-mask: radial-gradient(circle, transparent 54%, #000 56%);
   mask: radial-gradient(circle, transparent 54%, #000 56%);
@@ -475,14 +474,7 @@ const CLOCK: Box = { x: CLOCK_X, y: CLOCK_Y, width: CLOCK_W, height: CLOCK_H };
   position: absolute;
   inset: 0;
   border-radius: 50%;
-  background: conic-gradient(
-    from -75deg,
-    rgba(140, 220, 30, 0) 0deg,
-    #a4e21a 30deg,
-    #a4e21a 75deg,
-    rgba(140, 220, 30, 0) 90deg,
-    rgba(0, 0, 0, 0) 360deg
-  );
+  background: conic-gradient(from -85deg, #a4e21a 0deg 80deg, rgba(0, 0, 0, 0) 80deg 360deg);
 }
 
 .tab-label {

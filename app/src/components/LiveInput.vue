@@ -6,7 +6,7 @@ import { LIVE_BOX, type LiveTarget } from "../preview/live";
 /**
  * One video element for the focused HDMI pane. It has no source until the hub
  * has stood still on a port with a signal, and loses it the moment anything
- * moves, so the TV builds no video pipeline during a transition. Any failure
+ * moves, so the TV builds no video pipeline and no layer during a transition. Any failure
  * leaves the pane's icon showing.
  */
 const props = defineProps<{ target: LiveTarget | null }>();
@@ -47,6 +47,7 @@ const box = {
     ref="video"
     class="live"
     :style="box"
+    :data-up="target !== null || undefined"
     :data-on="playing || undefined"
     muted
     playsinline
@@ -58,10 +59,15 @@ const box = {
 
 <style scoped>
 .live {
+  display: none;
   position: absolute;
   background: #000;
   opacity: 0.001;
   pointer-events: none;
+}
+
+.live[data-up] {
+  display: block;
 }
 
 .live[data-on] {

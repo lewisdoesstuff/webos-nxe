@@ -16,8 +16,15 @@ interface ServiceHandle {
 
 const Service = require("webos-service") as new (id: string) => ServiceHandle;
 
+/**
+ * The service runs in its own jail, whose root is writable and whose /var is not, so this path is inside the service's sandbox and
+ * nowhere else on the TV. It is fixed rather than built from `__dirname`, which the
+ * bundler turns into the build machine's source path.
+ */
+const JAIL_DATA = "/nxe-steam";
+
 const service = new Service("ooo.lew.nxe.steam");
-const backend = createLiveBackend(process.env["NXE_STEAM_DIR"] ?? "/media/developer/nxe");
+const backend = createLiveBackend(process.env["NXE_STEAM_DIR"] ?? JAIL_DATA);
 
 for (const method of STEAM_METHODS) {
   service.register(method, (message) => {

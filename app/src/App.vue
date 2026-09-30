@@ -19,7 +19,7 @@ import SettingsLayer from "./components/SettingsLayer.vue";
 import ToastLayer from "./components/ToastLayer.vue";
 import { deviceSeed } from "./deviceSeed";
 import { stepFocus } from "./focus/row";
-import { BLADE_COUNT, BLADE_IDS } from "./guide";
+import { BLADE_COUNT, BLADE_IDS, DIM_OUT_MS } from "./guide";
 import {
   avatarPlace,
   BULLET_SIZE,
@@ -80,6 +80,7 @@ import {
 import { PAGE_COUNTER_X, PAGE_COUNTER_Y } from "./pageRow";
 import {
   counterText as pageCounterText,
+  DRILL_MS,
   type PageFocus,
   type PageStack,
   pop,
@@ -93,6 +94,7 @@ import {
   top,
 } from "./pages";
 import { paneArt, type PaneItem } from "./panel";
+import { PARK_WARM_MS, PARKED, useParked } from "./parked";
 import { liveTarget, nameInputs } from "./preview/live";
 import { CANVAS_H, CANVAS_W } from "./ribbon";
 import { ringImage, ripplePattern } from "./ripples";
@@ -1140,6 +1142,25 @@ const frameStyle = {
   height: `${CANVAS_H}px`,
 };
 
+/**
+ * A closed Guide and friend card wait off the frame, so the compositor stops
+ * drawing their resting layers. Off the frame they are never rastered, so they
+ * sit on it for a moment after the boot, long enough to paint once.
+ */
+const warming = ref(true);
+watch(
+  booting,
+  (busy) => {
+    if (!busy) setTimeout(() => (warming.value = false), PARK_WARM_MS);
+  },
+  { immediate: true },
+);
+const guideAway = useParked(() => guide.value, DIM_OUT_MS);
+const friendAway = useParked(() => friendCard.value !== null, DRILL_MS);
+const guideParked = computed(() => guideAway.value && !warming.value);
+const friendParked = computed(() => friendAway.value && !warming.value);
+const parkedFrame = { transform: `${PARKED} scale(1.5)` };
+
 const settingsRestBox = {
   x: PANE_X / 1.5,
   y: PANE_Y / 1.5,
@@ -1522,11 +1543,11 @@ function expose(): void {
       />
     </div>
 
-    <div class="frame" data-friend :style="frameStyle">
+    <div class="frame" data-friend :style="[frameStyle, friendParked ? parkedFrame : null]">
       <FriendCardLayer :card="friendCard" :focus="settingsFocus.item" :open="friendCard !== null" />
     </div>
 
-    <div class="frame" data-guide :style="frameStyle">
+    <div class="frame" data-guide :style="[frameStyle, guideParked ? parkedFrame : null]">
       <GuideOverlay
         :open="guide"
         :blade="guideBlade"

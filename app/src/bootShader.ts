@@ -156,7 +156,9 @@ vec3 shell(vec3 n, float px) {
   float hatch = noise(vec2(along * 240.0, wallF * 1.7));
   float nearPole = exp(-theta * theta / 0.25);
 
-  vec3 wallC = mix(cWall, cFloor, 0.6) * (0.85 + 0.3 * hatch) * mix(0.8, 1.0, wallF);
+  vec3 wallOld = cWall * 1.35 * (0.6 + 0.8 * hatch) * mix(0.7, 1.0, wallF);
+  vec3 wallNew = mix(cWall, cFloor, 0.6) * (0.85 + 0.3 * hatch) * mix(0.8, 1.0, wallF);
+  vec3 wallC = mix(wallOld, wallNew, 1.0 - smoothstep(226.0, 232.0, uExtra.w));
   vec3 cream = cCore * vec3(0.97, 0.98, 0.75);
   float side = clamp((u + w) / (2.0 * w + 1e-4), 0.0, 1.0);
   vec3 floorC = mix(cFloor * 0.75, cFloor, smoothstep(0.0, 0.15, side));

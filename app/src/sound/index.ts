@@ -11,32 +11,55 @@
  * reason in `status()`, never in a broken menu.
  */
 
+import backUrl from "../assets/sounds/back.ogg";
+import blade1Url from "../assets/sounds/blade-1.ogg";
+import blade2Url from "../assets/sounds/blade-2.ogg";
+import blade3Url from "../assets/sounds/blade-3.ogg";
 import bootUrl from "../assets/sounds/boot.ogg";
-import cancelUrl from "../assets/sounds/cancel.ogg";
-import categoryUrl from "../assets/sounds/category.ogg";
-import cursorUrl from "../assets/sounds/cursor.ogg";
-import decideUrl from "../assets/sounds/decide.ogg";
+import channelDownUrl from "../assets/sounds/channel-down.ogg";
+import channelUpUrl from "../assets/sounds/channel-up.ogg";
+import focusUrl from "../assets/sounds/focus.ogg";
+import hudCloseUrl from "../assets/sounds/hud-close.ogg";
+import hudFocusUrl from "../assets/sounds/hud-focus.ogg";
+import hudOpenUrl from "../assets/sounds/hud-open.ogg";
+import hudSelectUrl from "../assets/sounds/hud-select.ogg";
 import optionUrl from "../assets/sounds/option.ogg";
+import panelLeftUrl from "../assets/sounds/panel-left.ogg";
+import panelRightUrl from "../assets/sounds/panel-right.ogg";
+import selectUrl from "../assets/sounds/select.ogg";
 import toastUrl from "../assets/sounds/toast.ogg";
+import transitionUrl from "../assets/sounds/transition.ogg";
 import { SETTINGS_DEFAULTS, type Settings } from "../settings";
 import { useSettingsStore } from "../stores/settings";
 import { createBootSound } from "./bootSound";
+import { BLADE_CYCLE, type Sound } from "./cues";
 import { createSoundEngine } from "./engine";
 import { createMusicPlayer } from "./music";
 import type { SoundStatus } from "./status";
 import { createToastSound } from "./toastSound";
-import type { SoundName } from "./voices";
 
 export { MENU_SOUND_COUNT, SOUND_NAMES, type SoundName } from "./voices";
+export type { Sound } from "./cues";
 export { describeStatus, type MusicState, type SoundStatus } from "./status";
 
 const engine = createSoundEngine({
   files: {
-    cursor: cursorUrl,
-    category: categoryUrl,
-    decide: decideUrl,
     option: optionUrl,
-    cancel: cancelUrl,
+    panelLeft: panelLeftUrl,
+    panelRight: panelRightUrl,
+    channelUp: channelUpUrl,
+    channelDown: channelDownUrl,
+    select: selectUrl,
+    back: backUrl,
+    focus: focusUrl,
+    transition: transitionUrl,
+    hudOpen: hudOpenUrl,
+    hudClose: hudCloseUrl,
+    hudFocus: hudFocusUrl,
+    hudSelect: hudSelectUrl,
+    blade1: blade1Url,
+    blade2: blade2Url,
+    blade3: blade3Url,
   },
 });
 const music = createMusicPlayer();
@@ -78,9 +101,18 @@ function stored(): Settings {
  * A menu blip. Silent when `navSound` is off, so with it off no audio
  * context is ever created.
  */
-export function playSound(name: SoundName): void {
+export function playSound(name: Sound): void {
   if (!stored().navSound) return;
   engine.play(name);
+}
+
+let bladeStep = 0;
+
+/** The Guide's blade switch, the next clip of its cycle. */
+export function playBladeSound(): void {
+  const cue = BLADE_CYCLE[bladeStep % BLADE_CYCLE.length] ?? "blade2";
+  bladeStep++;
+  playSound(cue);
 }
 
 /** The toast cue, silent with `navSound` off. */

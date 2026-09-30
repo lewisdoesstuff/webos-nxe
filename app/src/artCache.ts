@@ -23,7 +23,7 @@ import { css, edgeColor, faceStops } from "./tileColor";
  */
 
 /** Bumped whenever what a bake draws changes, so older stored bakes are ignored. */
-const BAKE_VERSION = 3;
+const BAKE_VERSION = 4;
 const FLOOR_KEY = "floor-face";
 
 /** The size the hub shows art at, in CSS px, which is what this TV rasters at. */
@@ -49,14 +49,16 @@ const PATCH = {
 } as const;
 
 const FACE_STOPS: readonly [number, string][] = [
-  [0, "#d2dd1c"],
-  [0.25, "#c0d818"],
-  [0.53, "#9fc905"],
-  [0.71, "#75aa01"],
-  [0.8, "#628a08"],
-  [0.9, "#3e5e08"],
-  [0.97, "#1e3402"],
-  [1, "#182d01"],
+  [0, "#a4c928"],
+  [0.22, "#a3c81d"],
+  [0.33, "#a0c716"],
+  [0.43, "#9ac410"],
+  [0.56, "#90c00b"],
+  [0.68, "#7caf06"],
+  [0.81, "#4f7505"],
+  [0.89, "#344f05"],
+  [0.95, "#213405"],
+  [1, "#17250a"],
 ];
 
 interface Baked {

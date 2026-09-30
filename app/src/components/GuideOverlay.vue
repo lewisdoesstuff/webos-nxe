@@ -1,8 +1,9 @@
 <script setup lang="ts" vapor>
-import { computed, ref, watch } from "vue";
+import { computed, onUnmounted, ref, watch } from "vue";
 
 import {
   BLADE_IDS,
+  BLADE_MS,
   CHROME,
   CHEVRON_BOX,
   CLOCK_FONT,
@@ -21,6 +22,7 @@ import {
   ITEM_ROWS,
   ITEM_X,
   ITEMS,
+  LIST_OUT_MS,
   OPEN_MS,
   OPEN_RISE,
   PANEL_H,
@@ -31,8 +33,8 @@ import {
   PICPIC_W,
   PICPIC_X,
   PICPIC_Y,
+  placeBlades,
   placeItems,
-  placeSlabs,
   PROMPT_FONT,
   PROMPT_H,
   promptDisc,
@@ -41,7 +43,6 @@ import {
   SELECT_MS,
   SLAB_H,
   SLAB_LABEL_FONT,
-  SLAB_STAGGER_MS,
   SLAB_W,
   SPINNER_D,
   TAB_LABEL_FONT,
@@ -145,11 +146,84 @@ const prompts = guidePrompts();
 const blade = computed(() => Math.min(Math.max(props.blade, 0), bladeIds.length - 1));
 const item = computed(() => Math.min(Math.max(props.item, 0), ITEM_ROWS - 1));
 
-/** The slab stack, cut from the same ring the focused blade's tab label is on. */
-const slabs = computed(() => placeSlabs(blade.value, bladeIds));
+/**
+ * Every blade's slab, the focused one parked under the panel just inside the
+ * edge it came in by, so it slides straight under and back out.
+ *
+ * Leaving by the other edge it would cross the whole panel and come out late,
+ * so it is first moved under the panel to that edge with no transition, which
+ * cannot be seen, and slides out from there a frame later.
+ */
+type Edge = "left" | "right";
+const slabs = ref(placeBlades(blade.value, bladeIds));
+const park = ref(new Map<number, Edge>());
+const jumping = ref<number | null>(null);
+let jumpFrame = 0;
+
+watch(blade, (next, before) => {
+  cancelAnimationFrame(jumpFrame);
+  jumping.value = null;
+  const target = placeBlades(next, bladeIds);
+  const leaving = target[before];
+  const parked = park.value.get(before) ?? "left";
+  const edges = new Map(park.value);
+  edges.set(next, next < before ? "left" : "right");
+  if (leaving && leaving.side !== "under" && leaving.side !== parked) {
+    edges.set(before, leaving.side);
+    park.value = edges;
+    jumping.value = before;
+    jumpFrame = requestAnimationFrame(() => {
+      jumpFrame = requestAnimationFrame(() => {
+        jumping.value = null;
+        slabs.value = target;
+      });
+    });
+    return;
+  }
+  park.value = edges;
+  slabs.value = target;
+});
+
+/**
+ * What the panel shows. A blade change fades the list out while the stacks
+ * slide, swaps it while it cannot be seen, and fades the new one in, so the
+ * list and the tab label lag the blade by `LIST_OUT_MS`. Opening the Guide
+ * takes the blade as it is.
+ */
+const shownBlade = ref(blade.value);
+const shownItems = ref<readonly string[] | undefined>(props.items);
+const fading = ref(false);
+let swap: ReturnType<typeof setTimeout> | undefined;
+
+watch(blade, (next) => {
+  clearTimeout(swap);
+  if (!props.open) {
+    shownBlade.value = next;
+    shownItems.value = props.items;
+    return;
+  }
+  fading.value = true;
+  swap = setTimeout(() => {
+    shownBlade.value = blade.value;
+    shownItems.value = props.items;
+    fading.value = false;
+  }, LIST_OUT_MS);
+});
+
+watch(
+  () => props.items,
+  (items) => {
+    if (!fading.value) shownItems.value = items;
+  },
+);
+
+onUnmounted(() => {
+  clearTimeout(swap);
+  cancelAnimationFrame(jumpFrame);
+});
 
 const rows = computed(() =>
-  placeItems(props.items ?? ITEMS[bladeIds[blade.value] ?? ""] ?? [], item.value),
+  placeItems(shownItems.value ?? ITEMS[bladeIds[shownBlade.value] ?? ""] ?? [], item.value),
 );
 
 /** Every constant the stylesheet needs, so the two cannot drift apart. */
@@ -162,7 +236,9 @@ const rootStyle: Record<string, string> = {
   "--chrome-h": `${CHROME.height}px`,
   "--open-ms": `${OPEN_MS}ms`,
   "--select-ms": `${SELECT_MS}ms`,
-  "--stagger-ms": `${SLAB_STAGGER_MS}ms`,
+  "--blade-ms": `${BLADE_MS}ms`,
+  "--list-out-ms": `${LIST_OUT_MS}ms`,
+  "--list-in-ms": `${BLADE_MS - LIST_OUT_MS}ms`,
   "--rise": `${OPEN_RISE}px`,
   "--dim": `${DIM_ALPHA}`,
   "--panel-w": `${PANEL_W}px`,
@@ -204,16 +280,28 @@ function itemStyle(row: ItemRow): Record<string, string> {
 }
 
 /**
- * A slab, written at the panel's height and scaled about its own mid-height, so
- * the recession is a transform on a box that does not change. The tilt hinges it
- * away from the panel, and `perspective` on the parent is what makes that read
- * as 3D rather than as a squash.
+ * A slab, written at the tab's place under the panel and moved to its slot by a
+ * transform, so a blade change is five transform writes on boxes that already
+ * exist. It scales about the edge that faces the panel and about its own
+ * mid-height; the origin stays at the left edge, so the move and the scale
+ * interpolate as one.
  */
 function slabStyle(slab: Slab): Record<string, string> {
+  const edge = park.value.get(slab.d) ?? "left";
+  const under = slab.side === "under";
+  const shift = under
+    ? edge === "right"
+      ? PANEL_X + PANEL_W - SLAB_W
+      : PANEL_X
+    : slab.side === "right"
+      ? slab.x
+      : slab.x + SLAB_W * (1 - slab.scale);
+  const scale = under ? 1 : slab.scale;
   return {
-    ...at(slabOrigin(slab)),
-    transform: `scale(${slab.scale})`,
-    transitionDelay: `${slab.d * SLAB_STAGGER_MS}ms`,
+    ...at(slabOrigin({ ...slab, x: PANEL_X })),
+    transform: `translate3d(${shift - PANEL_X}px, 0, 0) scale(${scale})`,
+    transition: jumping.value === slab.d ? "none" : "",
+    zIndex: String(under ? 0 : 10 - slab.slot),
   };
 }
 
@@ -272,7 +360,7 @@ const CLOCK: Box = { x: CLOCK_X, y: CLOCK_Y, width: CLOCK_W, height: CLOCK_H };
           :key="slab.d"
           class="slab"
           :data-blade="slab.id"
-          :data-offset="slab.d"
+          :data-side="slab.side"
           :style="slabStyle(slab)"
         >
           <span class="slab-label" :style="slabLabelStyle(slab)">{{ title(slab.id) }}</span>
@@ -282,19 +370,23 @@ const CLOCK: Box = { x: CLOCK_X, y: CLOCK_Y, width: CLOCK_W, height: CLOCK_H };
       <div class="panel" :style="at(PANEL)" />
       <div class="tab" :style="at(TAB)" />
       <span class="spinner" :style="at(spinnerBox())" />
-      <span class="tab-label" :style="at(tabLabelBox())">{{ title(bladeIds[blade] ?? "") }}</span>
 
-      <div class="bar" :style="barStyle()" />
-      <div
-        v-for="row in rows"
-        :key="row.d"
-        class="item"
-        :data-item="row.label || undefined"
-        :style="itemStyle(row)"
-      >
-        {{ row.label }}
+      <div class="sheet" :data-fading="fading || undefined">
+        <span class="tab-label" :style="at(tabLabelBox())">{{
+          title(bladeIds[shownBlade] ?? "")
+        }}</span>
+        <div class="bar" :style="barStyle()" />
+        <div
+          v-for="row in rows"
+          :key="row.d"
+          class="item"
+          :data-item="row.label || undefined"
+          :style="itemStyle(row)"
+        >
+          {{ row.label }}
+        </div>
+        <span class="chevron" :style="at(CHEVRON_BOX)" />
       </div>
-      <span class="chevron" :style="at(CHEVRON_BOX)" />
 
       <div
         v-for="(prompt, i) in prompts"
@@ -392,16 +484,22 @@ const CLOCK: Box = { x: CLOCK_X, y: CLOCK_Y, width: CLOCK_W, height: CLOCK_H };
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
 }
 
-/* The other blades, receding right. The perspective belongs here so the tilt on
-   each slab reads as a hinge away from the panel and not as a squash. */
+/* The other blades, stacked either side of the panel. A stacking context of
+   its own, so no slab's z-index lifts it over the panel it slides under. */
 .slabs {
   position: absolute;
   inset: 0;
+  z-index: 0;
 }
 
+/*
+ * A slab, sampled off the 1080p capture: pale blue-grey, lightest toward its
+ * outer edge and shading down toward the panel, with a dark seam where it
+ * meets the slab behind it. Its outer edge bows in, narrowest halfway down.
+ */
 .slab {
   position: absolute;
-  transform-origin: 100% 50%;
+  transform-origin: 0 50%;
   border-radius: 10px 3px 0 0;
   clip-path: polygon(
     0 0,
@@ -416,22 +514,63 @@ const CLOCK: Box = { x: CLOCK_X, y: CLOCK_Y, width: CLOCK_W, height: CLOCK_H };
     3.5% 20%,
     1% 8%
   );
-  background: linear-gradient(90deg, #cbd6da 0%, #e2ebee 45%, #f1f6f8 100%);
+  background:
+    linear-gradient(
+      180deg,
+      rgba(210, 222, 234, 0.35) 0%,
+      rgba(210, 222, 234, 0) 30%,
+      rgba(0, 0, 0, 0) 75%,
+      rgba(200, 216, 228, 0.3) 100%
+    ),
+    linear-gradient(
+      90deg,
+      #80868e 0%,
+      #c3cbd3 5%,
+      #c6cdd5 35%,
+      #b4bcc3 52%,
+      #a6aeb5 66%,
+      #8d949b 76%,
+      #6f777f 100%
+    );
   box-shadow: -3px 0 8px rgba(0, 0, 0, 0.5);
   will-change: transform;
-  transition: transform var(--open-ms) cubic-bezier(0.215, 0.61, 0.355, 1);
+  transition: transform var(--blade-ms) cubic-bezier(0.215, 0.61, 0.355, 1);
 }
 
-.slab[data-offset="0"] {
-  z-index: 4;
-}
-
-.slab[data-offset="1"] {
-  z-index: 3;
-}
-
-.slab[data-offset="2"] {
-  z-index: 2;
+.slab[data-side="right"] {
+  border-radius: 3px 10px 0 0;
+  clip-path: polygon(
+    0 0,
+    100% 0,
+    99% 8%,
+    96.5% 20%,
+    94% 34%,
+    92% 50%,
+    94% 66%,
+    96.5% 80%,
+    99% 92%,
+    100% 100%,
+    0 100%
+  );
+  background:
+    linear-gradient(
+      180deg,
+      rgba(210, 222, 234, 0.35) 0%,
+      rgba(210, 222, 234, 0) 30%,
+      rgba(0, 0, 0, 0) 75%,
+      rgba(200, 216, 228, 0.3) 100%
+    ),
+    linear-gradient(
+      270deg,
+      #80868e 0%,
+      #c3cbd3 5%,
+      #c6cdd5 35%,
+      #b4bcc3 52%,
+      #a6aeb5 66%,
+      #8d949b 76%,
+      #6f777f 100%
+    );
+  box-shadow: 3px 0 8px rgba(0, 0, 0, 0.5);
 }
 
 .slab-label {
@@ -439,7 +578,7 @@ const CLOCK: Box = { x: CLOCK_X, y: CLOCK_Y, width: CLOCK_W, height: CLOCK_H };
   text-align: center;
   transform: rotate(90deg);
   transform-origin: 0 0;
-  color: #1c2226;
+  color: #383a42;
   font-size: var(--slab-font);
   font-weight: 400;
   letter-spacing: 0.6px;
@@ -494,6 +633,28 @@ const CLOCK: Box = { x: CLOCK_X, y: CLOCK_Y, width: CLOCK_W, height: CLOCK_H };
   inset: 0;
   border-radius: 50%;
   background: conic-gradient(from -85deg, #a4e21a 0deg 80deg, rgba(0, 0, 0, 0) 80deg 360deg);
+}
+
+/*
+ * The list, the bar and the tab's label, which a blade change fades out and
+ * back in while the stacks slide. Promoted at rest so the fade is an opacity
+ * on a layer that exists before the key press.
+ */
+.sheet {
+  position: absolute;
+  inset: 0;
+  will-change: opacity;
+  transition: opacity var(--list-in-ms) linear;
+}
+
+.sheet[data-fading] {
+  opacity: 0.001;
+  transition-duration: var(--list-out-ms);
+}
+
+/* The bar goes first, before the text has begun to fade. */
+.sheet[data-fading] .bar {
+  opacity: 0.001;
 }
 
 .tab-label {
@@ -594,7 +755,8 @@ const CLOCK: Box = { x: CLOCK_X, y: CLOCK_Y, width: CLOCK_W, height: CLOCK_H };
   .dim,
   .chrome,
   .bar,
-  .slab {
+  .slab,
+  .sheet {
     transition: none;
   }
 }

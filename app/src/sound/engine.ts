@@ -13,12 +13,13 @@
  * `status()`. A context that could not be made is not retried on every keypress.
  */
 
+import { CUE_FALLBACK, CUE_NAMES, isCue, REPEATING, type Sound } from "./cues";
 import { SOUND_NAMES, SOUNDS, synthesise, type SoundName } from "./voices";
 
 /** How many blips may sound at once. The oldest is cut when a fifth starts. */
 const MAX_VOICES = 4;
 
-/** Cursor blips closer together than this are dropped, so a held key cannot machine-gun. */
+/** Repeating cues closer together than this are dropped, so a held key cannot machine-gun. */
 const CURSOR_MIN_GAP_MS = 40;
 
 /** Slack over a blip's own length before a voice is considered finished. */
@@ -34,7 +35,7 @@ export interface EngineStatus {
 }
 
 export interface SoundEngine {
-  play(name: SoundName): void;
+  play(name: Sound): void;
   /** Make the context and start decoding the clips, so the first key press finds them ready. */
   preload(): void;
   /** Resume a context that already exists. Makes none, so boot stays free. */
@@ -75,7 +76,7 @@ function silence(voice: Voice): void {
 
 export interface EngineOptions {
   /** Recorded clips that replace the synthesised blips once decoded. */
-  files?: Partial<Record<SoundName, string>>;
+  files?: Partial<Record<Sound, string>>;
   /** Fetch a clip's bytes. Defaults to XMLHttpRequest, which also reads `file://`. */
   load?: (url: string) => Promise<ArrayBuffer>;
 }
@@ -100,7 +101,7 @@ export function createSoundEngine(options: EngineOptions = {}): SoundEngine {
   const load = options.load ?? fetchBytes;
   let context: AudioContext | null = null;
   let master: GainNode | null = null;
-  let buffers: Partial<Record<SoundName, AudioBuffer>> = {};
+  let buffers: Partial<Record<Sound, AudioBuffer>> = {};
   let reason: string | null = null;
   let abandoned = false;
   let lastCursorAt = -CURSOR_MIN_GAP_MS;
@@ -108,7 +109,7 @@ export function createSoundEngine(options: EngineOptions = {}): SoundEngine {
 
   /** Decode each recorded clip over its synthesised fallback. A failed file keeps the fallback. */
   function loadFiles(ctx: AudioContext): void {
-    for (const name of SOUND_NAMES) {
+    for (const name of [...SOUND_NAMES, ...CUE_NAMES]) {
       const url = files[name];
       if (!url) continue;
       void load(url)
@@ -176,17 +177,17 @@ export function createSoundEngine(options: EngineOptions = {}): SoundEngine {
     }
   }
 
-  function play(name: SoundName): void {
+  function play(name: Sound): void {
     if (abandoned) return;
     const now = performance.now();
-    if (name === "cursor") {
+    if (REPEATING.has(name)) {
       if (now - lastCursorAt < CURSOR_MIN_GAP_MS) return;
       lastCursorAt = now;
     }
 
     const ctx = ensure();
     if (!ctx || !master) return;
-    const buffer = buffers[name];
+    const buffer = buffers[name] ?? (isCue(name) ? buffers[CUE_FALLBACK[name]] : undefined);
     if (!buffer) return;
 
     if (ctx.state === "suspended") {

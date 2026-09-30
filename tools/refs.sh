@@ -6,7 +6,7 @@ set -euo pipefail
 cd "$(dirname "$0")/../docs/refs" 2>/dev/null || { mkdir -p "$(dirname "$0")/../docs/refs"; cd "$(dirname "$0")/../docs/refs"; }
 mkdir -p video boot hub sheets
 
-for id in dkKAW_GXXZk nhf_OIt7ag0 3MbMvmY19SA; do
+for id in dkKAW_GXXZk nhf_OIt7ag0 3MbMvmY19SA LeLocNfgexM; do
   [ -f "video/$id.mkv" ] || yt-dlp -q --no-warnings -f "bv*+ba/b" --merge-output-format mkv \
     -o "video/$id.%(ext)s" "https://www.youtube.com/watch?v=$id"
 done
@@ -29,4 +29,11 @@ ffmpeg -loglevel error -y -i video/dkKAW_GXXZk.mkv \
   -vf "select='not(mod(n\,20))*lte(n\,380)',scale=384:216,tile=5x4" -fps_mode passthrough -frames:v 1 sheets/boot.png
 ffmpeg -loglevel error -y -i video/nhf_OIt7ag0.mkv -vf "fps=1/2,scale=320:180,tile=8x11" -frames:v 1 sheets/9199.png
 ffmpeg -loglevel error -y -i video/3MbMvmY19SA.mkv -vf "fps=1/10,scale=240:135,tile=10x13" -frames:v 1 sheets/walk.png
+mkdir -p guide sounds
+for t in 547.0 547.5 548.1 549.6; do
+  ffmpeg -loglevel error -y -ss "$t" -i video/LeLocNfgexM.mkv -frames:v 1 "guide/le-t$t.png"
+done
+ffmpeg -loglevel error -y -ss 350.5 -i video/LeLocNfgexM.mkv -frames:v 1 guide/le-hub-350.png
+[ -d sounds/xde ] || { curl -sL -A "Mozilla/5.0" -e https://sounds.spriters-resource.com/ \
+  "https://sounds.spriters-resource.com/media/assets/443/446150.zip" -o sounds/xde.zip && unzip -q -o sounds/xde.zip -d sounds/xde; }
 echo "refs rebuilt in $(pwd)"

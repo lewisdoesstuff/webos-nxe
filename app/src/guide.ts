@@ -254,15 +254,9 @@ export const ITEM_BAR_W = 473;
 export const CHEVRON_BOX: Box = { x: 900, y: 498, width: 10, height: 8 };
 
 /**
- * The blades, in the order Arbiter's Judgement walks them on 2008-11-16: the
- * Games Blade, then the Marketplace Blade, then the Home Blade, then the Media
- * Blade, then the Settings Blade to its right.
- *
- * UNVERIFIED, and the direction is the weak part. Section 3.7's measured frame
- * lists the other four blades as `Games`, `Player1`, `Media`, `Settings`, which is
- * the same four, but the frame's current blade is not named, so this ring's
- * reading direction is a composition. `Player1` is the Home Blade by the signed
- * in profile, which is the one substitution made.
+ * The blades, left to right. MEASURED off the 1080p capture: with Home focused
+ * the left stack reads Marketplace, Games and the right Media, Settings.
+ * `Player1` is the Home blade by the signed in profile, the one substitution.
  */
 export const BLADE_IDS = [
   "marketplace",
@@ -277,53 +271,58 @@ export const BLADE_COUNT = BLADE_IDS.length;
 /** The slabs, one per blade other than the focused one. VERIFIED as a count. */
 export const SLAB_COUNT = 4;
 
-/** The slab's own box, the panel's height, so the stack lines up with it. */
+/**
+ * The blades before the focused one stack on the panel's left, the ones after
+ * it on its right, and the panel never moves. MEASURED off the 1080p capture
+ * (`LeLocNfgexM`, 9:07 to 9:15) at every one of the five blades: on Games the
+ * left stack is Marketplace alone and the right Home, Media, Settings; on
+ * Settings all four are on the left.
+ *
+ * The slab's box, which the scale then shrinks, written at the panel's height.
+ * Wider than the pitch, so each slab runs under the one nearer the panel and
+ * the bowed outer edge of the nearer one shows slab behind it, not a gap.
+ */
 export const SLAB_W = 50;
 export const SLAB_H = PANEL_H;
 
-/** How far the nearest slab's right edge runs under the panel. */
-export const SLAB_TUCK = 2;
+/**
+ * The step from one slab to the next, outward from the panel. MEASURED: the
+ * left stack's edges at 1080p are 546, 486, 431, 374 and the right stack's
+ * 1377, 1434, 1491, 1545, so about 56 either way.
+ */
+export const SLAB_PITCH = 37;
+
+/** The nearest slab runs up to the panel's edge with no gap. MEASURED, to a pixel at 1080p. */
+export const SLAB_TUCK = 0;
 
 /**
- * The recession ramp, all UNVERIFIED.
- *
- * Section 3.7 says the slabs are "thin white slabs, labels rotated 90 degrees,
- * in 3D recession" and "a Rolodex, not a fanned deck", and measures none of it.
- * The scale is the hub's own ramp shape (NXE-XUI.md section 1 measures -0.03 per
- * step, 0.96 to 0.87) rescaled to 0.92 so the first slab is still readable, and
- * the gaps continue to compress the way 27, 26, 24 do. The tilt is what makes it
- * 3D rather than merely small.
+ * The recession ramp, MEASURED as heights: 453, 439, 425 and 411px at 1080p
+ * against the panel's 472, each step 7px off the top and the bottom, so the
+ * slabs are centred on the panel's mid-height.
  */
-export const SLAB_SCALE = [0.95, 0.92, 0.89, 0.86] as const;
-export const SLAB_STEP = [38, 38, 38, 38] as const;
-export const SLAB_TILT = [0, 0, 0, 0] as const;
+export const SLAB_SCALE = [0.96, 0.93, 0.9, 0.87] as const;
 
-/**
- * The slabs' pivot, the panel's own mid-height, the same reason the hub's is
- * 117.5. DERIVED from the measured pivot in NXE-XUI.md section 1.
- */
+/** The slabs' pivot, the panel's own mid-height. */
 export const SLAB_PIVOT_Y = SLAB_H / 2;
 
 /**
- * Where a slab's label starts inside the slab, turned 90 degrees the same way the
- * tab's is, so every rotated label in the Guide reads the same way down.
- *
- * UNVERIFIED, and an offset inside the slab rather than a canvas position
- * because the label is its child and has to scale with it. The x centres the
- * turned text in the slab's width.
+ * Where a slab's label sits, turned 90 degrees the same way the tab's is, so
+ * every rotated label in the Guide reads the same way down. Its line is centred
+ * 20px in from the slab's outer edge, MEASURED at 1080p (30 of the 54px that
+ * show), so it sits in the part of the slab the nearer one does not cover.
  */
-export const SLAB_LABEL_X = SLAB_W - 22 + ROTATED_LINE / 2;
+export const SLAB_LABEL_INSET = 20;
+export const SLAB_LABEL_X = SLAB_LABEL_INSET + ROTATED_LINE / 2;
 export const SLAB_LABEL_Y = 0;
 export const SLAB_LABEL_FONT = 20;
 export const SLAB_LABEL_RUN = SLAB_H;
 
 /**
- * How dark the hub behind is. UNVERIFIED as a number: the section says the hub
- * is "still visible behind, darkened almost to black" and no frame was sampled
- * for it. One flat plane rather than a gradient, because a plane is one layer
+ * How dark the hub behind is. MEASURED off the 1080p capture, the same points
+ * before and after the Guide opens: the hub keeps 8 to 15% of its brightness. One flat plane rather than a gradient, because a plane is one layer
  * either way and a full-frame one is the most expensive element in the app.
  */
-export const DIM_ALPHA = 0.97;
+export const DIM_ALPHA = 0.88;
 
 /**
  * The open. DERIVED, and not from section 3.7.
@@ -338,9 +337,16 @@ export const DIM_ALPHA = 0.97;
 export const OPEN_MS = 300;
 export const OPEN_RISE = 14;
 
-/** A channel or item change, and the per-slab cascade. Both UNVERIFIED. */
+/** An item change. UNVERIFIED. */
 export const SELECT_MS = 260;
-export const SLAB_STAGGER_MS = 30;
+
+/**
+ * A blade change, MEASURED at 60fps. The stacks slide one pitch in about 170ms,
+ * easing out; the list fades out over the first 100ms and the new one is in by
+ * 170.
+ */
+export const BLADE_MS = 170;
+export const LIST_OUT_MS = 100;
 
 /**
  * The Guide's prompt row: all four buttons at once, `A` Select, `B` Back,
@@ -395,23 +401,19 @@ export function promptCellW(index: number): number {
   return next === undefined ? PROMPT_LAST_W : next - (PROMPT_XS[index] ?? PROMPT_X);
 }
 
+export type SlabSide = "left" | "right" | "under";
+
 export interface Slab {
-  /** Step out from the panel, 0 being the slab against its right edge. */
+  /** The blade's index in the ring, which is also its element's key. */
   d: number;
   id: string;
+  side: SlabSide;
+  /** Steps out from the panel on its side, 0 the nearest. 0 under the panel. */
+  slot: number;
+  /** The authored box's left edge. */
   x: number;
   scale: number;
-  /** Degrees off the panel's plane, hinging away to the right. */
-  tilt: number;
 }
-
-/**
- * A tuple of a ramp's length. Mapping over a type parameter is what keeps the
- * result a tuple instead of an object with a `length` of `Slab` in it.
- */
-type PerSlot<T extends readonly number[]> = { readonly [K in keyof T]: Slab };
-
-export type Slabs = PerSlot<typeof SLAB_STEP>;
 
 export interface Channel {
   /** Index in the list, 0 being the topmost channel. */
@@ -440,62 +442,47 @@ function wrap(value: number, count: number): number {
 }
 
 /**
- * One slab, always. A result whose count moved with the focus would create a
- * slab element inside the key press, and the compositor would allocate a layer
- * for it.
+ * Every blade's slab, in ring order, whichever is focused. The focused one is
+ * parked under the panel's left edge, where the tab is, so it slides out of the
+ * panel on the side it leaves by and back under it on the side it comes in by.
+ * A blade change moves these boxes and creates none, which is what the gate
+ * needs, and the transform's transition is the slide.
  */
-export function slabRow(d: number, id: string): Slab {
+export function placeBlades(focus: number, bladeIds: readonly string[]): Slab[] {
+  const at = Math.min(Math.max(focus, 0), Math.max(bladeIds.length - 1, 0));
+  return bladeIds.map((id, d) => {
+    const side: SlabSide = d < at ? "left" : d > at ? "right" : "under";
+    const slot = side === "left" ? at - 1 - d : side === "right" ? d - at - 1 : 0;
+    const x =
+      side === "left"
+        ? PANEL_X - SLAB_TUCK - slot * SLAB_PITCH - SLAB_W
+        : side === "right"
+          ? PANEL_X + PANEL_W + SLAB_TUCK + slot * SLAB_PITCH
+          : PANEL_X;
+    return { d, id, side, slot, x, scale: side === "under" ? 1 : ramp(SLAB_SCALE, slot) };
+  });
+}
+
+/** The outer edges of both stacks at their widest, which the chrome box has to clear. */
+export function stackBounds(): { left: number; right: number } {
+  const last = SLAB_COUNT - 1;
   return {
-    d,
-    id,
-    x: 0,
-    scale: ramp(SLAB_SCALE, d),
-    tilt: ramp(SLAB_TILT, d),
+    left: PANEL_X - SLAB_TUCK - last * SLAB_PITCH - SLAB_W,
+    right: PANEL_X + PANEL_W + SLAB_TUCK + last * SLAB_PITCH + SLAB_W,
   };
 }
 
 /**
- * Every slab of the stack, one pass rightward from the panel.
- *
- * Each slab sits at the previous one's scaled right edge plus the gap at its own
- * slot, so the ramp is a gap and not a pitch, the same composition the hub's
- * ribbon makes of its own measured deltas. Geometry does not depend on the
- * focus: a blade change relabels the slabs and changes nothing else, so the
- * boxes on screen are the same before and after it.
- */
-export function placeSlabs(focus: number, bladeIds: readonly string[]): Slabs {
-  let edge = PANEL_X + SLAB_TUCK;
-  const at = (d: number): Slab => {
-    const slab = slabRow(d, bladeIds[wrap(focus - 1 - d, bladeIds.length)] ?? "");
-    slab.x = (d === 0 ? edge : edge - ramp(SLAB_STEP, d)) - SLAB_W;
-    edge = slab.x + SLAB_W;
-    return slab;
-  };
-  return [at(0), at(1), at(2), at(3)];
-}
-
-/** The right edge of the last slab, which the chrome box has to clear. */
-export function slabRight(slabs: Slabs): number {
-  const last = slabs[slabs.length - 1];
-  return last === undefined ? PANEL_X : last.x;
-}
-
-/**
- * The box a slab occupies once its transform is applied.
- *
- * The scale is about `SLAB_PIVOT_Y` and the tilt is about the slab's left edge,
- * so the width is what the orthographic projection leaves and a `perspective` on
- * the parent narrows it further. The figure is an upper bound on the drawn
- * width, which is what the bounds check wants, and it is still wider than the
- * gap the next slab steps by, so the stack cannot overlap.
+ * The box a slab occupies once its transform is applied. It scales about the
+ * edge that faces the panel and about `SLAB_PIVOT_Y`.
  */
 export function slabBox(slab: Slab): Box {
-  const scale = slab.scale;
+  const width = SLAB_W * slab.scale;
   return {
-    x: slab.x + SLAB_W * (1 - scale * Math.cos((slab.tilt * Math.PI) / 180)),
-    y: PANEL_Y + (SLAB_H * (1 - scale)) / 2,
-    width: SLAB_W * scale * Math.cos((slab.tilt * Math.PI) / 180),
-    height: SLAB_H * scale,
+    x: slab.side === "right" ? slab.x : slab.x + SLAB_W - width,
+    y: PANEL_Y + SLAB_PIVOT_Y * (1 - slab.scale),
+    width,
+    height: SLAB_H * slab.scale,
   };
 }
 
@@ -508,10 +495,12 @@ export function slabOrigin(slab: Slab): Box {
   return { x: slab.x, y: PANEL_Y, width: SLAB_W, height: SLAB_H };
 }
 
-/** A slab's rotated label, a child of the slab, so it scales and tilts with it. */
+/** A slab's rotated label, a child of the slab, so it scales and slides with it. */
 export function slabLabelBox(slab: Slab): Box {
   return {
-    x: slab.x + SLAB_LABEL_X,
+    x:
+      slab.x +
+      (slab.side === "right" ? SLAB_W - SLAB_LABEL_INSET + ROTATED_LINE / 2 : SLAB_LABEL_X),
     y: PANEL_Y + SLAB_LABEL_Y,
     width: SLAB_LABEL_RUN,
     height: ROTATED_LINE,
@@ -641,7 +630,7 @@ export function promptLabel(index: number): Box {
   };
 }
 
-const SLAB_END = slabRight(placeSlabs(0, BLADE_IDS));
+const STACKS = stackBounds();
 
 /** The top of the channel ramp, which is the top of the Guide's own chrome. */
 const CHROME_TOP = PICPIC_Y;
@@ -665,8 +654,8 @@ const CHROME_PAD_BOTTOM = 24;
  *
  * The chrome is a single layer, so it has to cover everything it draws or the
  * compositor clips it. Its bounds are the union of the channel ramp at the top,
- * the prompt band at the bottom, the panel's left edge and the slab stack's
- * right edge, padded. DERIVED from the boxes above and computed rather than
+ * the prompt band at the bottom and the two slab stacks at their widest,
+ * padded. DERIVED from the boxes above and computed rather than
  * written out, so a constant cannot move without the layer following it.
  *
  * A transition that promoted the individual rows instead would be a dozen layers,
@@ -675,9 +664,9 @@ const CHROME_PAD_BOTTOM = 24;
  * is one layer fewer to keep in step.
  */
 export const CHROME: Box = {
-  x: SLAB_END - CHROME_PAD_X,
+  x: STACKS.left - CHROME_PAD_X,
   y: CHROME_TOP - CHROME_PAD_TOP,
-  width: PANEL_RIGHT - SLAB_END + 2 * CHROME_PAD_X,
+  width: STACKS.right - STACKS.left + 2 * CHROME_PAD_X,
   height: CHROME_BOTTOM - CHROME_TOP + CHROME_PAD_TOP + CHROME_PAD_BOTTOM,
 };
 

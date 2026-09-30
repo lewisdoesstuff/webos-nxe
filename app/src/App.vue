@@ -106,7 +106,7 @@ import {
   settingsRoot,
   type SettingDetail,
 } from "./settingsScreen";
-import { playSound, playToastSound } from "./sound";
+import { playBladeSound, playSound, playToastSound, type Sound } from "./sound";
 import { useAppsStore } from "./stores/apps";
 import { useInputsStore } from "./stores/inputs";
 import { useSettingsStore } from "./stores/settings";
@@ -377,7 +377,7 @@ function stepMove(direction: -1 | 1): void {
     if (element !== undefined) moved.set(index, element);
   });
   pins.value = moved;
-  playSound("cursor");
+  playSound(direction === 1 ? "panelRight" : "panelLeft");
 }
 
 function endMove(keep: boolean): void {
@@ -385,7 +385,7 @@ function endMove(keep: boolean): void {
   if (held === null) return;
   if (keep) {
     settings.persist();
-    playSound("decide");
+    playSound("select");
   } else {
     const row = rows.value[held.channel] ?? [];
     const id = row[hub.value.item]?.id;
@@ -397,7 +397,7 @@ function endMove(keep: boolean): void {
     );
     hub.value = { channel: held.channel, item };
     shown.value = hub.value;
-    playSound("cancel");
+    playSound("back");
   }
   moving.value = null;
 }
@@ -460,21 +460,24 @@ const guideItems = computed(() => guideRows.value.map((row) => row.title));
 function onGuideKey(event: KeyboardEvent): boolean {
   const code = event.keyCode;
   if (code === 37 || code === 39) {
-    guideBlade.value = (guideBlade.value + (code === 39 ? 1 : -1) + BLADE_COUNT) % BLADE_COUNT;
+    // The blades stop at either end rather than wrap: the stacks are the ring laid flat.
+    const next = Math.min(Math.max(guideBlade.value + (code === 39 ? 1 : -1), 0), BLADE_COUNT - 1);
+    if (next === guideBlade.value) return true;
+    guideBlade.value = next;
     guideItem.value = 0;
-    playSound("cursor");
+    playBladeSound();
     return true;
   }
   if (code === 38 || code === 40) {
     guideItem.value = stepFocus(guideItem.value, code === 40 ? 1 : -1, guideRows.value.length);
-    playSound("cursor");
+    playSound("hudFocus");
     return true;
   }
   if (code === 13 || code === 404) {
     const row = guideRows.value[guideItem.value];
     if (!row) return true;
     guide.value = false;
-    playSound("decide");
+    playSound("hudSelect");
     if (isSettingsPane(row)) {
       openSettings();
       return true;
@@ -496,12 +499,14 @@ function openPage(): void {
   pageLatch.value = { title: page.value.title, items: listed.value };
   pageFocus.value = ROOT_FOCUS;
   pageOpen.value = true;
+  playSound("transition");
 }
 
 /** The focus goes home once the panes have faded, so the jump is never seen. */
 function closePage(): void {
   pageOpen.value = false;
-  playSound("cancel");
+  playSound("back");
+  playSound("transition");
   setTimeout(() => {
     if (!pageOpen.value) pageFocus.value = ROOT_FOCUS;
   }, 250);
@@ -511,13 +516,13 @@ function stepPage(delta: number, step: typeof stepAlong = stepAlong): void {
   const next = step([{ page: page.value, focus: pageFocus.value }], delta)[0];
   if (!next || next.focus === pageFocus.value) return;
   pageFocus.value = next.focus;
-  playSound("cursor");
+  playSound(delta > 0 ? "panelRight" : "panelLeft");
 }
 
 function launchListed(): void {
   const item = pageLatch.value.items[pageFocus.value.item] as HubItem | undefined;
   if (!item) return;
-  playSound("decide");
+  playSound("select");
   launchItem(item);
 }
 
@@ -533,6 +538,7 @@ const settingsStack = ref<PageStack>([]);
 function openSettings(): void {
   pageOpen.value = false;
   settingsStack.value = push([], settingsRoot());
+  playSound("transition");
   void tv.loadSystem().then(refreshSettingsTop);
 }
 
@@ -540,6 +546,7 @@ function openSettings(): void {
 function openProfile(): void {
   pageOpen.value = false;
   settingsStack.value = push([], profilePage());
+  playSound("transition");
 }
 
 /** What is being typed in the profile menu, or null. While it is set, keys belong to the entry. */
@@ -551,7 +558,7 @@ function commitDraft(value: string): void {
   if (draftKey.value === "gamerscore") {
     const score = parseGamerscore(value);
     if (score === null) {
-      playSound("cancel");
+      playSound("back");
       return;
     }
     settings.applyChange({ kind: "level", key: "gamerscore", value: score });
@@ -560,26 +567,26 @@ function commitDraft(value: string): void {
     settings.applyChange({ kind: "app-description", appId, text: value });
   } else {
     if (value === "") {
-      playSound("cancel");
+      playSound("back");
       return;
     }
     settings.applyChange({ kind: "choice", key: "gamertag", value });
   }
   draft.value = null;
-  playSound("decide");
+  playSound("select");
   refreshSettingsTop();
 }
 
 function cancelDraft(): void {
   draft.value = null;
-  playSound("cancel");
+  playSound("back");
 }
 
 function stepSettings(delta: number): void {
   const next = stepVertical(settingsStack.value, delta);
   if (next === settingsStack.value) return;
   settingsStack.value = next;
-  playSound("cursor");
+  playSound("focus");
 }
 
 function activateSettings(): void {
@@ -593,7 +600,7 @@ function activateSettings(): void {
     tv.snapshot,
   );
   if (!action) return;
-  playSound("decide");
+  playSound("select");
   if (action.kind === "push") {
     const pushed = [...push(settingsStack.value, action.page)];
     const last = pushed[pushed.length - 1];
@@ -636,13 +643,14 @@ function stepSettingsValue(dir: number): void {
   const action = settingsStep(frame.page, frame.focus, tv.snapshot, dir);
   if (!action || action.kind !== "tv") return;
   tv.apply(action.def, action.value);
-  playSound("cursor");
+  playSound("focus");
   refreshSettingsTop();
 }
 
 function closeSettingsLevel(): void {
   settingsStack.value = pop(settingsStack.value);
-  playSound("cancel");
+  playSound("back");
+  if (settingsStack.value.length === 0) playSound("transition");
 }
 
 /**
@@ -1037,12 +1045,19 @@ function rememberChannel(id: string): void {
   rememberTimer = setTimeout(() => settings.updateSetting("lastChannel", id), settle);
 }
 
+/** The cue a hub move plays. Down the channel list plays `channelup`, the list itself moving up, as retail does. */
+function navSound(move: HubMove): Sound {
+  if (move === "down") return "channelUp";
+  if (move === "up") return "channelDown";
+  return move === "left" || move === "pageLeft" ? "panelLeft" : "panelRight";
+}
+
 function navigate(move: HubMove): void {
   const next = stepHub(hub.value, move, counts.value);
   if (next === hub.value) return;
   const channelChanged = next.channel !== hub.value.channel;
   hub.value = next;
-  playSound(channelChanged ? "category" : "cursor");
+  playSound(navSound(move));
   if (channelChanged) {
     rememberChannel(CHANNEL_ORDER[next.channel] ?? "apps");
     void changeChannel();
@@ -1061,7 +1076,7 @@ function navigate(move: HubMove): void {
 function activate(): void {
   const item = rows.value[hub.value.channel]?.[hub.value.item];
   if (!item || isEmptyPane(item)) return;
-  playSound("decide");
+  playSound("select");
   if (isProfilePane(item)) {
     openProfile();
     return;
@@ -1122,7 +1137,7 @@ function onKeyDown(event: KeyboardEvent): void {
     ) {
       event.preventDefault();
       guide.value = false;
-      playSound("cancel");
+      playSound("hudClose");
     }
     return;
   }
@@ -1203,7 +1218,7 @@ function onKeyDown(event: KeyboardEvent): void {
   if (event.keyCode === 71 || event.keyCode === YELLOW) {
     event.preventDefault();
     guide.value = true;
-    playSound("option");
+    playSound("hudOpen");
   }
 }
 

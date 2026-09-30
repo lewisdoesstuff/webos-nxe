@@ -52,7 +52,7 @@ import {
   PICPIC_Y,
   placeChannels,
   placeItems,
-  placeSlabs,
+  placeBlades,
   promptCellW,
   PROMPT_XS,
   PROMPT_COUNT,
@@ -68,9 +68,8 @@ import {
   SLAB_LABEL_X,
   SLAB_PIVOT_Y,
   SLAB_SCALE,
-  SLAB_STEP,
+  SLAB_PITCH,
   SLAB_TUCK,
-  SLAB_TILT,
   SLAB_W,
   SPINNER_D,
   SPINNER_Y,
@@ -79,7 +78,6 @@ import {
   type Box,
   type Channel,
   type Slab,
-  type Slabs,
   slabBox,
   slabLabelBox,
   slabOrigin,
@@ -136,7 +134,7 @@ function turned(box: Box): Box {
 
 /** Every box the overlay draws, for the check that the chrome covers them all. */
 function drawnBoxes(): Box[] {
-  const slabs = placeSlabs(0, BLADE_IDS);
+  const slabs = [...placeBlades(0, BLADE_IDS), ...placeBlades(BLADE_IDS.length - 1, BLADE_IDS)];
   return [
     { x: PANEL_X, y: PANEL_Y, width: PANEL_W, height: PANEL_H },
     { x: PANEL_X, y: PANEL_Y, width: TAB_W, height: PANEL_H },
@@ -460,120 +458,94 @@ describe("channel rows of any length", () => {
 });
 
 describe("the blade stack", () => {
-  it("draws one slab per blade other than the focused one", () => {
-    expect(SLAB_COUNT).toBe(4);
-    expect(placeSlabs(0, BLADE_IDS)).toHaveLength(SLAB_COUNT);
+  const sides = (focus: number) => placeBlades(focus, BLADE_IDS).map((slab) => slab.side);
+
+  it("has one slab per blade, the focused one parked under the panel", () => {
+    for (let focus = 0; focus < BLADE_COUNT; focus += 1) {
+      const slabs = placeBlades(focus, BLADE_IDS);
+      expect(slabs).toHaveLength(BLADE_COUNT);
+      expect(slabs.filter((slab) => slab.side === "under").map((slab) => slab.d)).toEqual([focus]);
+    }
+    expect(SLAB_COUNT).toBe(BLADE_COUNT - 1);
     expect(SLAB_SCALE).toHaveLength(SLAB_COUNT);
-    expect(SLAB_TILT).toHaveLength(SLAB_COUNT);
   });
 
-  it("holds four of the five blades, the ones the frame lists as slabs", () => {
-    // Section 3.7 names `Games`, `Player1`, `Media` and `Settings` as the slabs.
-    expect(SLAB_COUNT).toBe(BLADE_COUNT - 1);
-    expect(BLADE_COUNT).toBe(5);
+  it("stacks the blades before the focus on the left and the ones after it on the right", () => {
+    // MEASURED: on Games the left stack is Marketplace alone and the right Home, Media, Settings.
+    expect(sides(1)).toEqual(["left", "under", "right", "right", "right"]);
+    expect(sides(2)).toEqual(["left", "left", "under", "right", "right"]);
+    expect(sides(4)).toEqual(["left", "left", "left", "left", "under"]);
+  });
+
+  it("puts the nearest slab of each side against the panel and steps outward", () => {
+    const slabs = placeBlades(2, BLADE_IDS);
+    const left = slabs.filter((slab) => slab.side === "left").sort((a, b) => a.slot - b.slot);
+    const right = slabs.filter((slab) => slab.side === "right").sort((a, b) => a.slot - b.slot);
+    expect(at(left, 0).x + SLAB_W).toBe(PANEL_X - SLAB_TUCK);
+    expect(at(right, 0).x).toBe(PANEL_X + PANEL_W + SLAB_TUCK);
+    expect(at(left, 0).x - at(left, 1).x).toBe(SLAB_PITCH);
+    expect(at(right, 1).x - at(right, 0).x).toBe(SLAB_PITCH);
+    expect(at(left, 0).id).toBe("games");
+    expect(at(right, 0).id).toBe("media");
   });
 
   it("recesses monotonically: the scale falls every step", () => {
     for (let i = 1; i < SLAB_COUNT; i += 1) {
       expect(at(SLAB_SCALE, i)).toBeLessThan(at(SLAB_SCALE, i - 1));
-      expect(at(SLAB_STEP, i)).toBeLessThanOrEqual(at(SLAB_STEP, i - 1));
     }
   });
 
-  it("tucks the first slab's right edge just under the panel's left edge", () => {
-    expect(at(placeSlabs(0, BLADE_IDS), 0).x + SLAB_W).toBe(PANEL_X + SLAB_TUCK);
-  });
-
-  it("steps left without going back", () => {
-    const slabs = placeSlabs(0, BLADE_IDS);
-    for (let i = 1; i < SLAB_COUNT; i += 1) {
-      const inner = at(slabs, i - 1);
-      const outer = at(slabs, i);
-      expect(outer.x).toBeLessThan(inner.x);
-    }
-  });
-
-  it("scales about the panel's own mid-height, the way the hub scales about 117.5", () => {
+  it("scales about the panel's own mid-height and the edge that faces it", () => {
     expect(SLAB_PIVOT_Y).toBe(SLAB_H / 2);
     expect(SLAB_H).toBe(PANEL_H);
-    for (const slab of placeSlabs(0, BLADE_IDS)) {
-      const box = slabBox(slab);
-      const middle = box.y + box.height / 2;
-      expect(middle).toBeCloseTo(PANEL_Y + SLAB_H / 2, 10);
+    for (const focus of [0, 4]) {
+      for (const slab of placeBlades(focus, BLADE_IDS)) {
+        const box = slabBox(slab);
+        expect(box.y + box.height / 2).toBeCloseTo(PANEL_Y + SLAB_H / 2, 10);
+        if (slab.side === "left") expect(right(box)).toBeCloseTo(slab.x + SLAB_W, 10);
+        if (slab.side === "right") expect(box.x).toBe(slab.x);
+      }
     }
   });
 
   it("keeps every slab inside the frame and clear of the panel", () => {
-    for (const slab of placeSlabs(0, BLADE_IDS)) {
-      const box = slabBox(slab);
-      expect(inCanvas(box)).toBe(true);
-      expect(right(box)).toBeLessThanOrEqual(PANEL_X + SLAB_TUCK);
-      expect(box.y).toBeGreaterThanOrEqual(PANEL_Y);
-      expect(bottom(box)).toBeLessThanOrEqual(PANEL_Y + PANEL_H);
+    for (let focus = 0; focus < BLADE_COUNT; focus += 1) {
+      for (const slab of placeBlades(focus, BLADE_IDS)) {
+        if (slab.side === "under") continue;
+        const box = slabBox(slab);
+        expect(inCanvas(box)).toBe(true);
+        if (slab.side === "left") expect(right(box)).toBeLessThanOrEqual(PANEL_X);
+        else expect(box.x).toBeGreaterThanOrEqual(PANEL_X + PANEL_W);
+        expect(box.y).toBeGreaterThanOrEqual(PANEL_Y);
+        expect(bottom(box)).toBeLessThanOrEqual(PANEL_Y + PANEL_H);
+      }
     }
   });
 
-  it("moves no slab when the blade changes, only the ids on them", () => {
-    const base = placeSlabs(0, BLADE_IDS);
+  it("keeps the blade on each slab, so a blade change moves slabs and relabels none", () => {
     for (let focus = 0; focus < BLADE_COUNT; focus += 1) {
-      const other = placeSlabs(focus, BLADE_IDS);
-      expect(
-        other.map((s) => s.x),
-        `blade ${focus}`,
-      ).toEqual(base.map((s) => s.x));
-      expect(
-        other.map((s) => s.scale),
-        `blade ${focus}`,
-      ).toEqual(base.map((s) => s.scale));
-    }
-  });
-
-  it("labels the slabs off the same ring, so the focused blade is never on one", () => {
-    for (let focus = 0; focus < BLADE_COUNT; focus += 1) {
-      const slabs = placeSlabs(focus, BLADE_IDS);
-      expect(
-        slabs.map((s) => s.id),
-        `blade ${focus}`,
-      ).not.toContain(BLADE_IDS[focus]);
+      expect(placeBlades(focus, BLADE_IDS).map((slab) => slab.id)).toEqual([...BLADE_IDS]);
       expect(tabLabel(focus, BLADE_IDS)).toBe(BLADE_IDS[focus]);
     }
   });
 
-  it("shows the Marketplace frame's four slabs when the Marketplace is focused", () => {
-    // Section 3.7 lists `Games`, `Player1`, `Media` and `Settings` as the other
-    // four. The ring's direction is a composition, so this asserts the set.
-    const ids = placeSlabs(0, BLADE_IDS)
-      .map((s) => s.id)
-      .sort();
-    expect(ids).toEqual(["games", "media", "player1", "settings"]);
-  });
-
-  it("keeps every slot filled for a short ring, and empty rather than throwing for none", () => {
-    for (let count = 1; count <= BLADE_COUNT; count += 1) {
-      const short = BLADE_IDS.slice(0, count);
-      for (const focus of [0, count - 1, count, -1]) {
-        expect(placeSlabs(focus, short), `${count} blades`).toHaveLength(SLAB_COUNT);
-      }
-    }
-    expect(placeSlabs(0, []).map((s) => s.id)).toEqual(["", "", "", ""]);
+  it("clamps a focus off either end rather than wrapping", () => {
+    expect(sides(-1)).toEqual(sides(0));
+    expect(sides(9)).toEqual(sides(4));
+    expect(placeBlades(0, [])).toEqual([]);
   });
 
   it("writes each slab at the panel's height, so a label has a box to sit in", () => {
-    for (const slab of placeSlabs(0, BLADE_IDS)) {
-      expect(slabOrigin(slab)).toEqual({
-        x: slab.x,
-        y: PANEL_Y,
-        width: SLAB_W,
-        height: SLAB_H,
-      });
+    for (const slab of placeBlades(1, BLADE_IDS)) {
+      expect(slabOrigin(slab)).toEqual({ x: slab.x, y: PANEL_Y, width: SLAB_W, height: SLAB_H });
     }
   });
 
   it("keeps a slab's label inside the slab's authored box", () => {
-    for (const slab of placeSlabs(0, BLADE_IDS)) {
-      const origin = slabOrigin(slab);
-      const inner = within(origin, slabLabelBox(slab));
-      expect(inner.x).toBe(SLAB_LABEL_X);
+    for (const slab of placeBlades(1, BLADE_IDS)) {
+      const inner = within(slabOrigin(slab), slabLabelBox(slab));
+      if (slab.side !== "right") expect(inner.x).toBe(SLAB_LABEL_X);
+      else expect(SLAB_W - (inner.x - ROTATED_LINE / 2)).toBe(SLAB_LABEL_X - ROTATED_LINE / 2);
       expect(inner.y).toBeGreaterThanOrEqual(0);
       expect(inner.x - ROTATED_LINE).toBeGreaterThanOrEqual(0);
       expect(inner.x).toBeLessThanOrEqual(SLAB_W);
@@ -589,11 +561,9 @@ describe("the blade stack", () => {
     expect(SPINNER_Y).toBeLessThan(TAB_LABEL_Y);
   });
 
-  it("returns a tuple, so a slab count that moved would not compile", () => {
-    const slabs: Slabs = placeSlabs(2, BLADE_IDS);
-    expect(slabs).toHaveLength(4);
-    const slab: Slab = at(slabs, 3);
-    expect(slab.scale).toBe(SLAB_SCALE[3]);
+  it("types a slab", () => {
+    const slab: Slab = at(placeBlades(2, BLADE_IDS), 0);
+    expect(slab.scale).toBe(SLAB_SCALE[1]);
   });
 });
 

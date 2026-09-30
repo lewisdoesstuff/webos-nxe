@@ -122,27 +122,43 @@ const rootStyle = { width: `${PANE_W}px`, height: `${PANE_H}px` };
   height: 118px;
 }
 
+/*
+ * The face, sampled off the 1080p capture (`LeLocNfgexM`, 5:50). A light
+ * from above the card: a pale yellow hotspot at the top centre that spreads
+ * most of the way across and a third of the way down, a bright yellow top
+ * edge, and a body that shades through olive to a dark foot rather than to
+ * black.
+ */
 .face {
   position: absolute;
   inset: 0;
   background:
-    linear-gradient(180deg, #c6e01a 0, #b4dd0d 3px, rgba(164, 217, 5, 0) 7px),
+    linear-gradient(
+      180deg,
+      rgba(240, 236, 40, 0.4) 0,
+      rgba(240, 236, 40, 0.18) 3px,
+      rgba(240, 236, 40, 0) 6px
+    ),
     radial-gradient(
-      ellipse 70% 40% at 55% 0%,
-      rgba(210, 240, 110, 0.3),
-      rgba(210, 240, 110, 0) 100%
+      ellipse 54% 30% at 50% 1%,
+      rgba(255, 250, 170, 0.85) 0%,
+      rgba(255, 250, 170, 0.55) 30%,
+      rgba(255, 250, 170, 0.2) 65%,
+      rgba(255, 250, 170, 0) 100%
     ),
     url("../assets/hub/card-bokeh.svg") 0 0 / 630px 480px no-repeat,
     linear-gradient(
       180deg,
-      #a0d70a 0%,
-      #a2d905 25%,
-      #94d200 47%,
-      #8ed100 60%,
-      #589800 72%,
-      #1d4f00 85%,
-      #0a2c00 92%,
-      #001900 100%
+      #a4c928 0%,
+      #a3c81d 22%,
+      #a0c716 33%,
+      #9ac410 43%,
+      #90c00b 56%,
+      #7caf06 68%,
+      #4f7505 81%,
+      #344f05 89%,
+      #213405 95%,
+      #17250a 100%
     );
 }
 

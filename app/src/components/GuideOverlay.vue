@@ -741,7 +741,9 @@ const CLOCK: Box = { x: CLOCK_X, y: CLOCK_Y, width: CLOCK_W, height: CLOCK_H };
 
 .letter[data-remote] {
   font-size: 9px;
-  letter-spacing: -0.02em;
+  letter-spacing: 0;
+  top: -0.75px;
+  text-shadow: none;
 }
 
 .letter {

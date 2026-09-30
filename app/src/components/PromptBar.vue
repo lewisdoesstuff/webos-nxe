@@ -129,7 +129,9 @@ function promptStyle(prompt: Prompt): Record<string, string> {
 
 .letter[data-remote] {
   font-size: 11px;
-  letter-spacing: -0.02em;
+  letter-spacing: 0;
+  top: -0.75px;
+  text-shadow: none;
 }
 
 .word {

@@ -122,6 +122,12 @@ export const GENERAL_DEFS: readonly SettingDef[] = [
   },
   {
     kind: "flag",
+    key: "livePreviews",
+    title: "Live Input Previews",
+    description: "Show what an HDMI input is playing in its pane. Experimental.",
+  },
+  {
+    kind: "flag",
     key: "hintBar",
     title: "Button Hints",
     description: "The A, B, X and Y prompts along the foot of the screen.",

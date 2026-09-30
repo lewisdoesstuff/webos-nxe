@@ -26,6 +26,8 @@ export interface Settings {
   hintBar: boolean;
   /** Toasts over the hub, such as the sign-in. */
   toasts: boolean;
+  /** A live picture in the focused HDMI pane, where the TV has a signal. */
+  livePreviews: boolean;
   reduceMotion: boolean;
   /** Explicit app order within a section; anything unlisted keeps its position. */
   appOrder: string[];
@@ -60,6 +62,7 @@ export const SETTINGS_DEFAULTS: Settings = {
   showClock: true,
   hintBar: true,
   toasts: true,
+  livePreviews: false,
   reduceMotion: false,
   appOrder: [],
   hiddenApps: [],
@@ -143,6 +146,7 @@ export function mergeSettings(stored: unknown): { settings: Settings; migrated: 
     showClock: booleanOr(source["showClock"], SETTINGS_DEFAULTS.showClock),
     hintBar: booleanOr(source["hintBar"], SETTINGS_DEFAULTS.hintBar),
     toasts: booleanOr(source["toasts"], SETTINGS_DEFAULTS.toasts),
+    livePreviews: booleanOr(source["livePreviews"], SETTINGS_DEFAULTS.livePreviews),
     reduceMotion: booleanOr(source["reduceMotion"], SETTINGS_DEFAULTS.reduceMotion),
     appOrder: stringArrayOr(source["appOrder"], SETTINGS_DEFAULTS.appOrder),
     hiddenApps: stringArrayOr(source["hiddenApps"], SETTINGS_DEFAULTS.hiddenApps),

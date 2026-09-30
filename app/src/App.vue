@@ -9,6 +9,7 @@ import AvatarFigure from "./components/AvatarFigure.vue";
 import BootScreen from "./components/BootScreen.vue";
 import GuideOverlay from "./components/GuideOverlay.vue";
 import HubPane from "./components/HubPane.vue";
+import LiveInput from "./components/LiveInput.vue";
 import PageLayer from "./components/PageLayer.vue";
 import PromptBar from "./components/PromptBar.vue";
 import SettingsLayer from "./components/SettingsLayer.vue";
@@ -79,6 +80,7 @@ import {
   top,
 } from "./pages";
 import { paneArt, type PaneItem } from "./panel";
+import { liveTarget } from "./preview/live";
 import { CANVAS_H, CANVAS_W } from "./ribbon";
 import { ringImage, ripplePattern } from "./ripples";
 import { CHANNEL_ORDER, SECTIONS, startChannel } from "./sections";
@@ -97,6 +99,7 @@ import {
 } from "./settingsScreen";
 import { playSound, playToastSound } from "./sound";
 import { useAppsStore } from "./stores/apps";
+import { useInputsStore } from "./stores/inputs";
 import { useSettingsStore } from "./stores/settings";
 import { useTvStore } from "./stores/tv";
 import { advance, enqueue, EMPTY_TOASTS, TOAST_FADE_MS, TOAST_MS, type Toast } from "./toasts";
@@ -115,6 +118,7 @@ import { advance, enqueue, EMPTY_TOASTS, TOAST_FADE_MS, TOAST_MS, type Toast } f
 const apps = useAppsStore();
 const settings = useSettingsStore();
 const tv = useTvStore();
+const inputs = useInputsStore();
 
 /** Where the user is. The labels follow it at once. Resumes the stored
  * channel rather than always starting on Apps. */
@@ -544,6 +548,40 @@ const settingsDetailShown = computed((): SettingDetail => {
 const counts = computed(() => rows.value.map((row) => row.length));
 
 const shownRow = computed(() => rows.value[shown.value.channel] ?? []);
+
+/** Nothing has moved for half a second: the live input preview may come up. */
+const stood = ref(false);
+let standTimer: ReturnType<typeof setTimeout> | null = null;
+
+watch(
+  () => [
+    shown.value.channel,
+    shown.value.item,
+    pageOpen.value,
+    guide.value,
+    settingsStack.value.length,
+  ],
+  () => {
+    stood.value = false;
+    if (standTimer !== null) clearTimeout(standTimer);
+    standTimer = setTimeout(() => {
+      stood.value = true;
+    }, 500);
+    inputs.watch(settings.settings.livePreviews && channels[shown.value.channel]?.id === "inputs");
+  },
+  { immediate: true },
+);
+
+const liveInput = computed(() =>
+  liveTarget({
+    enabled: settings.settings.livePreviews,
+    channel: channels[shown.value.channel]?.id ?? "",
+    itemId: shownRow.value[shown.value.item]?.id ?? null,
+    settled: stood.value,
+    covered: pageOpen.value || guide.value || settingsStack.value.length > 0 || booting.value,
+    statuses: inputs.statuses,
+  }),
+);
 
 const pool = computed(() => placePool(shown.value.item, shownRow.value.length));
 
@@ -1127,6 +1165,8 @@ function expose(): void {
         :clock24h="settings.settings.clock24h"
       />
     </div>
+
+    <LiveInput :target="liveInput" />
 
     <ToastLayer :toast="toastText" :shown="toastShown" />
 

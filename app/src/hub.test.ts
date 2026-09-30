@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  advancePins,
   counterText,
   FIRST_OFFSET,
   HIDDEN,
@@ -135,5 +136,25 @@ describe("counterText", () => {
   it("reads n of m", () => {
     expect(counterText(2, 8)).toBe("3 of 8");
     expect(counterText(0, 0)).toBe("");
+  });
+});
+
+describe("pinned pool", () => {
+  it("keeps a moved item on its element and slides like the modulo rule otherwise", () => {
+    const elementOf = (pool: ReturnType<typeof placePool>, item: number) =>
+      pool.find((pane) => pane.item === item)?.element;
+    const base = placePool(3, 20);
+    const pins = new Map<number, number>();
+    for (const pane of base) if (pane.item !== null) pins.set(pane.item, pane.element);
+    const swapped = new Map(pins).set(3, pins.get(4)!).set(4, pins.get(3)!);
+    const moved = placePool(4, 20, undefined, undefined, swapped);
+    expect(elementOf(moved, 4)).toBe(elementOf(base, 3));
+    expect(elementOf(moved, 3)).toBe(elementOf(base, 4));
+    expect(new Set(moved.map((pane) => pane.element)).size).toBe(moved.length);
+    const slid = advancePins(swapped, 3, 4);
+    expect(new Set(slid.values()).size).toBe(slid.size);
+    expect(placePool(5, 20, undefined, undefined, advancePins(new Map(), 4, 5))).toEqual(
+      placePool(5, 20),
+    );
   });
 });

@@ -55,10 +55,29 @@ export const useSettingsStore = defineStore("settings", () => {
    * apps. The order is written whole because a single move is only visible if the
    * apps around it are in the stored list too.
    */
-  function setAppOrder(order: readonly string[]): void {
+  function setAppOrder(order: readonly string[], save = true): void {
     const mine = new Set(order);
     const rest = settings.value.appOrder.filter((id) => !mine.has(id));
-    updateSetting("appOrder", [...rest, ...order]);
+    settings.value = { ...settings.value, appOrder: [...rest, ...order] };
+    if (save) persist();
+  }
+
+  function isAppHome(appId: string): boolean {
+    return settings.value.homeApps.includes(appId);
+  }
+
+  /** Pin an app to the end of Home, or take it off. */
+  function setAppHome(appId: string, home: boolean): void {
+    const rest = settings.value.homeApps.filter((id) => id !== appId);
+    updateSetting("homeApps", home ? [...rest, appId] : rest);
+  }
+
+  /** Home's whole order, kept ahead of pins the device no longer lists. */
+  function setHomeOrder(order: readonly string[], save = true): void {
+    const mine = new Set(order);
+    const rest = settings.value.homeApps.filter((id) => !mine.has(id));
+    settings.value = { ...settings.value, homeApps: [...order, ...rest] };
+    if (save) persist();
   }
 
   function setSortMode(section: string, mode: Settings["sortModes"][string]): void {
@@ -75,6 +94,7 @@ export const useSettingsStore = defineStore("settings", () => {
       ...settings.value,
       appOrder: [],
       hiddenApps: [],
+      homeApps: [],
       appSection: {},
       sortModes: {},
     };
@@ -140,6 +160,10 @@ export const useSettingsStore = defineStore("settings", () => {
     setAppHidden,
     setAppSection,
     setAppOrder,
+    isAppHome,
+    setAppHome,
+    setHomeOrder,
+    persist,
     setSortMode,
     clearHiddenApps,
     resetLayout,

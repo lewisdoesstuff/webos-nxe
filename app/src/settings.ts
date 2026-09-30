@@ -32,6 +32,8 @@ export interface Settings {
   /** Explicit app order within a section; anything unlisted keeps its position. */
   appOrder: string[];
   hiddenApps: string[];
+  /** The apps pinned to the Home channel, in the order it shows them. */
+  homeApps: string[];
   /** Apps the user has moved to a different section, by app id. */
   appSection: Record<string, string>;
   /** Sort per section, by section id. Anything missing is `default`. */
@@ -66,6 +68,7 @@ export const SETTINGS_DEFAULTS: Settings = {
   reduceMotion: false,
   appOrder: [],
   hiddenApps: [],
+  homeApps: [],
   appSection: {},
   sortModes: {},
   recentApps: [],
@@ -150,6 +153,7 @@ export function mergeSettings(stored: unknown): { settings: Settings; migrated: 
     reduceMotion: booleanOr(source["reduceMotion"], SETTINGS_DEFAULTS.reduceMotion),
     appOrder: stringArrayOr(source["appOrder"], SETTINGS_DEFAULTS.appOrder),
     hiddenApps: stringArrayOr(source["hiddenApps"], SETTINGS_DEFAULTS.hiddenApps),
+    homeApps: stringArrayOr(source["homeApps"], SETTINGS_DEFAULTS.homeApps),
     appSection: stringMapOr(source["appSection"], SETTINGS_DEFAULTS.appSection),
     sortModes: sortModesOr(source["sortModes"], SETTINGS_DEFAULTS.sortModes),
     recentApps: stringArrayOr(source["recentApps"], SETTINGS_DEFAULTS.recentApps),

@@ -7,9 +7,11 @@ import {
   isAllPane,
   isEmptyPane,
   isHideable,
+  isMovable,
   isProfilePane,
   isSettingsPane,
   launchTarget,
+  moveStep,
   pageItems,
   PROFILE_RECENT,
   SYSTEM_PANES,
@@ -58,8 +60,12 @@ describe("hubRow", () => {
     expect(isHideable(undefined)).toBe(false);
   });
 
-  it("seats the profile second on Apps, launching nothing and never leaving", () => {
-    const items = channelItems("apps", POINTS, { ...SETTINGS_DEFAULTS, gamertag: "Matty" });
+  it("seats the profile second on Home, launching nothing and never leaving", () => {
+    const items = channelItems("home", POINTS, {
+      ...SETTINGS_DEFAULTS,
+      gamertag: "Matty",
+      homeApps: ["youtube.leanback.v4"],
+    });
     const pane = items[1];
     expect(pane).toMatchObject({
       id: "xne:profile",
@@ -70,8 +76,9 @@ describe("hubRow", () => {
     });
     expect(isProfilePane(pane)).toBe(true);
     expect(isHideable(pane)).toBe(false);
+    expect(isMovable(pane)).toBe(true);
     expect(pageItems(items)).not.toContain(pane);
-    expect(channelItems("apps", POINTS, { ...SETTINGS_DEFAULTS, gamertag: "" })[1]?.title).toBe(
+    expect(channelItems("home", POINTS, { ...SETTINGS_DEFAULTS, gamertag: "" })[0]?.title).toBe(
       "Player1",
     );
   });
@@ -79,11 +86,11 @@ describe("hubRow", () => {
   it("lists the profile's recent apps, newest first, as many as fit", () => {
     const points = Array.from({ length: 7 }, (_, n) => ({ id: `app.${n}`, title: `App ${n}` }));
     const settings = { ...SETTINGS_DEFAULTS, recentApps: ["app.6", "gone", "app.2", "app.0"] };
-    const row = channelItems("apps", points, settings);
+    const row = channelItems("home", points, settings);
     const recent = row.find(isProfilePane)?.recent ?? [];
     expect(recent.map((point) => point.id)).toEqual(["app.6", "app.2", "app.0"]);
     const all = { ...SETTINGS_DEFAULTS, recentApps: points.map((point) => point.id) };
-    expect(channelItems("apps", points, all).find(isProfilePane)?.recent).toHaveLength(
+    expect(channelItems("home", points, all).find(isProfilePane)?.recent).toHaveLength(
       PROFILE_RECENT,
     );
   });
@@ -124,9 +131,9 @@ describe("pages", () => {
     expect(
       items.some((item) => isAllPane(item) || isSettingsPane(item) || isProfilePane(item)),
     ).toBe(false);
-    const apps = hubRow("apps", POINTS, SETTINGS_DEFAULTS);
-    expect(pageItems(apps)).toHaveLength(apps.length - 2);
-    expect(pageItems(apps).some(isProfilePane)).toBe(false);
+    const home = hubRow("home", POINTS, SETTINGS_DEFAULTS);
+    expect(pageItems(home)).toHaveLength(home.length - 2);
+    expect(pageItems(home).some(isProfilePane)).toBe(false);
     const page = channelPage("system", items);
     expect(page.title).toBe("All System");
     expect(page.groups[0].items.map((item) => item.id)).toEqual(items.map((item) => item.id));
@@ -138,5 +145,59 @@ describe("pages", () => {
       params: { target: "picture" },
     });
     expect(launchTarget({ id: "x", title: "X" })).toEqual({ id: "x", params: {} });
+  });
+});
+
+describe("moveStep", () => {
+  const ROW = hubRow(
+    "home",
+    [
+      { id: "a", title: "A" },
+      { id: "b", title: "B" },
+      { id: "c", title: "C" },
+    ],
+    { ...SETTINGS_DEFAULTS, homeApps: ["a", "b", "c"] },
+  );
+
+  it("trades places with the next real item and steps over the profile pane", () => {
+    expect(ROW.map((item) => item.id)).toEqual(["a", "xne:profile", "b", "c", "all:home"]);
+    expect(moveStep(ROW, 0, 1)).toEqual({ order: ["xne:profile", "a", "b", "c"], index: 1 });
+    expect(moveStep(ROW, 1, 1)).toEqual({ order: ["a", "b", "xne:profile", "c"], index: 2 });
+    expect(moveStep(ROW, 3, -1)).toEqual({ order: ["a", "xne:profile", "c", "b"], index: 2 });
+  });
+
+  it("stops at the ends and refuses panes that cannot move", () => {
+    expect(moveStep(ROW, 0, -1)).toBeNull();
+    expect(moveStep(ROW, 3, 1)).toBeNull();
+    expect(moveStep(ROW, 4, -1)).toBeNull();
+  });
+});
+
+describe("the Home channel", () => {
+  const POINTS_HOME = [
+    { id: "a", title: "A" },
+    { id: "b", title: "B" },
+    { id: "com.webos.app.discovery", title: "Apps", systemApp: true },
+  ];
+
+  it("holds only the profile until something is pinned", () => {
+    const row = hubRow("home", POINTS_HOME, SETTINGS_DEFAULTS);
+    expect(row.map((item) => item.id)).toEqual(["xne:profile", "all:home"]);
+    const one = hubRow("home", POINTS_HOME, { ...SETTINGS_DEFAULTS, homeApps: ["a", "b"] });
+    expect(one.map((item) => item.id)).toEqual(["a", "xne:profile", "b", "all:home"]);
+  });
+
+  it("lists the pinned apps in pin order, and drops any the device no longer has", () => {
+    const settings = { ...SETTINGS_DEFAULTS, homeApps: ["b", "gone", "a", "b"] };
+    const row = hubRow("home", POINTS_HOME, settings);
+    expect(row.map((item) => item.id)).toEqual(["b", "xne:profile", "a", "all:home"]);
+    expect(isHideable(row[0])).toBe(true);
+    expect(moveStep(row, 2, -1)).toEqual({ order: ["b", "a", "xne:profile"], index: 1 });
+  });
+
+  it("is never where an app is classified or sent by an override", () => {
+    const settings = { ...SETTINGS_DEFAULTS, appSection: { a: "home" } };
+    expect(hubRow("home", POINTS_HOME, settings)).toHaveLength(2);
+    expect(hubRow("apps", POINTS_HOME, settings).some((item) => item.id === "a")).toBe(true);
   });
 });

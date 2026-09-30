@@ -47,6 +47,8 @@ import {
   PANE_W,
   PANE_X,
   PANE_Y,
+  advancePins,
+  paneSlot,
   placePool,
   POOL_SIZE,
   type PooledPane,
@@ -56,12 +58,15 @@ import {
   type HubItem,
   channelPage,
   hubRow,
+  movableIds,
   isAllPane,
   isEmptyPane,
   isHideable,
+  isMovable,
   isProfilePane,
   isSettingsPane,
   launchTarget,
+  moveStep,
   pageItems,
 } from "./hubRows";
 import { PAGE_COUNTER_X, PAGE_COUNTER_Y } from "./pageRow";
@@ -237,6 +242,7 @@ const channels = CHANNEL_ORDER.map(
 /** The settings the rows read. A write to any other setting keeps this identity, so it rebuilds no row. */
 const ROW_KEYS = [
   "hiddenApps",
+  "homeApps",
   "recentApps",
   "appOrder",
   "appSection",
@@ -282,11 +288,98 @@ const prompts = computed(() => {
     guide.value,
     pageOpen.value ? [{ page: page.value, focus: pageFocus.value }] : [],
     canHide.value,
+    moving.value !== null,
+    pinLabel.value ?? (onHome(hub.value.channel) ? "Remove" : null),
+    canMove.value,
   );
 });
 
 /** Whether X can hide the focused pane: a real item under the focus. */
 const canHide = computed(() => isHideable(rows.value[hub.value.channel]?.[hub.value.item]));
+
+/** The pane being moved along its row, and the order to put back if it is cancelled. */
+const moving = ref<{ readonly channel: number; readonly before: readonly string[] } | null>(null);
+
+/** The pane in hand can be pinned to Home from any other channel, and leaves Home from Home. */
+const pinLabel = computed(() => {
+  if (moving.value === null || onHome(moving.value.channel)) return null;
+  const item = rows.value[moving.value.channel]?.[hub.value.item];
+  return item && settings.isAppHome(item.id) ? "Remove from Home" : "Add to Home";
+});
+
+function onHome(channel: number): boolean {
+  return CHANNEL_ORDER[channel] === "home";
+}
+
+function togglePin(): void {
+  const held = moving.value;
+  const item = held && rows.value[held.channel]?.[hub.value.item];
+  if (!item || onHome(held.channel)) return;
+  settings.setAppHome(item.id, !settings.isAppHome(item.id));
+  playSound("option");
+}
+
+function writeOrder(channel: number, order: readonly string[], save: boolean): void {
+  if (onHome(channel)) settings.setHomeOrder(order, save);
+  else settings.setAppOrder(order, save);
+}
+
+function startMove(): void {
+  const row = rows.value[hub.value.channel] ?? [];
+  if (!isMovable(row[hub.value.item]) || phase.value !== "rest") return;
+  moving.value = { channel: hub.value.channel, before: movableIds(row) };
+  playSound("option");
+}
+
+/** One step of the moved pane along its row: the order changes and the focus follows the pane. */
+function stepMove(direction: -1 | 1): void {
+  const held = moving.value;
+  if (held === null) return;
+  const row = rows.value[held.channel] ?? [];
+  const step = moveStep(row, hub.value.item, direction);
+  if (step === null) return;
+  const elements = new Map<string, number>();
+  for (const pane of pool.value) {
+    const id = pane.item === null ? undefined : row[pane.item]?.id;
+    if (id !== undefined) elements.set(id, pane.element);
+  }
+  writeOrder(held.channel, step.order, false);
+  const next = { channel: held.channel, item: step.index };
+  hub.value = next;
+  shown.value = next;
+  const moved = new Map<number, number>();
+  (rows.value[held.channel] ?? []).forEach((item, index) => {
+    const element = elements.get(item.id);
+    if (element !== undefined) moved.set(index, element);
+  });
+  pins.value = moved;
+  playSound("cursor");
+}
+
+function endMove(keep: boolean): void {
+  const held = moving.value;
+  if (held === null) return;
+  if (keep) {
+    settings.persist();
+    playSound("decide");
+  } else {
+    const row = rows.value[held.channel] ?? [];
+    const id = row[hub.value.item]?.id;
+    writeOrder(held.channel, held.before, false);
+    const after = rows.value[held.channel] ?? [];
+    const item = Math.max(
+      0,
+      after.findIndex((candidate) => candidate.id === id),
+    );
+    hub.value = { channel: held.channel, item };
+    shown.value = hub.value;
+    playSound("cancel");
+  }
+  moving.value = null;
+}
+
+/** Whether Y can pick the focused pane up: a real item, or the profile. */
+const canMove = computed(() => isMovable(rows.value[hub.value.channel]?.[hub.value.item]));
 
 /** Keep a state inside its channel's row, which hiding may have shortened. */
 function clampItem(state: HubState): HubState {
@@ -303,7 +396,8 @@ function clampItem(state: HubState): HubState {
 function toggleHide(): void {
   const item = rows.value[hub.value.channel]?.[hub.value.item];
   if (!isHideable(item)) return;
-  settings.setAppHidden(item.id, !settings.isAppHidden(item.id));
+  if (onHome(hub.value.channel)) settings.setAppHome(item.id, false);
+  else settings.setAppHidden(item.id, !settings.isAppHidden(item.id));
   playSound("option");
   hub.value = clampItem(hub.value);
   shown.value = clampItem(shown.value);
@@ -591,7 +685,20 @@ const liveInput = computed(() =>
   }),
 );
 
-const pool = computed(() => placePool(shown.value.item, shownRow.value.length));
+/** Which element each item index draws on, once a reorder or a slide past one has moved an item off its modulo place. */
+const pins = ref<ReadonlyMap<number, number>>(new Map());
+watch(
+  () => [shown.value.channel, shown.value.item] as const,
+  ([channel, item], [was, before]) => {
+    pins.value =
+      channel === was ? advancePins(pins.value, before - 1, item - 1) : new Map<number, number>();
+  },
+  { flush: "sync" },
+);
+
+const pool = computed(() =>
+  placePool(shown.value.item, shownRow.value.length, paneSlot, POOL_SIZE, pins.value),
+);
 
 /** The row rests hidden until the first load resolves, so an empty hub is never seen. */
 const loaded = computed(() => apps.status === "ready" || apps.status === "error");
@@ -601,7 +708,9 @@ const counter = computed(() =>
     ? ""
     : pageOpen.value
       ? pageCounterText(page.value, pageFocus.value)
-      : counterText(shown.value.item, shownRow.value.length),
+      : moving.value !== null
+        ? `Moving ${counterText(shown.value.item, shownRow.value.length)}`
+        : counterText(shown.value.item, shownRow.value.length),
 );
 
 function artOf(items: readonly HubItem[]): Set<string> {
@@ -949,6 +1058,10 @@ const BACK_KEYS: ReadonlySet<number> = new Set([461, 403, 27, 8, 66]);
 /** The remote's yellow key, which NXE's Y button maps to here. */
 const YELLOW = 405;
 
+/** Move a pane along its row: Y on a desktop keyboard, the remote's green key on a pane that can move. */
+const MOVE_KEY = 89;
+const GREEN = 404;
+
 /** The remote's blue key, which NXE's X button maps to here. UNVERIFIED on the TV. */
 const BLUE = 406;
 
@@ -1008,6 +1121,19 @@ function onKeyDown(event: KeyboardEvent): void {
     }
     return;
   }
+  if (moving.value !== null) {
+    event.preventDefault();
+    if (event.keyCode === 37 || event.keyCode === 39) stepMove(event.keyCode === 39 ? 1 : -1);
+    else if (event.keyCode === 13 || event.keyCode === 404) endMove(true);
+    else if (event.keyCode === 88 || event.keyCode === BLUE) togglePin();
+    else if (BACK_KEYS.has(event.keyCode)) endMove(false);
+    return;
+  }
+  if (event.keyCode === MOVE_KEY || (event.keyCode === GREEN && canMove.value)) {
+    event.preventDefault();
+    startMove();
+    return;
+  }
   const move = MOVES[event.keyCode];
   if (move) {
     event.preventDefault();
@@ -1026,8 +1152,8 @@ function onKeyDown(event: KeyboardEvent): void {
     toggleHide();
     return;
   }
-  // `Y` on a desktop keyboard replays the boot.
-  if (event.keyCode === 89) {
+  // `R` on a desktop keyboard replays the boot.
+  if (event.keyCode === 82) {
     event.preventDefault();
     booting.value = true;
     boot.value += 1;

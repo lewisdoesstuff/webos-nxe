@@ -38,9 +38,9 @@ describe("the plate", () => {
 });
 
 describe("BLADE_COUNT", () => {
-  it("is one blade per channel, so the hub is one full lap", () => {
+  it("is one blade per Guide channel, and the hub adds Home to them", () => {
     expect(BLADE_COUNT).toBe(5);
-    expect(BLADE_COUNT).toBe(CHANNEL_COUNT);
+    expect(BLADE_COUNT + 1).toBe(CHANNEL_COUNT);
   });
 });
 

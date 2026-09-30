@@ -61,6 +61,31 @@ describe("settings store", () => {
     expect(store.settings.appOrder).toEqual(["z", "a", "b", "c"]);
   });
 
+  it("pins apps to Home in the order they were added, and reorders them", () => {
+    const store = useSettingsStore();
+    store.setAppHome("a", true);
+    store.setAppHome("b", true);
+    store.setAppHome("a", true);
+    expect(store.settings.homeApps).toEqual(["b", "a"]);
+    expect(store.isAppHome("a")).toBe(true);
+
+    store.setHomeOrder(["a", "b"]);
+    expect(store.settings.homeApps).toEqual(["a", "b"]);
+    store.setAppHome("a", false);
+    expect(store.settings.homeApps).toEqual(["b"]);
+  });
+
+  it("holds a draft order in memory until it is saved", () => {
+    const store = useSettingsStore();
+    store.setAppOrder(["b", "a"], false);
+    expect(store.settings.appOrder).toEqual(["b", "a"]);
+    const stored = () =>
+      JSON.parse(window.localStorage.getItem("ooo.lew.xne.settings") ?? "{}").appOrder;
+    expect(stored()).toEqual([]);
+    store.persist();
+    expect(stored()).toEqual(["b", "a"]);
+  });
+
   it("clears the hidden list in one go", () => {
     const store = useSettingsStore();
     store.setAppHidden("a", true);

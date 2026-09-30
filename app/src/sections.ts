@@ -74,6 +74,12 @@ export const SECTIONS = [
     tint: "#3a3a44",
     blurb: "Settings, setup and assistants.",
   },
+  {
+    id: "home",
+    label: "Home",
+    tint: "#2f4a6a",
+    blurb: "The apps you pinned here.",
+  },
 ] as const satisfies readonly [Section, ...Section[]];
 
 export type SectionId = (typeof SECTIONS)[number]["id"];
@@ -85,7 +91,14 @@ export const SECTION_IDS: readonly SectionId[] = SECTIONS.map((section) => secti
  * The hub's channel list, top to bottom. The selected channel sits lowest and
  * the dashboard starts on the bottom one, so the most used goes last.
  */
-export const CHANNEL_ORDER: readonly SectionId[] = ["system", "media", "games", "inputs", "apps"];
+export const CHANNEL_ORDER: readonly SectionId[] = [
+  "system",
+  "media",
+  "games",
+  "inputs",
+  "apps",
+  "home",
+];
 
 /** The channel the hub starts on: the bottom of the list. */
 export const START_CHANNEL = CHANNEL_ORDER.length - 1;
@@ -364,7 +377,7 @@ export function classify(point: Reported): Placement {
  */
 export function sectionFor(point: Reported, appSection: Record<string, string>): Placement {
   const chosen = sectionForApp(point.id, appSection, UNCLASSIFIED);
-  return isSection(chosen) ? chosen : classify(point);
+  return isSection(chosen) && chosen !== "home" ? chosen : classify(point);
 }
 
 /** One bucket per section, keyed by id. */
@@ -456,17 +469,25 @@ function order(rows: readonly LaunchPoint[], mode: SortMode, settings: Settings)
 export function groupRows(points: readonly Reported[], settings: Settings): SectionRows {
   const rows = emptyRows();
   const seen = new Set<string>();
+  const shown = new Map<string, Reported>();
   for (const point of points) {
     // An id the device reports twice is one app, and a second row for it is a
     // row that launches the same thing again.
     if (!isShown(point, settings) || seen.has(point.id)) continue;
     seen.add(point.id);
+    shown.set(point.id, point);
     rows[bladeFor(sectionFor(point, settings.appSection))].push(point);
   }
   for (const section of SECTIONS) {
     const id = section.id;
+    if (id === "home") continue;
     rows[id] = order(rows[id], settings.sortModes[id] ?? "default", settings);
   }
+  // Home is a pin list, so it takes an app's place in the list rather than its
+  // sort, and an app that was uninstalled or hidden simply drops out of it.
+  rows.home = [...new Set(settings.homeApps)]
+    .map((id) => shown.get(id))
+    .filter((point): point is Reported => point !== undefined);
   return rows;
 }
 

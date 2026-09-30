@@ -667,6 +667,7 @@ describe("the shell's prompt row", () => {
     expect(shellLabels(false, [], true)).toEqual([
       ["a", "Select"],
       ["x", "Hide"],
+      ["y", "Move"],
     ]);
   });
 
@@ -677,6 +678,14 @@ describe("the shell's prompt row", () => {
     ]);
     expect(shellPrompts(true, [], true)).toEqual([]);
     expect(shellPrompts(true, open(FITS), true)).toEqual([]);
+  });
+
+  it("offers Move beside Hide, and Place and Cancel while a pane is held", () => {
+    expect(shellPrompts(false, [], true).map((prompt) => prompt.button)).toEqual(["a", "x", "y"]);
+    expect(shellPrompts(false, [], true, true).map((prompt) => prompt.label)).toEqual([
+      "Place",
+      "Cancel",
+    ]);
   });
 
   it("draws nothing with the Guide open, which carries its own row", () => {

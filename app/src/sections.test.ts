@@ -82,11 +82,11 @@ function count(section: SectionId, points: readonly Reported[] = TV): number {
 
 describe("the section list", () => {
   it("is in the order the chrome artwork and the ramp are keyed to", () => {
-    expect(SECTION_IDS).toEqual(["inputs", "apps", "games", "media", "system"]);
+    expect(SECTION_IDS).toEqual(["inputs", "apps", "games", "media", "system", "home"]);
   });
 
-  it("has one section per ramp slot, so the ribbon is a whole lap", () => {
-    expect(SECTIONS).toHaveLength(BLADE_COUNT);
+  it("has the Guide's blades and Home", () => {
+    expect(SECTIONS).toHaveLength(BLADE_COUNT + 1);
   });
 
   it("gives every section a label and a plate colour to key artwork to", () => {
@@ -101,7 +101,7 @@ describe("the section list", () => {
 describe("startChannel", () => {
   it("resumes the stored channel", () => {
     expect(startChannel("games")).toBe(CHANNEL_ORDER.indexOf("games"));
-    expect(startChannel("apps")).toBe(START_CHANNEL);
+    expect(startChannel("home")).toBe(START_CHANNEL);
   });
 
   it("starts on Apps for anything it does not recognise", () => {
@@ -238,6 +238,7 @@ describe("groupRows", () => {
       games: [],
       media: [],
       system: [],
+      home: [],
     });
   });
 

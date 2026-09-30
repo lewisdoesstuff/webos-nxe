@@ -90,7 +90,7 @@ export const XNE_SETTINGS_PANE: HubItem = {
 };
 
 /**
- * The profile, second on Apps, the home channel, as it was second on My Xbox
+ * The profile, first on Home, as it was second on My Xbox
  * (t062): the gamertag and gamerscore on the pane's face, the avatar standing
  * beside it, and the apps launched last under "Recent Apps" as retail's
  * card listed the latest games.
@@ -144,6 +144,40 @@ export function isHideable(item: HubItem | null | undefined): item is HubItem {
   );
 }
 
+/** Whether a pane can be picked up and moved: a real item, or the profile. */
+export function isMovable(item: HubItem | null | undefined): item is HubItem {
+  return isHideable(item) || isProfilePane(item);
+}
+
+/** The ids of the movable items in a row, in the order the store keeps them. */
+export function movableIds(row: readonly HubItem[]): string[] {
+  return row.filter(isMovable).map((item) => item.id);
+}
+
+/**
+ * One step of moving the item at `index` along its row: the new stored order
+ * and the row index the item lands on. The synthetic panes stay where they
+ * are and the real ones trade places among the slots, so the step is always
+ * to the next real item. Null at either end of the real items, or for a pane
+ * that cannot move.
+ */
+export function moveStep(
+  row: readonly HubItem[],
+  index: number,
+  direction: -1 | 1,
+): { readonly order: string[]; readonly index: number } | null {
+  const item = row[index];
+  if (!isMovable(item)) return null;
+  const order = movableIds(row);
+  const from = order.indexOf(item.id);
+  const to = from + direction;
+  const other = order[to];
+  if (from === -1 || other === undefined) return null;
+  order[to] = item.id;
+  order[from] = other;
+  return { order, index: row.findIndex((candidate) => candidate.id === other) };
+}
+
 function labelOf(channel: SectionId): string {
   return SECTIONS.find((section) => section.id === channel)?.label ?? channel;
 }
@@ -158,7 +192,22 @@ function labelOf(channel: SectionId): string {
  */
 function emptyPane(channel: SectionId): HubItem {
   const label = labelOf(channel);
-  return { id: `empty:${channel}`, title: `No ${label.toLowerCase()} installed`, empty: true };
+  const title =
+    channel === "home" ? "Nothing pinned to Home" : `No ${label.toLowerCase()} installed`;
+  return { id: `empty:${channel}`, title, empty: true };
+}
+
+/**
+ * Home's items: the pinned apps in pin order with the profile among them. The
+ * profile sits second until it is moved, and once it is moved its place is kept
+ * in the stored order like any pin's.
+ */
+function homeItems(rows: readonly HubItem[], profile: HubItem, settings: Settings): HubItem[] {
+  const byId = new Map<string, HubItem>(rows.map((item) => [item.id, item]));
+  byId.set(profile.id, profile);
+  const order = [...new Set(settings.homeApps)].filter((id) => byId.has(id));
+  if (!order.includes(profile.id)) order.splice(Math.min(1, order.length), 0, profile.id);
+  return order.map((id) => byId.get(id) as HubItem);
 }
 
 /** The channel's items, without the "All" pane. Empty when there are none. */
@@ -169,8 +218,7 @@ export function channelItems(
 ): HubItem[] {
   const rows: HubItem[] = sectionRows(channel, points, settings);
   if (channel === "system") return [...SYSTEM_PANES, XNE_SETTINGS_PANE, ...rows];
-  if (channel === "apps")
-    return [...rows.slice(0, 1), profilePane(settings, points), ...rows.slice(1)];
+  if (channel === "home") return homeItems(rows, profilePane(settings, points), settings);
   return rows;
 }
 

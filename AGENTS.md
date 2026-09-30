@@ -172,6 +172,6 @@ node tools/capture.mjs --keys 39 --state --shot /tmp/s.png
 `bun run dev`, then open `http://localhost:5173/?boot=off` (`?boot=full` plays
 the boot; `?boot=full&at=<ms>` freezes it). Up/down change channel, left/right
 move along the row, Page Up/Down page, Enter is A, Esc/Backspace is B, `G` opens
-the Guide, `Y` replays the boot. The mock serves the TV's real launch points and
+the Guide, `R` replays the boot, `Y` picks a pane up to move (left/right, `A` place, `B` cancel), `X` hides. The mock serves the TV's real launch points and
 icons from `mock-tv/`. The stage is 1920x1080; a window that is not 16:9 crops
 it.

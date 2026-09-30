@@ -68,6 +68,12 @@ export const BACK: Prompt = { button: "b", label: "Back" };
 
 export const HIDE: Prompt = { button: "x", label: "Hide" };
 
+export const MOVE: Prompt = { button: "y", label: "Move" };
+
+/** A moved pane is dropped with `A` and put back with `B`. */
+export const PLACE: Prompt = { button: "a", label: "Place" };
+export const CANCEL: Prompt = { button: "b", label: "Cancel" };
+
 /**
  * The prompt row for a screen, left to right.
  *

@@ -26,8 +26,8 @@ export interface Box {
   height: number;
 }
 
-/** Five channels, one per section. */
-export const CHANNEL_COUNT = 5;
+/** Six channels, one per section. */
+export const CHANNEL_COUNT = 6;
 
 /**
  * The focused pane: 420x320 at 97,248. Every pane is this box; the spill is
@@ -139,11 +139,13 @@ export function placePool(
   count: number,
   slotOf: (offset: number) => PaneSlot = paneSlot,
   size: number = POOL_SIZE,
+  pins: ReadonlyMap<number, number> = NO_PINS,
 ): readonly PooledPane[] {
+  const first = focus + FIRST_OFFSET;
+  const elementOf = pinnedElements(first, size, pins);
   const pool: PooledPane[] = [];
   for (let element = 0; element < size; element++) {
-    const first = focus + FIRST_OFFSET;
-    const item = first + wrap(element - first, size);
+    const item = first + elementOf.indexOf(element);
     const offset = item - focus;
     const real = item >= 0 && item < count;
     const slot = slotOf(offset);
@@ -157,15 +159,65 @@ export function placePool(
   return pool;
 }
 
+const NO_PINS: ReadonlyMap<number, number> = new Map();
+
+/**
+ * The pins after the focus moves so the window starts at `newFirst` instead of
+ * `first`: items that stay in the window keep their element, and each item that
+ * enters takes the element of one that left, the way the modulo rule does. Every
+ * window place is pinned, so the assignment survives however the row was
+ * reordered.
+ */
+export function advancePins(
+  pins: ReadonlyMap<number, number>,
+  first: number,
+  newFirst: number,
+  size: number = POOL_SIZE,
+): ReadonlyMap<number, number> {
+  const before = pinnedElements(first, size, pins);
+  const next = new Map<number, number>();
+  const free: number[] = [];
+  for (let place = 0; place < size; place++) {
+    const item = first + place;
+    const element = before[place] ?? wrap(item, size);
+    if (item >= newFirst && item < newFirst + size) next.set(item, element);
+    else free.push(element);
+  }
+  for (let place = 0; place < size; place++) {
+    const item = newFirst + place;
+    if (!next.has(item)) next.set(item, free.shift() ?? wrap(item, size));
+  }
+  return next;
+}
+
+/**
+ * The element of each item in the window starting at `first`, by window place.
+ *
+ * A pin keeps an item on the element it already drew on when a reorder moves its
+ * index, so the pane slides rather than being repainted. A pin is honoured only
+ * while every element in the window is claimed exactly once, and otherwise the
+ * whole window falls back to the modulo rule.
+ */
+function pinnedElements(first: number, size: number, pins: ReadonlyMap<number, number>): number[] {
+  const byIndex = Array.from({ length: size }, (_, place) => {
+    const item = first + place;
+    return pins.get(item) ?? wrap(item, size);
+  });
+  if (new Set(byIndex).size !== size) {
+    return Array.from({ length: size }, (_, place) => wrap(first + place, size));
+  }
+  return byIndex;
+}
+
 /**
  * The channel list, read off `t048`: the selected channel is lowest, largest
  * and brightest, and the ones above it shrink and fade upward. Rows by
  * distance above the selection, as a label's vertical centre, cap height and
  * opacity. MEASURED, the opacities to about a tenth.
  */
-const LABEL_CENTRE_Y = [203, 159, 126, 99, 73] as const;
-const LABEL_CAP = [30, 22, 16, 13, 12] as const;
-const LABEL_ALPHA = [1, 0.72, 0.5, 0.3, 0.15] as const;
+const LABEL_CENTRE_Y = [203, 159, 126, 99, 73, 52] as const;
+const LABEL_CAP = [30, 22, 16, 13, 12, 11] as const;
+const LABEL_ALPHA = [1, 0.72, 0.5, 0.3, 0.15, 0.08] as const;
 
 /** The label box's left edge and the selected label's cap height, the scale's 1. */
 export const LABEL_X = px(97);

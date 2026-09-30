@@ -14,7 +14,17 @@
  */
 
 import { rehome, stepFocus } from "./focus/row";
-import { promptsFor, SELECT, BACK, HIDE, type Button, type Prompt } from "./prompts";
+import {
+  promptsFor,
+  SELECT,
+  BACK,
+  HIDE,
+  MOVE,
+  PLACE,
+  CANCEL,
+  type Button,
+  type Prompt,
+} from "./prompts";
 import {
   PANEL_H as HUB_PANEL_H,
   PANEL_W as HUB_PANEL_W,
@@ -576,12 +586,22 @@ export function pagePrompts(stack: PageStack): Prompt[] {
  * pane's item out of the row. Nowhere else: a page's rows are not panes, and
  * the Guide owns its row.
  */
-export function shellPrompts(guideOpen: boolean, stack: PageStack, canHide = false): Prompt[] {
+export function shellPrompts(
+  guideOpen: boolean,
+  stack: PageStack,
+  canHide = false,
+  moving = false,
+  pin: string | null = null,
+  canMove = canHide,
+): Prompt[] {
   if (guideOpen) return [];
   if (stack.length === 0) {
-    return canHide
-      ? promptsFor({ a: SELECT.label, x: HIDE.label })
-      : promptsFor({ a: SELECT.label });
+    if (moving) return promptsFor({ a: PLACE.label, b: CANCEL.label, ...(pin ? { x: pin } : {}) });
+    return promptsFor({
+      a: SELECT.label,
+      ...(canHide ? { x: pin ?? HIDE.label } : {}),
+      ...(canMove ? { y: MOVE.label } : {}),
+    });
   }
   return pagePrompts(stack);
 }

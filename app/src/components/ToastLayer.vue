@@ -26,7 +26,7 @@ const props = defineProps<{
 /** The pill hugs its longer line: about 19px a character plus the disc and a margin. */
 const width = computed(() => {
   const longest = Math.max(props.toast?.title.length ?? 0, props.toast?.body.length ?? 0);
-  return Math.min(1000, Math.max(560, Math.round(215 + 19 * longest)));
+  return Math.min(1000, Math.max(560, Math.round(197 + 19 * longest)));
 });
 </script>
 
@@ -102,8 +102,8 @@ const width = computed(() => {
 }
 
 .body {
-  left: 58px;
-  width: calc(var(--w) - 116px);
+  left: 56px;
+  width: calc(var(--w) - 112px);
   border-width: 3px 0;
   transform: scaleX(0.001);
   transform-origin: 0 0;
@@ -243,7 +243,7 @@ const width = computed(() => {
 
 .words {
   position: absolute;
-  left: 148px;
+  left: 130px;
   right: 30px;
   top: 0;
   height: 116px;

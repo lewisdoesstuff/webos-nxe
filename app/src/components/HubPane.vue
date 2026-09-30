@@ -9,6 +9,7 @@ import {
   shownFloorOwn,
   shownFloorPatch,
 } from "../artCache";
+import { cardFor } from "../cards";
 import { PANE_H, PANE_W } from "../hub";
 import { initialsFor, paneArt, type PaneItem } from "../panel";
 import { formatGamerscore } from "../settingsScreen";
@@ -44,12 +45,15 @@ const recent = computed(() =>
 );
 
 const rootStyle = { width: `${PANE_W}px`, height: `${PANE_H}px` };
+
+/** The item's card background, the same one wherever it is in the row. */
+const faceStyle = computed(() => ({ "--card": `url(${cardFor(props.item?.id ?? "")})` }));
 </script>
 
 <template>
   <div class="pane" :data-item="props.item?.id ?? ''" :style="rootStyle">
     <div class="clip">
-      <div class="face" />
+      <div class="face" :style="faceStyle" />
       <template v-if="profile">
         <span class="tag">{{ props.item?.title ?? "" }}</span>
         <span class="score">{{ score }}<i class="coin">G</i></span>
@@ -123,11 +127,10 @@ const rootStyle = { width: `${PANE_W}px`, height: `${PANE_H}px` };
 }
 
 /*
- * The face, sampled off the 1080p capture (`LeLocNfgexM`, 5:50). A light
- * from above the card: a pale yellow hotspot at the top centre that spreads
- * most of the way across and a third of the way down, a bright yellow top
- * edge, and a body that shades through olive to a dark foot rather than to
- * black.
+ * The face: one of the dashboard's eight card backgrounds, which carry the
+ * light from above, the chamfered top edge and the bokeh, under the dark foot
+ * sampled off the 1080p capture (`LeLocNfgexM`, 5:50), where the retail cards
+ * match these backgrounds to within 9 levels above the foot.
  */
 .face {
   position: absolute;
@@ -135,31 +138,15 @@ const rootStyle = { width: `${PANE_W}px`, height: `${PANE_H}px` };
   background:
     linear-gradient(
       180deg,
-      rgba(240, 236, 40, 0.4) 0,
-      rgba(240, 236, 40, 0.18) 3px,
-      rgba(240, 236, 40, 0) 6px
+      rgba(15, 29, 0, 0) 0%,
+      rgba(15, 29, 0, 0.05) 45%,
+      rgba(15, 29, 0, 0.08) 58%,
+      rgba(15, 29, 0, 0.25) 71%,
+      rgba(15, 29, 0, 0.55) 83%,
+      rgba(15, 29, 0, 0.75) 92%,
+      rgba(15, 29, 0, 0.9) 98%
     ),
-    radial-gradient(
-      ellipse 54% 30% at 50% 1%,
-      rgba(255, 250, 170, 0.85) 0%,
-      rgba(255, 250, 170, 0.55) 30%,
-      rgba(255, 250, 170, 0.2) 65%,
-      rgba(255, 250, 170, 0) 100%
-    ),
-    url("../assets/hub/card-bokeh.svg") 0 0 / 630px 480px no-repeat,
-    linear-gradient(
-      180deg,
-      #a4c928 0%,
-      #a3c81d 22%,
-      #a0c716 33%,
-      #9ac410 43%,
-      #90c00b 56%,
-      #7caf06 68%,
-      #4f7505 81%,
-      #344f05 89%,
-      #213405 95%,
-      #17250a 100%
-    );
+    var(--card) 0 0 / 630px 480px no-repeat;
 }
 
 .tile {

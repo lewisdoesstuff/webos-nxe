@@ -2,6 +2,7 @@ import { shallowReactive, shallowRef } from "vue";
 
 import { readAllArt, type StoredArt, writeArt } from "./artStore";
 import cardBokeh from "./assets/hub/card-bokeh.svg";
+import { CARDS } from "./cards";
 import { css, edgeColor, faceStops } from "./tileColor";
 
 /**
@@ -48,17 +49,16 @@ const PATCH = {
   h: MIRROR.h - (CARD_H - 1 - (ECHO.y + ECHO.h - 1)),
 } as const;
 
-const FACE_STOPS: readonly [number, string][] = [
-  [0, "#a4c928"],
-  [0.22, "#a3c81d"],
-  [0.33, "#a0c716"],
-  [0.43, "#9ac410"],
-  [0.56, "#90c00b"],
-  [0.68, "#7caf06"],
-  [0.81, "#4f7505"],
-  [0.89, "#344f05"],
-  [0.95, "#213405"],
-  [1, "#17250a"],
+/** The foot `HubPane.vue`'s `.face` lays over the card background, as alpha stops of one dark green. */
+const FOOT_STOPS: readonly [number, number][] = [
+  [0, 0],
+  [0.45, 0.05],
+  [0.58, 0.08],
+  [0.71, 0.25],
+  [0.83, 0.55],
+  [0.92, 0.75],
+  [0.98, 0.9],
+  [1, 0.9],
 ];
 
 interface Baked {
@@ -235,7 +235,7 @@ const MIRROR_FADE: readonly [number, number][] = [
 
 let bareCard: Promise<HTMLCanvasElement | null> | null = null;
 
-/** The card's face, as `HubPane.vue`'s `.face` draws it below its top band and highlight, which never reach the mirror. Drawn once. */
+/** The card's face, as `HubPane.vue`'s `.face` draws it on the first background. Drawn once. */
 function drawCard(): Promise<HTMLCanvasElement | null> {
   bareCard ??= (async () => {
     const made = canvas(CARD_W, CARD_H);
@@ -244,12 +244,12 @@ function drawCard(): Promise<HTMLCanvasElement | null> {
     context.beginPath();
     context.roundRect(0, 0, CARD_W, CARD_H, CARD_RADIUS);
     context.clip();
+    const background = await decoded(CARDS[0]);
+    if (background) context.drawImage(background, 0, 0, CARD_W, CARD_H);
     const gradient = context.createLinearGradient(0, 0, 0, CARD_H);
-    for (const [at, color] of FACE_STOPS) gradient.addColorStop(at, color);
+    for (const [at, alpha] of FOOT_STOPS) gradient.addColorStop(at, `rgba(15, 29, 0, ${alpha})`);
     context.fillStyle = gradient;
     context.fillRect(0, 0, CARD_W, CARD_H);
-    const dots = await decoded(cardBokeh);
-    if (dots) context.drawImage(dots, 0, 0, CARD_W, CARD_H);
     return element;
   })();
   return bareCard;

@@ -279,10 +279,11 @@ export const SLAB_COUNT = 4;
  * Settings all four are on the left.
  *
  * The slab's box, which the scale then shrinks, written at the panel's height.
- * Wider than the pitch, so each slab runs under the one nearer the panel and
- * the bowed outer edge of the nearer one shows slab behind it, not a gap.
+ * MEASURED: the stacks' slabs draw 54, 52, 50 and 44px wide at 1080p, one
+ * pitch apart, so they barely overlap and the bowed outer edge opens the dark
+ * seam retail shows between them.
  */
-export const SLAB_W = 50;
+export const SLAB_W = 38;
 export const SLAB_H = PANEL_H;
 
 /**

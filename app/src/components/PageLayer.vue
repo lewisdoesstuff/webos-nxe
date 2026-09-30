@@ -114,8 +114,9 @@ const titleStyle = computed((): Record<string, string> => ({
    will-change: transform keeps it rastered while the page is parked. */
 .title {
   position: absolute;
-  color: #fff;
+  color: rgba(255, 255, 255, 0.92);
   font-size: 48px;
+  letter-spacing: 1.3px;
   white-space: nowrap;
   text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.5);
   background: rgba(0, 0, 0, 0.004);

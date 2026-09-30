@@ -4,6 +4,10 @@ import { resolve } from "node:path";
 import vue from "@vitejs/plugin-vue";
 import { defineConfig, type Plugin } from "vitest/config";
 
+import type { SteamApi } from "./app/src/steam/types";
+import { steamHandler } from "./service/steam/http";
+import { createMockBackend } from "./service/steam/mock";
+
 const root = import.meta.dirname;
 const appDir = resolve(root, "app");
 const outDir = resolve(root, "dist/app");
@@ -53,6 +57,41 @@ function serveMockTv(): Plugin {
   };
 }
 
+/**
+ * `/steam/*` in dev: the live backend, or the mock when the page sends
+ * `x-steam-mock`. The live one is built on first use, so a dev session that
+ * never signs in never loads steam-session.
+ */
+function serveSteam(): Plugin {
+  return {
+    name: "nxe:steam",
+    apply: "serve",
+    configureServer(server) {
+      let loaded: SteamApi | null = null;
+      const live = lazy(async () => {
+        loaded ??= (await import("./service/steam/index")).createLiveBackend();
+        return loaded;
+      });
+      const mock = createMockBackend();
+      server.middlewares.use(
+        "/steam",
+        steamHandler((request) => (request.headers["x-steam-mock"] !== undefined ? mock : live)),
+      );
+    },
+  };
+}
+
+/** A backend that loads its real one on the first call. */
+function lazy(load: () => Promise<SteamApi>): SteamApi {
+  return {
+    status: async () => (await load()).status(),
+    beginQr: async () => (await load()).beginQr(),
+    pollQr: async () => (await load()).pollQr(),
+    friends: async () => (await load()).friends(),
+    signOut: async () => (await load()).signOut(),
+  };
+}
+
 export default defineConfig({
   root: appDir,
   base: "./",
@@ -60,7 +99,7 @@ export default defineConfig({
   resolve: {
     alias: { "@": resolve(appDir, "src") },
   },
-  plugins: [vue(), copyPackageFiles(), serveMockTv()],
+  plugins: [vue(), copyPackageFiles(), serveMockTv(), serveSteam()],
   build: {
     outDir,
     emptyOutDir: true,

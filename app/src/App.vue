@@ -107,9 +107,11 @@ import {
   type SettingDetail,
 } from "./settingsScreen";
 import { playBladeSound, playSound, playToastSound, type Sound } from "./sound";
+import { STEAM_QR, type SteamView } from "./steam/pages";
 import { useAppsStore } from "./stores/apps";
 import { useInputsStore } from "./stores/inputs";
 import { useSettingsStore } from "./stores/settings";
+import { useSteamStore } from "./stores/steam";
 import { useStorageStore } from "./stores/storage";
 import { useSystemToastsStore } from "./stores/systemToasts";
 import { useTvStore } from "./stores/tv";
@@ -129,6 +131,13 @@ import { advance, enqueue, EMPTY_TOASTS, TOAST_FADE_MS, TOAST_MS, type Toast } f
 const apps = useAppsStore();
 const settings = useSettingsStore();
 const tv = useTvStore();
+const steam = useSteamStore();
+const steamView = computed((): SteamView => ({
+  status: steam.status,
+  friends: steam.friends,
+  qr: steam.qr,
+  error: steam.error,
+}));
 const inputs = useInputsStore();
 const storage = useStorageStore();
 void storage.refresh();
@@ -598,6 +607,7 @@ function activateSettings(): void {
     settings.settings,
     apps.launchPoints,
     tv.snapshot,
+    steamView.value,
   );
   if (!action) return;
   playSound("select");
@@ -609,6 +619,7 @@ function activateSettings(): void {
     }
     settingsStack.value = pushed;
     const pageId = action.page.id.slice("settings:".length);
+    if (action.page.id === STEAM_QR) void steam.beginQr();
     if (pageId === "system") void tv.loadSystem().then(refreshSettingsTop);
     else if (pageId.startsWith("tv-")) void tv.loadPage(pageId).then(refreshSettingsTop);
     return;
@@ -624,6 +635,10 @@ function activateSettings(): void {
   }
   if (action.kind === "launch") {
     void apps.launch(action.id, { ...action.params });
+    return;
+  }
+  if (action.kind === "steam") {
+    void steam.signOut();
     return;
   }
   if (action.kind === "tv") {
@@ -663,7 +678,13 @@ function refreshSettingsTop(): void {
   const stack = settingsStack.value;
   const frame = top(stack);
   if (!frame) return;
-  const rebuilt = settingsPageFor(frame.page.id, settings.settings, apps.launchPoints, tv.snapshot);
+  const rebuilt = settingsPageFor(
+    frame.page.id,
+    settings.settings,
+    apps.launchPoints,
+    tv.snapshot,
+    steamView.value,
+  );
   if (!rebuilt) return;
   const count = rowCount(rebuilt, frame.focus);
   const focus =
@@ -676,7 +697,14 @@ const settingsFocus = computed(() => top(settingsStack.value)?.focus ?? ROOT_FOC
 const settingsDetailShown = computed((): SettingDetail => {
   const frame = top(settingsStack.value);
   if (!frame) return { values: [], description: "" };
-  return settingsDetail(frame.page, frame.focus, settings.settings, apps.launchPoints, tv.snapshot);
+  return settingsDetail(
+    frame.page,
+    frame.focus,
+    settings.settings,
+    apps.launchPoints,
+    tv.snapshot,
+    steamView.value,
+  );
 });
 
 const counts = computed(() => rows.value.map((row) => row.length));
@@ -1236,6 +1264,25 @@ const rings = ripplePattern(deviceSeed()).map((group) => ({
 
 watch([hubAway, guide], settle);
 
+/** The Steam screens follow the store, and the code is dropped once its page is left. */
+watch(
+  () => [steam.status, steam.friends, steam.qr],
+  () => {
+    const id = top(settingsStack.value)?.page.id ?? "";
+    if (id === STEAM_QR && steam.status.state === "signedIn") {
+      settingsStack.value = pop(settingsStack.value);
+      playSound("select");
+    }
+    if (id.startsWith("settings:steam")) refreshSettingsTop();
+  },
+);
+watch(
+  () => top(settingsStack.value)?.page.id,
+  (id) => {
+    if (id !== STEAM_QR && steam.qr !== null) steam.cancelQr();
+  },
+);
+
 onMounted(() => {
   chooseBootMode();
   settleBoot();
@@ -1243,6 +1290,7 @@ onMounted(() => {
   void apps.load();
   void loadToastFont();
   useSystemToastsStore().start(notify);
+  void steam.start(notify);
   expose();
 });
 

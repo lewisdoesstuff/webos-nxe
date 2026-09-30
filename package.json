@@ -20,6 +20,8 @@
   "dependencies": {
     "@vue/runtime-vapor": "3.6.0-rc.8",
     "pinia": "4.0.3",
+    "qrcode-generator": "^2.0.4",
+    "steam-session": "^1.9.4",
     "three": "0.186.1",
     "vue": "3.6.0-rc.8"
   },

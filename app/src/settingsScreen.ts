@@ -19,6 +19,16 @@ import type { ListPage, Page, PageFocus } from "./pages";
 import { paneArt, type PaneItem } from "./panel";
 import type { FlagKeys, LevelKeys, SettingChange, Settings } from "./settings";
 import {
+  EMPTY_STEAM,
+  isSteamPage,
+  steamAction,
+  steamDetail,
+  steamPage,
+  STEAM_ROOT,
+  type SteamOp,
+  type SteamView,
+} from "./steam/pages";
+import {
   choicesFor,
   detailControl,
   EMPTY_TV,
@@ -56,6 +66,11 @@ export const SETTINGS_CATEGORIES: readonly SettingsCategory[] = [
     id: "descriptions",
     title: "App Descriptions",
     description: "The line under an app's name on its tile. Select an app to type your own.",
+  },
+  {
+    id: "steam",
+    title: "Steam",
+    description: "Sign in with the Steam mobile app and see your friends.",
   },
   ...TV_PAGES.map((page) => ({
     id: page.id,
@@ -210,7 +225,9 @@ export function settingsCategoryPage(
   settings: Settings,
   apps: readonly SettingsApp[],
   tv: TvSnapshot = EMPTY_TV,
+  steam: SteamView = EMPTY_STEAM,
 ): ListPage | null {
+  if (category === "steam") return steamPage(STEAM_ROOT, steam);
   const page = tvPage(category);
   if (page) {
     return {
@@ -385,15 +402,17 @@ export function settingsPageFor(
   settings: Settings,
   apps: readonly SettingsApp[],
   tv: TvSnapshot = EMPTY_TV,
+  steam: SteamView = EMPTY_STEAM,
 ): ListPage | null {
   if (id === "settings") return settingsRoot();
+  if (isSteamPage(id)) return steamPage(id, steam);
   if (id.startsWith(PICK)) {
     const def = tvDef(id.slice(PICK.length));
     return def === undefined ? null : pickPage(def, tv);
   }
   if (id === "profile") return profilePage();
   if (id.startsWith("settings:"))
-    return settingsCategoryPage(id.slice("settings:".length), settings, apps, tv);
+    return settingsCategoryPage(id.slice("settings:".length), settings, apps, tv, steam);
   return null;
 }
 
@@ -419,6 +438,8 @@ export interface SettingDetail {
   readonly description: string;
   /** A drawn control for the focused row, in place of its value text. */
   readonly control?: DetailControl;
+  /** A challenge to draw as a QR code in the column. */
+  readonly qr?: string;
 }
 
 function categoryDetail(id: string): SettingDetail {
@@ -436,9 +457,11 @@ export function settingsDetail(
   settings: Settings,
   apps: readonly SettingsApp[],
   tv: TvSnapshot = EMPTY_TV,
+  steam: SteamView = EMPTY_STEAM,
 ): SettingDetail {
   if (page.kind !== "list") return { values: [], description: "" };
   const item = page.groups[focus.group]?.items[focus.item];
+  if (isSteamPage(page.id)) return steamDetail(page.id, item?.id ?? "", steam);
   if (page.id.startsWith(PICK)) {
     const def = tvDef(page.id.slice(PICK.length));
     return {
@@ -517,6 +540,7 @@ export type SettingsAction =
       /** The picker closes once it has written. */
       readonly pop?: boolean;
     }
+  | { readonly kind: "steam"; readonly op: SteamOp }
   | {
       readonly kind: "launch";
       readonly id: string;
@@ -537,10 +561,16 @@ export function settingsAction(
   settings: Settings,
   apps: readonly SettingsApp[],
   tv: TvSnapshot = EMPTY_TV,
+  steam: SteamView = EMPTY_STEAM,
 ): SettingsAction | null {
   if (page.kind !== "list") return null;
   const item = page.groups[focus.group]?.items[focus.item];
   if (item === undefined) return null;
+  if (isSteamPage(page.id)) {
+    const step = steamAction(page.id, item.id, steam);
+    if (step === null) return null;
+    return "push" in step ? { kind: "push", page: step.push } : { kind: "steam", op: step.op };
+  }
   if (page.id.startsWith(PICK)) {
     const def = tvDef(page.id.slice(PICK.length));
     if (def === undefined || !item.id.startsWith("opt:")) return null;

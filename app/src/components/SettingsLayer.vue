@@ -13,6 +13,7 @@ import {
 import { PARKED, useParked } from "../parked";
 import type { Box } from "../ribbon";
 import { SETTINGS_ROWS, settingsWindow, type SettingDetail } from "../settingsScreen";
+import { qrMatrix, qrPath } from "../steam/qr";
 
 /**
  * The dashboard's settings screen, in the layout of the retail settings
@@ -83,6 +84,12 @@ const toggle = computed(() => {
 const slider = computed(() => {
   const control = props.detail.control;
   return control?.kind === "slider" ? control : null;
+});
+
+const code = computed(() => {
+  if (!props.detail.qr) return null;
+  const matrix = qrMatrix(props.detail.qr);
+  return { size: matrix.length, path: qrPath(matrix) };
 });
 
 const rest = computed(() => pageRest(props.rest ?? HUB_PANEL_BOX, PANEL));
@@ -180,6 +187,16 @@ const withIcons = computed(() => items.value.some((item) => item.icon !== undefi
             :style="{ transform: `scaleX(${slider.fill})` }"
           /><b>{{ slider.text }}</b></span
         >
+        <svg
+          v-if="code"
+          class="qr"
+          :viewBox="`-3 -3 ${code.size + 6} ${code.size + 6}`"
+          shape-rendering="crispEdges"
+          aria-hidden="true"
+        >
+          <rect x="-3" y="-3" :width="code.size + 6" :height="code.size + 6" fill="#fff" />
+          <path :d="code.path" fill="#0b1a22" />
+        </svg>
         <input
           v-if="draft != null"
           ref="entry"
@@ -201,6 +218,15 @@ const withIcons = computed(() => items.value.some((item) => item.icon !== undefi
 </template>
 
 <style scoped>
+.qr {
+  display: block;
+  width: 250px;
+  height: 250px;
+  margin: 14px 0 6px;
+  border: 3px solid #9cc83a;
+  border-radius: 3px;
+}
+
 .settings {
   position: absolute;
   top: 0;

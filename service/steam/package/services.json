@@ -1,0 +1,16 @@
+{
+  "id": "ooo.lew.nxe.steam",
+  "description": "Steam sign-in and friends for NXE",
+  "services": [
+    {
+      "name": "ooo.lew.nxe.steam",
+      "commands": [
+        { "name": "status", "assistant": "status" },
+        { "name": "beginQr", "assistant": "beginQr" },
+        { "name": "pollQr", "assistant": "pollQr" },
+        { "name": "friends", "assistant": "friends" },
+        { "name": "signOut", "assistant": "signOut" }
+      ]
+    }
+  ]
+}

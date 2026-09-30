@@ -28,7 +28,7 @@
       "@/*": ["./app/src/*"]
     }
   },
-  "include": ["app/src/**/*.ts", "app/src/**/*.vue", "vite.config.ts"],
+  "include": ["app/src/**/*.ts", "app/src/**/*.vue", "vite.config.ts", "service/steam/**/*.ts"],
   "vueCompilerOptions": {
     "vapor": true
   }

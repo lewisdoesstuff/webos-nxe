@@ -29,7 +29,8 @@ mkdir -p dist
 # terser that parses in ES5 mode, and it dies on class fields in any modern
 # bundle ("SyntaxError: Unexpected token: operator (=)"). Vite has already
 # minified this code, so skipping ares-package's pass loses nothing.
-ares-package -n -o dist dist/app >/dev/null
+service/steam/build.sh
+ares-package -n -o dist dist/app dist/steam-service >/dev/null
 
 IPK="dist/${APP_ID}_${VERSION}_all.ipk"
 [[ -f "$IPK" ]] || IPK=$(ls -t dist/*.ipk | head -1)

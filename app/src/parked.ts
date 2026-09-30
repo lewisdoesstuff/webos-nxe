@@ -9,6 +9,9 @@ import { onUnmounted, ref, watch, type Ref } from "vue";
  */
 export const PARKED = "translate(2400px, 0px)";
 
+/** How long after the boot a parked layer stays on the frame, so it is painted before it leaves. */
+export const PARK_WARM_MS = 800;
+
 /** Whether a closed layer is parked: it leaves at once when opened, and parks only after its fade out. */
 export function useParked(open: () => boolean, fadeMs: number): Ref<boolean> {
   const parked = ref(!open());

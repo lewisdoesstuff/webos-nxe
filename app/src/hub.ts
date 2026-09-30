@@ -26,8 +26,8 @@ export interface Box {
   height: number;
 }
 
-/** Six channels, one per section. */
-export const CHANNEL_COUNT = 6;
+/** Seven channels, one per section. */
+export const CHANNEL_COUNT = 7;
 
 /**
  * The focused pane: 420x320 at 97,248. Every pane is this box; the spill is

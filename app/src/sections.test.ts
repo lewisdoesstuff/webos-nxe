@@ -82,11 +82,11 @@ function count(section: SectionId, points: readonly Reported[] = TV): number {
 
 describe("the section list", () => {
   it("is in the order the chrome artwork and the ramp are keyed to", () => {
-    expect(SECTION_IDS).toEqual(["inputs", "apps", "games", "media", "system", "home"]);
+    expect(SECTION_IDS).toEqual(["inputs", "apps", "games", "friends", "media", "system", "home"]);
   });
 
-  it("has the Guide's blades and Home", () => {
-    expect(SECTIONS).toHaveLength(BLADE_COUNT + 1);
+  it("has the Guide's blades, Home and Friends", () => {
+    expect(SECTIONS).toHaveLength(BLADE_COUNT + 2);
   });
 
   it("gives every section a label and a plate colour to key artwork to", () => {
@@ -236,6 +236,7 @@ describe("groupRows", () => {
       inputs: [],
       apps: [],
       games: [],
+      friends: [],
       media: [],
       system: [],
       home: [],

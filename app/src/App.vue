@@ -71,6 +71,8 @@ import {
   pageItems,
   withDescriptions,
   withDetail,
+  friendsRow,
+  isFriendPane,
 } from "./hubRows";
 import { PAGE_COUNTER_X, PAGE_COUNTER_Y } from "./pageRow";
 import {
@@ -107,7 +109,7 @@ import {
   type SettingDetail,
 } from "./settingsScreen";
 import { playBladeSound, playSound, playToastSound, type Sound } from "./sound";
-import { STEAM_QR, type SteamView } from "./steam/pages";
+import { friendPageId, STEAM_QR, type SteamView } from "./steam/pages";
 import { useAppsStore } from "./stores/apps";
 import { useInputsStore } from "./stores/inputs";
 import { useSettingsStore } from "./stores/settings";
@@ -286,6 +288,9 @@ const rowSettings = computed((previous?: Settings) => {
 
 const rows = computed(() =>
   channels.map((channel) => {
+    if (channel.id === "friends") {
+      return friendsRow(steam.friends, steam.status.state === "signedIn");
+    }
     const row = withDescriptions(
       hubRow(channel.id, apps.launchPoints, rowSettings.value),
       rowSettings.value.appDescriptions,
@@ -558,6 +563,21 @@ function openProfile(): void {
   playSound("transition");
 }
 
+/** A friend's card, opened by A on their pane, in the settings screen's layout. */
+function openFriend(friendId: string): void {
+  const card = settingsPageFor(
+    friendPageId(friendId),
+    settings.settings,
+    [],
+    tv.snapshot,
+    steamView.value,
+  );
+  if (!card) return;
+  pageOpen.value = false;
+  settingsStack.value = push([], card);
+  playSound("transition");
+}
+
 /** What is being typed in the profile menu, or null. While it is set, keys belong to the entry. */
 const draft = ref<string | null>(null);
 const draftKey = ref<string>("gamertag");
@@ -708,6 +728,14 @@ const settingsDetailShown = computed((): SettingDetail => {
 });
 
 const counts = computed(() => rows.value.map((row) => row.length));
+
+/** The Friends channel swaps the gamerscore for how many friends are online, as retail's card did. */
+const onFriends = computed(
+  () => CHANNEL_ORDER[shown.value.channel] === "friends" && steam.status.state === "signedIn",
+);
+const onlineCount = computed(
+  () => steam.friends.filter((friend) => friend.state !== "offline").length,
+);
 
 const shownRow = computed(() => rows.value[shown.value.channel] ?? []);
 
@@ -1113,6 +1141,10 @@ function activate(): void {
     openSettings();
     return;
   }
+  if (isFriendPane(item)) {
+    openFriend(item.id.slice("friend:".length));
+    return;
+  }
   if (isAllPane(item)) {
     openPage();
     return;
@@ -1330,7 +1362,8 @@ function expose(): void {
     <span class="counter" :style="counterStyle">{{ counter }}</span>
     <header class="card" :style="cardStyle">
       <span class="tag">{{ settings.settings.gamertag || "Player1" }}</span>
-      <span class="score"
+      <span v-if="onFriends" class="score">{{ onlineCount }} online</span>
+      <span v-else class="score"
         >{{ formatGamerscore(settings.settings.gamerscore) }}<i class="coin">G</i></span
       >
     </header>

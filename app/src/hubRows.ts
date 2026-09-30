@@ -4,6 +4,8 @@ import settingsIcon from "./assets/system/settings.png?inline";
 import type { ListPage } from "./pages";
 import { recentlyLaunched, type Reported, type SectionId, SECTIONS, sectionRows } from "./sections";
 import type { Settings } from "./settings";
+import { presenceLine } from "./steam/presence";
+import type { SteamFriend } from "./steam/types";
 import type { LaunchPoint } from "./types";
 
 /** What a pane launches when it is not an installed app's own launch point. */
@@ -35,6 +37,8 @@ export interface HubItem extends LaunchPoint {
   readonly score?: number;
   /** The profile's recent apps, newest first. */
   readonly recent?: readonly LaunchPoint[];
+  /** A Steam friend: A opens their card instead of launching anything. */
+  readonly friend?: true;
 }
 
 /** System settings, first on System. It opens a page rather than launching anything. */
@@ -79,6 +83,28 @@ export function isEmptyPane(item: HubItem | null | undefined): boolean {
   return item?.empty === true;
 }
 
+export function isFriendPane(item: HubItem | null | undefined): boolean {
+  return item?.friend === true;
+}
+
+/** The most friends the row holds: every one is a baked pane, and the list is already online first. */
+export const FRIEND_PANES = 48;
+
+/** The Friends channel's row: each friend as a pane, or one placeholder saying why there are none. */
+export function friendsRow(friends: readonly SteamFriend[], signedIn: boolean): HubItem[] {
+  if (friends.length === 0) {
+    const title = signedIn ? "No friends to show" : "Sign in to Steam in System Settings";
+    return [{ id: "empty:friends", title, empty: true }];
+  }
+  return friends.slice(0, FRIEND_PANES).map((friend) => ({
+    id: `friend:${friend.id}`,
+    title: friend.name,
+    detail: presenceLine(friend),
+    ...(friend.avatar ? { icon: friend.avatar, largeIcon: friend.avatar } : {}),
+    friend: true as const,
+  }));
+}
+
 export function isSettingsPane(item: HubItem | null | undefined): boolean {
   return item?.settings === true;
 }
@@ -97,6 +123,7 @@ export function isHideable(item: HubItem | null | undefined): item is HubItem {
     !isEmptyPane(item) &&
     !isSettingsPane(item) &&
     !isProfilePane(item) &&
+    !isFriendPane(item) &&
     item.launch === undefined
   );
 }
@@ -179,7 +206,8 @@ export function withDescriptions(
   overrides: Readonly<Record<string, string>>,
 ): HubItem[] {
   return row.map((item) => {
-    if (item.detail || item.all || item.empty || item.settings || item.profile) return item;
+    if (item.detail || item.all || item.empty || item.settings || item.profile || item.friend)
+      return item;
     const detail = describeApp(item.id, overrides);
     return detail === "" ? item : { ...item, detail };
   });

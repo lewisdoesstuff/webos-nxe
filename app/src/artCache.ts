@@ -127,6 +127,9 @@ function canvas(w: number, h: number): [HTMLCanvasElement, CanvasRenderingContex
 
 async function decoded(src: string): Promise<HTMLImageElement | null> {
   const image = new Image();
+  // A canvas stays readable only for a cross-origin image that asked for CORS. The local
+  // paths are same-origin or file:// and must not.
+  if (/^https?:/i.test(src)) image.crossOrigin = "anonymous";
   image.src = src;
   try {
     await image.decode();

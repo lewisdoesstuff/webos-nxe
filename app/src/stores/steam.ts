@@ -83,6 +83,9 @@ export const useSteamStore = defineStore("steam", () => {
         stopQr();
         qr.value = null;
         status.value = await backend().status();
+        if (status.value.state === "signedIn") {
+          toast({ title: status.value.name, body: "Signed in to Steam", icon: "xbox" });
+        }
         startFriends();
         return;
       }

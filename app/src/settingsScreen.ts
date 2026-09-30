@@ -569,7 +569,11 @@ export function settingsAction(
   if (isSteamPage(page.id)) {
     const step = steamAction(page.id, item.id, steam);
     if (step === null) return null;
-    return "push" in step ? { kind: "push", page: step.push } : { kind: "steam", op: step.op };
+    if ("push" in step) return { kind: "push", page: step.push };
+    if ("url" in step) {
+      return { kind: "launch", id: BROWSER_APP, params: { target: step.url } };
+    }
+    return { kind: "steam", op: step.op };
   }
   if (page.id.startsWith(PICK)) {
     const def = tvDef(page.id.slice(PICK.length));

@@ -35,6 +35,11 @@ const LABELS = {
   play: "Online",
 } as const;
 
+/** How a friend is, without the game. */
+export function stateLabel(friend: SteamFriend): string {
+  return LABELS[friend.state];
+}
+
 /** The line under a friend: what they are playing, or how they are. */
 export function presenceLine(friend: SteamFriend): string {
   return friend.game ? `Playing ${friend.game}` : LABELS[friend.state];

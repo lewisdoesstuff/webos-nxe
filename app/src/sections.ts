@@ -67,6 +67,12 @@ export const SECTIONS = [
     tint: "#3f6a1f",
     blurb: "Nothing here until a game arrives.",
   },
+  {
+    id: "friends",
+    label: "Friends",
+    tint: "#3a5a2f",
+    blurb: "Your Steam friends, online first.",
+  },
   { id: "media", label: "Media", tint: "#5a3a6e", blurb: "Video and music apps." },
   {
     id: "system",
@@ -93,6 +99,7 @@ export const SECTION_IDS: readonly SectionId[] = SECTIONS.map((section) => secti
  */
 export const CHANNEL_ORDER: readonly SectionId[] = [
   "system",
+  "friends",
   "media",
   "games",
   "inputs",

@@ -1,5 +1,5 @@
 import type { ListPage } from "../pages";
-import { presenceLine } from "./presence";
+import { presenceLine, stateLabel } from "./presence";
 import type { QrPoll, SteamFriend, SteamStatus } from "./types";
 
 /** What the Steam screens draw from. */
@@ -20,12 +20,25 @@ export const EMPTY_STEAM: SteamView = {
 export const STEAM_ROOT = "settings:steam";
 export const STEAM_QR = "settings:steam-qr";
 export const STEAM_FRIENDS = "settings:steam-friends";
+export const STEAM_FRIEND = "settings:steam-friend:";
+
+/** The page for one friend: what A on their pane opens. */
+export function friendPageId(friendId: string): string {
+  return `${STEAM_FRIEND}${friendId}`;
+}
+
+/** The friend's Steam profile, which the TV's browser opens. */
+export function profileUrl(friendId: string): string {
+  return `https://steamcommunity.com/profiles/${friendId}`;
+}
 
 export const STEAM_DESCRIPTION = "Sign in with the Steam mobile app to see your friends.";
 
 /** The pages this module builds, by id. */
 export function isSteamPage(id: string): boolean {
-  return id === STEAM_ROOT || id === STEAM_QR || id === STEAM_FRIENDS;
+  return (
+    id === STEAM_ROOT || id === STEAM_QR || id === STEAM_FRIENDS || id.startsWith(STEAM_FRIEND)
+  );
 }
 
 function list(id: string, title: string, items: ListPage["groups"][number]["items"]): ListPage {
@@ -41,6 +54,15 @@ export function steamPage(id: string, view: SteamView): ListPage | null {
           { id: "steam:signout", label: "Sign Out" },
         ])
       : list(id, "Steam", [{ id: "steam:signin", label: "Sign In with QR Code" }]);
+  }
+  if (id.startsWith(STEAM_FRIEND)) {
+    const friend = view.friends.find((entry) => entry.id === id.slice(STEAM_FRIEND.length));
+    if (!friend) return null;
+    return list(id, friend.name, [
+      { id: "friend:status", label: "Status" },
+      ...(friend.game ? [{ id: "friend:game", label: "Playing" }] : []),
+      { id: "friend:profile", label: "View Profile" },
+    ]);
   }
   if (id === STEAM_QR)
     return list(id, "Steam Sign In", [{ id: "steam:qr", label: "Scan the Code" }]);
@@ -85,6 +107,15 @@ export function steamDetail(pageId: string, itemId: string, view: SteamView): St
       ...(live && view.qr?.url ? { qr: view.qr.url } : {}),
     };
   }
+  if (pageId.startsWith(STEAM_FRIEND)) {
+    const friend = view.friends.find((entry) => entry.id === pageId.slice(STEAM_FRIEND.length));
+    if (!friend) return { values: [], description: "" };
+    if (itemId === "friend:game") return { values: [friend.game ?? ""], description: "" };
+    if (itemId === "friend:profile") {
+      return { values: [], description: `Opens ${friend.name}'s Steam profile in the browser.` };
+    }
+    return { values: [stateLabel(friend)], description: "" };
+  }
   if (pageId === STEAM_FRIENDS) {
     const friend = view.friends.find((entry) => `friend:${entry.id}` === itemId);
     return friend
@@ -123,7 +154,12 @@ export function steamAction(
   pageId: string,
   itemId: string,
   view: SteamView,
-): { push: ListPage } | { op: SteamOp } | null {
+): { push: ListPage } | { op: SteamOp } | { url: string } | null {
+  if (pageId.startsWith(STEAM_FRIEND)) {
+    return itemId === "friend:profile"
+      ? { url: profileUrl(pageId.slice(STEAM_FRIEND.length)) }
+      : null;
+  }
   if (pageId !== STEAM_ROOT) return null;
   if (itemId === "steam:signin") {
     const next = steamPage(STEAM_QR, view);

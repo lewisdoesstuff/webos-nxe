@@ -24,7 +24,7 @@ import { css, edgeColor, faceStops } from "./tileColor";
  */
 
 /** Bumped whenever what a bake draws changes, so older stored bakes are ignored. */
-const BAKE_VERSION = 5;
+const BAKE_VERSION = 6;
 const FLOOR_KEY = "floor-face";
 
 /** The size the hub shows art at, in CSS px, which is what this TV rasters at. */
@@ -402,6 +402,14 @@ async function bakeFlat(
   const h = source.naturalHeight * fit;
   artContext.drawImage(source, (FLAT.size - w) / 2, (FLAT.size - h) / 2, w, h);
   feather(artContext, 36);
+  // The card darkens into its foot from 58% down; the icon's own background
+  // fades out before it, so no box of the lighter colour shows over the foot.
+  fade(artContext, 0, FLAT.size, [
+    [0, 1],
+    [0.72, 1],
+    [0.95, 0],
+    [1, 0],
+  ]);
 
   const [mirror, mirrorContext] = mirrorCanvas;
   mirrorContext.setTransform(1, 0, 0, -1, 0, face.height);

@@ -14,12 +14,15 @@ export const useInputsStore = defineStore("inputs", () => {
   const statuses = ref<InputStatus[]>([]);
   let timer: ReturnType<typeof setInterval> | null = null;
 
+  /** Only replaces the list when it changed, so the panes are not rebuilt by a poll that found nothing new. */
   async function refresh(): Promise<void> {
+    let next: InputStatus[] = [];
     try {
-      statuses.value = parseInputStatus(await callLuna(STATUS));
+      next = parseInputStatus(await callLuna(STATUS));
     } catch {
-      statuses.value = [];
+      next = [];
     }
+    if (JSON.stringify(next) !== JSON.stringify(statuses.value)) statuses.value = next;
   }
 
   function watch(active: boolean): void {

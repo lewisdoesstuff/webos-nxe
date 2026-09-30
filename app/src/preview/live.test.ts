@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import { hdmiPort, liveTarget, parseInputStatus, type LiveInputs } from "./live";
+import {
+  deviceTitle,
+  hdmiPort,
+  liveTarget,
+  nameInputs,
+  parseInputStatus,
+  type LiveInputs,
+} from "./live";
 
 const ready: LiveInputs = {
   enabled: true,
@@ -51,5 +58,35 @@ describe("live input previews", () => {
       }),
     ).toEqual([{ port: 2, label: "AVR-S760H", connected: true, signal: false }]);
     expect(parseInputStatus(null)).toEqual([]);
+  });
+});
+
+describe("input device names", () => {
+  const statuses = [
+    { port: 2, label: "AVR-S760H", connected: true, signal: false },
+    { port: 1, label: "HDMI 1", connected: true, signal: true },
+    { port: 3, label: "Console", connected: false, signal: false },
+  ];
+
+  it("add the device to a connected port's title", () => {
+    expect(deviceTitle("HDMI 2", 2, statuses)).toBe("HDMI 2 - AVR-S760H");
+  });
+
+  it("leave a title alone when there is nothing to add", () => {
+    expect(deviceTitle("HDMI 1", 1, statuses)).toBe("HDMI 1");
+    expect(deviceTitle("HDMI 3", 3, statuses)).toBe("HDMI 3");
+    expect(deviceTitle("HDMI 4", 4, statuses)).toBe("HDMI 4");
+  });
+
+  it("rename only the ports in a row", () => {
+    const row = [
+      { id: "com.webos.app.hdmi2", title: "HDMI 2" },
+      { id: "com.webos.app.livetv", title: "Live TV" },
+    ];
+    expect(nameInputs(row, statuses).map((item) => item.title)).toEqual([
+      "HDMI 2 - AVR-S760H",
+      "Live TV",
+    ]);
+    expect(nameInputs(row, [])[0]?.title).toBe("HDMI 2");
   });
 });

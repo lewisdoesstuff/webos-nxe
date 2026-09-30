@@ -74,3 +74,32 @@ export function liveTarget(state: LiveInputs): LiveTarget | null {
   if (!status || !status.connected || !status.signal) return null;
   return { port, src: `ext://hdmi:${port}` };
 }
+
+/**
+ * A port's pane title with the device on it: "HDMI 2 - AVR-S760H". Left as it
+ * was for a port with nothing connected, or whose device name is only the
+ * port's own.
+ */
+export function deviceTitle(title: string, port: number, statuses: readonly InputStatus[]): string {
+  const status = statuses.find((entry) => entry.port === port);
+  if (!status || !status.connected) return title;
+  const name = status.label.trim();
+  if (name === "" || name.toLowerCase() === title.toLowerCase() || /^hdmi[ _]?\d$/i.test(name)) {
+    return title;
+  }
+  return `${title} - ${name}`;
+}
+
+/** A row of panes with each HDMI input's device named. Items that are not ports pass through. */
+export function nameInputs<T extends { readonly id: string; readonly title: string }>(
+  row: readonly T[],
+  statuses: readonly InputStatus[],
+): T[] {
+  if (statuses.length === 0) return [...row];
+  return row.map((item) => {
+    const port = hdmiPort(item.id);
+    if (port === null) return item;
+    const title = deviceTitle(item.title, port, statuses);
+    return title === item.title ? item : { ...item, title };
+  });
+}

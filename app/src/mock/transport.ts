@@ -112,6 +112,15 @@ const handlers: Record<string, (params: LunaParams) => unknown> = {
     for (const [key, value] of Object.entries(settings)) tvSettings[`${category}.${key}`] = value;
     return { returnValue: true };
   },
+  "com.webos.service.eim/getAllInputStatus": (_params) => ({
+    returnValue: true,
+    devices: [
+      { port: 1, label: "HDMI 1", connected: false, hdmiSignalExist: false },
+      { port: 2, label: "AVR-S760H", connected: true, hdmiSignalExist: false },
+      { port: 3, label: "Switch", connected: true, hdmiSignalExist: true },
+      { port: 4, label: "HDMI 4", connected: false, hdmiSignalExist: false },
+    ],
+  }),
   "com.webos.audio/getVolume": (_params) => ({ returnValue: true, volume: 9, muteStatus: false }),
   "com.webos.service.connectionmanager/getStatus": (_params) => ({
     returnValue: true,

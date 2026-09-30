@@ -80,7 +80,7 @@ import {
   top,
 } from "./pages";
 import { paneArt, type PaneItem } from "./panel";
-import { liveTarget } from "./preview/live";
+import { liveTarget, nameInputs } from "./preview/live";
 import { CANVAS_H, CANVAS_W } from "./ribbon";
 import { ringImage, ripplePattern } from "./ripples";
 import { CHANNEL_ORDER, SECTIONS, startChannel } from "./sections";
@@ -249,7 +249,10 @@ const rowSettings = computed((previous?: Settings) => {
 });
 
 const rows = computed(() =>
-  channels.map((channel) => hubRow(channel.id, apps.launchPoints, rowSettings.value)),
+  channels.map((channel) => {
+    const row = hubRow(channel.id, apps.launchPoints, rowSettings.value);
+    return channel.id === "inputs" ? nameInputs(row, inputs.statuses) : row;
+  }),
 );
 
 /** The "All" page over the hub. Always mounted; opening it changes one transform and opacity. */
@@ -567,10 +570,14 @@ watch(
     standTimer = setTimeout(() => {
       stood.value = true;
     }, 500);
-    inputs.watch(settings.settings.livePreviews && channels[shown.value.channel]?.id === "inputs");
+    const onInputs = channels[shown.value.channel]?.id === "inputs";
+    if (onInputs) void inputs.refresh();
+    inputs.watch(settings.settings.livePreviews && onInputs);
   },
   { immediate: true },
 );
+
+void inputs.refresh();
 
 const liveInput = computed(() =>
   liveTarget({

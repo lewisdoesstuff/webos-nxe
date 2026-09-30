@@ -24,7 +24,7 @@ import { css, edgeColor, faceStops } from "./tileColor";
  */
 
 /** Bumped whenever what a bake draws changes, so older stored bakes are ignored. */
-const BAKE_VERSION = 4;
+const BAKE_VERSION = 5;
 const FLOOR_KEY = "floor-face";
 
 /** The size the hub shows art at, in CSS px, which is what this TV rasters at. */
@@ -65,7 +65,7 @@ interface Baked {
   art: string;
   echo: string | null;
   floor: string;
-  /** Set for an icon drawn on its own flat colour: the whole card, echo included, at half size. */
+  /** Set for an icon drawn on its own flat colour: the whole card, at half size, with no echo of the logo. */
   face?: string;
   /** The flat colour of a face, as CSS. */
   color?: string;
@@ -402,20 +402,6 @@ async function bakeFlat(
   const h = source.naturalHeight * fit;
   artContext.drawImage(source, (FLAT.size - w) / 2, (FLAT.size - h) / 2, w, h);
   feather(artContext, 36);
-
-  const echoH = 110;
-  const echoCanvas = canvas(FLAT.size, echoH);
-  if (!echoCanvas) return;
-  const [echo, echoContext] = echoCanvas;
-  echoContext.setTransform(1, 0, 0, -1, 0, echoH);
-  echoContext.drawImage(art, 0, echoH - FLAT.size);
-  echoContext.setTransform(1, 0, 0, 1, 0, 0);
-  fade(echoContext, 0, echoH, [
-    [0, 0.45],
-    [0.4, 0.2],
-    [1, 0],
-  ]);
-  faceContext.drawImage(echo, FLAT.x * k, (FLAT.y + FLAT.size) * k, FLAT.size * k, echoH * k);
 
   const [mirror, mirrorContext] = mirrorCanvas;
   mirrorContext.setTransform(1, 0, 0, -1, 0, face.height);

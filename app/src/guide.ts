@@ -279,22 +279,19 @@ export const SLAB_COUNT = 4;
  * Settings all four are on the left.
  *
  * The slab's box, which the scale then shrinks, written at the panel's height.
- * MEASURED: the stacks' slabs draw 54, 52, 50 and 44px wide at 1080p, one
- * pitch apart, so they barely overlap and the bowed outer edge opens the dark
- * seam retail shows between them.
+ * MEASURED: the stacks' slabs show 54, 52, 50 and 44px wide at 1080p.
  */
-export const SLAB_W = 38;
+export const SLAB_W = 41;
 export const SLAB_H = PANEL_H;
 
 /**
- * The step from one slab to the next, outward from the panel. MEASURED: the
- * left stack's edges at 1080p are 546, 486, 431, 374 and the right stack's
- * 1377, 1434, 1491, 1545, so about 56 either way.
+ * How far each slab runs under the one nearer the panel, enough to cover the
+ * nearer one's bowed edge (8% of its width) so no gap opens between them.
  */
-export const SLAB_PITCH = 37;
+export const SLAB_OVERLAP = 4;
 
-/** The nearest slab runs up to the panel's edge with no gap. MEASURED, to a pixel at 1080p. */
-export const SLAB_TUCK = 0;
+/** How far the nearest slab runs under the panel, so it shows no wider than the rest. */
+export const SLAB_TUCK = 3;
 
 /**
  * The recession ramp, MEASURED as heights: 453, 439, 425 and 411px at 1080p
@@ -449,6 +446,13 @@ function wrap(value: number, count: number): number {
  * A blade change moves these boxes and creates none, which is what the gate
  * needs, and the transform's transition is the slide.
  */
+/** How far a slot's panel-side edge is from the panel's, each slab stepping out by what shows of the one before. */
+export function slabOffset(slot: number): number {
+  let offset = -SLAB_TUCK;
+  for (let k = 0; k < slot; k += 1) offset += SLAB_W * ramp(SLAB_SCALE, k) - SLAB_OVERLAP;
+  return offset;
+}
+
 export function placeBlades(focus: number, bladeIds: readonly string[]): Slab[] {
   const at = Math.min(Math.max(focus, 0), Math.max(bladeIds.length - 1, 0));
   return bladeIds.map((id, d) => {
@@ -456,9 +460,9 @@ export function placeBlades(focus: number, bladeIds: readonly string[]): Slab[] 
     const slot = side === "left" ? at - 1 - d : side === "right" ? d - at - 1 : 0;
     const x =
       side === "left"
-        ? PANEL_X - SLAB_TUCK - slot * SLAB_PITCH - SLAB_W
+        ? PANEL_X - slabOffset(slot) - SLAB_W
         : side === "right"
-          ? PANEL_X + PANEL_W + SLAB_TUCK + slot * SLAB_PITCH
+          ? PANEL_X + PANEL_W + slabOffset(slot)
           : PANEL_X;
     return { d, id, side, slot, x, scale: side === "under" ? 1 : ramp(SLAB_SCALE, slot) };
   });
@@ -468,8 +472,8 @@ export function placeBlades(focus: number, bladeIds: readonly string[]): Slab[] 
 export function stackBounds(): { left: number; right: number } {
   const last = SLAB_COUNT - 1;
   return {
-    left: PANEL_X - SLAB_TUCK - last * SLAB_PITCH - SLAB_W,
-    right: PANEL_X + PANEL_W + SLAB_TUCK + last * SLAB_PITCH + SLAB_W,
+    left: PANEL_X - slabOffset(last) - SLAB_W,
+    right: PANEL_X + PANEL_W + slabOffset(last) + SLAB_W,
   };
 }
 

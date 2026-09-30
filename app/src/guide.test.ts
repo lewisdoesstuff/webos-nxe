@@ -68,7 +68,7 @@ import {
   SLAB_LABEL_X,
   SLAB_PIVOT_Y,
   SLAB_SCALE,
-  SLAB_PITCH,
+  SLAB_OVERLAP,
   SLAB_TUCK,
   SLAB_W,
   SPINNER_D,
@@ -481,12 +481,17 @@ describe("the blade stack", () => {
     const slabs = placeBlades(2, BLADE_IDS);
     const left = slabs.filter((slab) => slab.side === "left").sort((a, b) => a.slot - b.slot);
     const right = slabs.filter((slab) => slab.side === "right").sort((a, b) => a.slot - b.slot);
-    expect(at(left, 0).x + SLAB_W).toBe(PANEL_X - SLAB_TUCK);
-    expect(at(right, 0).x).toBe(PANEL_X + PANEL_W + SLAB_TUCK);
-    expect(at(left, 0).x - at(left, 1).x).toBe(SLAB_PITCH);
-    expect(at(right, 1).x - at(right, 0).x).toBe(SLAB_PITCH);
+    expect(at(left, 0).x + SLAB_W).toBe(PANEL_X + SLAB_TUCK);
+    expect(at(right, 0).x).toBe(PANEL_X + PANEL_W - SLAB_TUCK);
+    const shown = SLAB_W * at(SLAB_SCALE, 0) - SLAB_OVERLAP;
+    expect(at(left, 0).x - at(left, 1).x).toBeCloseTo(shown, 10);
+    expect(at(right, 1).x - at(right, 0).x).toBeCloseTo(shown, 10);
     expect(at(left, 0).id).toBe("games");
     expect(at(right, 0).id).toBe("media");
+  });
+
+  it("overlaps each slab by more than the nearer one's bowed edge, so no gap opens", () => {
+    for (const scale of SLAB_SCALE) expect(SLAB_OVERLAP).toBeGreaterThan(0.08 * SLAB_W * scale);
   });
 
   it("recesses monotonically: the scale falls every step", () => {
@@ -514,8 +519,8 @@ describe("the blade stack", () => {
         if (slab.side === "under") continue;
         const box = slabBox(slab);
         expect(inCanvas(box)).toBe(true);
-        if (slab.side === "left") expect(right(box)).toBeLessThanOrEqual(PANEL_X);
-        else expect(box.x).toBeGreaterThanOrEqual(PANEL_X + PANEL_W);
+        if (slab.side === "left") expect(right(box)).toBeLessThanOrEqual(PANEL_X + SLAB_TUCK);
+        else expect(box.x).toBeGreaterThanOrEqual(PANEL_X + PANEL_W - SLAB_TUCK);
         expect(box.y).toBeGreaterThanOrEqual(PANEL_Y);
         expect(bottom(box)).toBeLessThanOrEqual(PANEL_Y + PANEL_H);
       }

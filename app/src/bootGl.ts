@@ -57,6 +57,7 @@ const VEC4S = [
   "ringB",
   "extra",
   "decal",
+  "flare",
 ] as const satisfies readonly (keyof BootSceneFrame)[];
 
 function css(c: Rgb): string {
@@ -120,14 +121,14 @@ export class BootRenderer {
   private ready = false;
   /** Set when there is no GL at all and the settled lockup is drawn in 2D. */
   private flat = false;
-  private readonly images: readonly [HTMLImageElement, HTMLImageElement];
+  private readonly images: readonly [HTMLImageElement, HTMLImageElement, HTMLImageElement];
 
   constructor(canvas: HTMLCanvasElement, theme: BootTheme) {
     this.canvas = canvas;
     this.theme = theme;
     canvas.width = Math.round(FRAME_W * BOOT_RENDER_SCALE);
     canvas.height = Math.round(FRAME_H * BOOT_RENDER_SCALE);
-    this.images = [new Image(), new Image()];
+    this.images = [new Image(), new Image(), new Image()];
     const attributes: WebGLContextAttributes = {
       alpha: false,
       depth: false,
@@ -143,7 +144,7 @@ export class BootRenderer {
     }
     this.images.forEach((image, unit) => {
       image.addEventListener("load", () => this.upload(unit, image), { once: true });
-      image.src = unit === 0 ? theme.orb.url : theme.wordmark.url;
+      image.src = [theme.orb.url, theme.wordmark.url, theme.flare.url][unit] ?? theme.orb.url;
     });
   }
 
@@ -170,7 +171,7 @@ export class BootRenderer {
     gl.linkProgram(program);
     gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
-    for (let unit = 0; unit < 2; unit++) {
+    for (let unit = 0; unit < 3; unit++) {
       const texture = gl.createTexture();
       if (texture === null) return false;
       gl.activeTexture(gl.TEXTURE0 + unit);
@@ -208,7 +209,11 @@ export class BootRenderer {
     gl.activeTexture(gl.TEXTURE0 + unit);
     gl.bindTexture(gl.TEXTURE_2D, texture);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
-    if (typeof WebGL2RenderingContext !== "undefined" && gl instanceof WebGL2RenderingContext) {
+    if (
+      unit < 2 &&
+      typeof WebGL2RenderingContext !== "undefined" &&
+      gl instanceof WebGL2RenderingContext
+    ) {
       gl.generateMipmap(gl.TEXTURE_2D);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
     }
@@ -273,6 +278,7 @@ export class BootRenderer {
     gl.uniform2f(this.location(gl, "uRes"), this.canvas.width, this.canvas.height);
     gl.uniform1i(this.location(gl, "tOrb"), 0);
     gl.uniform1i(this.location(gl, "tMark"), 1);
+    gl.uniform1i(this.location(gl, "tFlare"), 2);
     gl.viewport(0, 0, this.canvas.width, this.canvas.height);
     gl.bindBuffer(gl.ARRAY_BUFFER, this.buffer);
     gl.enableVertexAttribArray(0);

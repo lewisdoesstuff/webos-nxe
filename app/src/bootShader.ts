@@ -31,6 +31,8 @@ uniform vec4 uMarkT;
 uniform vec4 uMarkB;
 uniform sampler2D tOrb;
 uniform sampler2D tMark;
+uniform sampler2D tFlare;
+uniform vec4 uFlare;
 uniform vec4 uField;
 uniform vec4 uShape;
 uniform vec4 uGroove;
@@ -154,7 +156,7 @@ vec3 shell(vec3 n, float px) {
   float hatch = noise(vec2(along * 240.0, wallF * 1.7));
   float nearPole = exp(-theta * theta / 0.25);
 
-  vec3 wallC = cWall * 1.35 * (0.6 + 0.8 * hatch) * mix(0.7, 1.0, wallF);
+  vec3 wallC = mix(cWall, cFloor, 0.6) * (0.85 + 0.3 * hatch) * mix(0.8, 1.0, wallF);
   vec3 cream = cCore * vec3(0.97, 0.98, 0.75);
   float side = clamp((u + w) / (2.0 * w + 1e-4), 0.0, 1.0);
   vec3 floorC = mix(cFloor * 0.75, cFloor, smoothstep(0.0, 0.15, side));
@@ -193,6 +195,20 @@ float beam(vec2 p, vec2 at, vec2 dir) {
   float across = dot(v, vec2(-dir.y, dir.x));
   float width = 0.09 * uSphere.z + 0.1 * abs(along);
   return (1.0 - smoothstep(0.6 * width, width, abs(across))) * exp(-abs(along) / uStar.w);
+}
+
+float flareTile(float i, vec2 uv) {
+  vec2 size = vec2(128.0 / 768.0, 72.0 / 360.0);
+  vec2 inset = vec2(0.5 / 768.0, 0.5 / 360.0);
+  vec2 cell = vec2(mod(i, 6.0), floor(i / 6.0));
+  return TEX(tFlare, clamp(uv * size, inset, size - inset) + cell * size).r;
+}
+
+float flareMask(vec2 p) {
+  vec2 uv = p / vec2(1920.0, 1080.0);
+  float i0 = floor(uFlare.x);
+  float i1 = min(i0 + 1.0, 29.0);
+  return mix(flareTile(i0, uv), flareTile(i1, uv), fract(uFlare.x));
 }
 
 float ring(vec2 p, float scale) {
@@ -265,6 +281,10 @@ vec3 scene(vec2 p) {
     vec2 s2 = normalize(vec2(t2.x, -t2.y) + 1e-5);
     float b = max(beam(p, at, s1), beam(p, at, s2)) * smoothstep(0.0, 60.0, out1);
     c += mix(cCore, vec3(1.0), 0.7) * b * uStar.z;
+  }
+  if (uFlare.y > 0.0) {
+    float m = smoothstep(uFlare.z, 1.0, flareMask(p));
+    c = mix(c, mix(vec3(0.9, 1.0, 0.82), vec3(1.0), m * m), m * uFlare.y);
   }
   if (uRingB.z > 0.0) {
     float r = ring(p, 1.0) + 0.7 * ring(p, 1.0 + uRingB.w);

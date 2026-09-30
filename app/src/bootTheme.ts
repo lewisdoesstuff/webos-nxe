@@ -11,6 +11,7 @@
  * (`dkKAW_GXXZk`) where a frame shows them clean.
  */
 
+import flareUrl from "./assets/boot/flare.png?inline";
 import markUrl from "./assets/boot/mark.png?inline";
 import orbUrl from "./assets/boot/orb.png?inline";
 
@@ -87,6 +88,8 @@ export interface BootTheme {
   readonly orb: BootOrbTexture;
   /** The wordmark beneath it: RGB is its colour and alpha its shape. */
   readonly wordmark: BootTexture;
+  /** The flare's mask atlas: master frames 86 to 115, 6 by 5 tiles of 128x72. */
+  readonly flare: BootTexture;
   readonly lockup: BootLockup;
 }
 
@@ -122,5 +125,6 @@ export const XBOX_THEME: BootTheme = {
   accent: hex(0x8ef070),
   orb: { url: orbUrl, width: 480, height: 480, cx: 247.5, cy: 252.5, rx: 214, ry: 189 },
   wordmark: { url: markUrl, width: 1192, height: 252 },
+  flare: { url: flareUrl, width: 768, height: 360 },
   lockup: { orbX: 977.5, orbY: 441.5, orbRy: 144, markX: 536, markY: 595, markWidth: 882 },
 };

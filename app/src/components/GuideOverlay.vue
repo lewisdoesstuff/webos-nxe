@@ -397,8 +397,8 @@ const CLOCK: Box = { x: CLOCK_X, y: CLOCK_Y, width: CLOCK_W, height: CLOCK_H };
 .slab {
   position: absolute;
   transform-origin: 100% 50%;
-  border-radius: 22px 4px 0 0 / 18px 4px 0 0;
-  background: linear-gradient(90deg, #cfd4d8 0%, #e6e9ec 45%, #f4f5f6 100%);
+  border-radius: 10px 3px 0 22px / 10px 3px 0 75%;
+  background: linear-gradient(90deg, #cbd6da 0%, #e2ebee 45%, #f1f6f8 100%);
   box-shadow: -3px 0 8px rgba(0, 0, 0, 0.5);
   will-change: transform;
   transition: transform var(--open-ms) cubic-bezier(0.215, 0.61, 0.355, 1);

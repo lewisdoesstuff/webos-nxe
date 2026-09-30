@@ -24,6 +24,8 @@ export interface Settings {
   showClock: boolean;
   /** The A/B/X/Y + LB/RB row at the foot of the screen. */
   hintBar: boolean;
+  /** Draw the hints as the Magic Remote's keys instead of A, B, X and Y. */
+  remoteHints: boolean;
   /** Toasts over the hub, such as the sign-in. */
   toasts: boolean;
   /** A live picture in the focused HDMI pane, where the TV has a signal. */
@@ -65,6 +67,7 @@ export const SETTINGS_DEFAULTS: Settings = {
   clock24h: true,
   showClock: true,
   hintBar: true,
+  remoteHints: false,
   toasts: true,
   livePreviews: false,
   reduceMotion: false,
@@ -151,6 +154,7 @@ export function mergeSettings(stored: unknown): { settings: Settings; migrated: 
     clock24h: booleanOr(source["clock24h"], SETTINGS_DEFAULTS.clock24h),
     showClock: booleanOr(source["showClock"], SETTINGS_DEFAULTS.showClock),
     hintBar: booleanOr(source["hintBar"], SETTINGS_DEFAULTS.hintBar),
+    remoteHints: booleanOr(source["remoteHints"], SETTINGS_DEFAULTS.remoteHints),
     toasts: booleanOr(source["toasts"], SETTINGS_DEFAULTS.toasts),
     livePreviews: booleanOr(source["livePreviews"], SETTINGS_DEFAULTS.livePreviews),
     reduceMotion: booleanOr(source["reduceMotion"], SETTINGS_DEFAULTS.reduceMotion),

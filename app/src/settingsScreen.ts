@@ -140,6 +140,12 @@ export const GENERAL_DEFS: readonly SettingDef[] = [
   },
   {
     kind: "flag",
+    key: "remoteHints",
+    title: "Remote Button Hints",
+    description: "Show the remote's OK and colour keys in the hints instead of A, B, X and Y.",
+  },
+  {
+    kind: "flag",
     key: "reduceMotion",
     title: "Skip Boot Animation",
     description: "Start straight on the dashboard instead of playing the boot.",

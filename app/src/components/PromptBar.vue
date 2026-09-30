@@ -1,7 +1,7 @@
 <script setup lang="ts" vapor>
 import { computed } from "vue";
 
-import { BUTTON_FILL, BUTTON_GLYPH, BUTTON_RING, BUTTON_SIZE, type Prompt } from "../prompts";
+import { BUTTON_SIZE, faceFor, type Prompt } from "../prompts";
 
 /**
  * The row of `A` / `B` / `X` / `Y` prompts along the foot of a screen.
@@ -32,8 +32,10 @@ const props = withDefaults(
     y?: number;
     /** Let the parent place the row instead of taking the measured position. */
     inline?: boolean;
+    /** Draw the Magic Remote's keys instead of the face buttons. */
+    remote?: boolean;
   }>(),
-  { y: PROMPT_Y, inline: false },
+  { y: PROMPT_Y, inline: false, remote: false },
 );
 
 const rootStyle = computed((): Record<string, string> => ({
@@ -49,11 +51,8 @@ function bare(prompt: Prompt): boolean {
 
 function promptStyle(prompt: Prompt): Record<string, string> {
   if (bare(prompt)) return { "--fill": PALE_FILL, "--letter": PALE_LETTER };
-  return {
-    "--fill": BUTTON_FILL[prompt.button],
-    "--ring": BUTTON_RING[prompt.button],
-    "--letter": BUTTON_GLYPH[prompt.button],
-  };
+  const face = faceFor(prompt, props.remote);
+  return { "--fill": face.fill, "--ring": face.ring, "--letter": face.glyph };
 }
 </script>
 
@@ -68,7 +67,9 @@ function promptStyle(prompt: Prompt): Record<string, string> {
       :style="promptStyle(prompt)"
     >
       <span class="disc">
-        <span class="letter">{{ prompt.button.toUpperCase() }}</span>
+        <span class="letter" :data-remote="remote || undefined">{{
+          faceFor(prompt, remote).letter
+        }}</span>
       </span>
       <span v-if="!bare(prompt)" class="word">{{ prompt.label }}</span>
     </div>
@@ -124,6 +125,11 @@ function promptStyle(prompt: Prompt): Record<string, string> {
   font-weight: 800;
   line-height: 1;
   text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+
+.letter[data-remote] {
+  font-size: 11px;
+  letter-spacing: -0.02em;
 }
 
 .word {

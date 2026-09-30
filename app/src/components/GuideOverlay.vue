@@ -56,7 +56,7 @@ import {
   type ItemRow,
   type Slab,
 } from "../guide";
-import { BUTTON_FILL, BUTTON_GLYPH, BUTTON_RING, type Prompt } from "../prompts";
+import { faceFor, type Prompt } from "../prompts";
 import { CANVAS_H, CANVAS_W } from "../ribbon";
 
 /**
@@ -110,8 +110,10 @@ const props = withDefaults(
     clock24h?: boolean;
     /** The gamer picture, when there is one to replace the default. */
     pic?: string;
+    /** Draw the Magic Remote's keys instead of the face buttons. */
+    remote?: boolean;
   }>(),
-  { open: false, blade: 4, item: 0, clock: "", showClock: true, clock24h: true },
+  { open: false, blade: 4, item: 0, clock: "", showClock: true, clock24h: true, remote: false },
 );
 
 const bladeIds = BLADE_IDS;
@@ -329,11 +331,8 @@ function barStyle(): Record<string, string> {
 }
 
 function discStyle(prompt: Prompt): Record<string, string> {
-  return {
-    "--fill": BUTTON_FILL[prompt.button],
-    "--ring": BUTTON_RING[prompt.button],
-    "--letter": BUTTON_GLYPH[prompt.button],
-  };
+  const face = faceFor(prompt, props.remote);
+  return { "--fill": face.fill, "--ring": face.ring, "--letter": face.glyph };
 }
 
 const PANEL: Box = { x: PANEL_X, y: PANEL_Y, width: PANEL_W, height: PANEL_H };
@@ -396,7 +395,9 @@ const CLOCK: Box = { x: CLOCK_X, y: CLOCK_Y, width: CLOCK_W, height: CLOCK_H };
         :data-index="i"
       >
         <span class="disc" :style="[at(promptDisc(i)), discStyle(prompt)]">
-          <span class="letter">{{ prompt.button.toUpperCase() }}</span>
+          <span class="letter" :data-remote="remote || undefined">{{
+            faceFor(prompt, remote).letter
+          }}</span>
         </span>
         <span class="word" :style="at(promptLabel(i))">{{ prompt.label }}</span>
       </div>
@@ -736,6 +737,11 @@ const CLOCK: Box = { x: CLOCK_X, y: CLOCK_Y, width: CLOCK_W, height: CLOCK_H };
     radial-gradient(circle at 50% 42%, var(--fill) 0%, var(--fill) 38%, var(--ring) 100%);
   box-shadow: inset 0 0 0 2px var(--ring, rgba(0, 0, 0, 0.25));
   color: var(--letter, #fff);
+}
+
+.letter[data-remote] {
+  font-size: 9px;
+  letter-spacing: -0.02em;
 }
 
 .letter {

@@ -1288,7 +1288,11 @@ function expose(): void {
     </header>
     <div class="pic" :style="picStyle" />
     <div class="frame" data-frame :style="frameStyle">
-      <PromptBar v-if="settings.settings.hintBar" :prompts="prompts" />
+      <PromptBar
+        v-if="settings.settings.hintBar"
+        :prompts="prompts"
+        :remote="settings.settings.remoteHints"
+      />
     </div>
     <div class="ripples">
       <i v-for="(ring, index) in rings" :key="index" :style="ring" />
@@ -1354,6 +1358,7 @@ function expose(): void {
         :pic="gamerpic"
         :show-clock="settings.settings.showClock"
         :clock24h="settings.settings.clock24h"
+        :remote="settings.settings.remoteHints"
       />
     </div>
 

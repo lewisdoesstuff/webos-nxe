@@ -90,3 +90,39 @@ export function promptsFor(spec: Partial<Record<Button, string | null>>): Prompt
     .filter((button) => button in spec)
     .map((button) => ({ button, label: spec[button] ?? null }));
 }
+
+export interface Face {
+  readonly fill: string;
+  readonly ring: string;
+  readonly glyph: string;
+  /** The letter on the disc; empty for a colour key, which is a plain coloured disc. */
+  readonly letter: string;
+}
+
+const REMOTE_GREEN: Face = { fill: "#3FA60C", ring: "#1F6A06", glyph: "#0F3000", letter: "" };
+const REMOTE_OK: Face = { fill: "#E8E8EC", ring: "#8A8A94", glyph: "#2A2A30", letter: "OK" };
+
+/**
+ * The disc for a prompt: the Xbox face button, or the Magic Remote key the
+ * action actually answers to. `A` is OK, `B` is red (Back), `X` is blue, and `Y`
+ * is yellow except where it means Move, which the remote does with green.
+ */
+export function faceFor(prompt: Prompt, remote: boolean): Face {
+  const { button } = prompt;
+  if (!remote) {
+    return {
+      fill: BUTTON_FILL[button],
+      ring: BUTTON_RING[button],
+      glyph: BUTTON_GLYPH[button],
+      letter: button.toUpperCase(),
+    };
+  }
+  if (button === "a") return REMOTE_OK;
+  if (button === "y" && prompt.label === MOVE.label) return REMOTE_GREEN;
+  return {
+    fill: BUTTON_FILL[button],
+    ring: BUTTON_RING[button],
+    glyph: BUTTON_GLYPH[button],
+    letter: "",
+  };
+}

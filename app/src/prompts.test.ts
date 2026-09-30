@@ -7,6 +7,8 @@ import {
   BUTTON_SIZE,
   type Button,
   HIDE,
+  MOVE,
+  faceFor,
   NO_BACK,
   SELECT,
   promptsFor,
@@ -236,5 +238,19 @@ describe("BUTTON_SIZE", () => {
   // assets are authored at. Those are two different numbers and not a scale.
   it("is the 22 the dashboard measured, not the 32 of the assets", () => {
     expect(BUTTON_SIZE).toBe(22);
+  });
+});
+
+describe("faceFor", () => {
+  it("keeps the face button on Xbox", () => {
+    expect(faceFor({ button: "x", label: "Hide" }, false).letter).toBe("X");
+  });
+
+  it("maps to the remote's keys", () => {
+    expect(faceFor(SELECT, true).letter).toBe("OK");
+    expect(faceFor(BACK, true)).toMatchObject({ letter: "", fill: BUTTON_FILL.b });
+    expect(faceFor(HIDE, true)).toMatchObject({ letter: "", fill: BUTTON_FILL.x });
+    expect(faceFor({ button: "y", label: "Xbox Dashboard" }, true).fill).toBe(BUTTON_FILL.y);
+    expect(faceFor(MOVE, true).fill).not.toBe(BUTTON_FILL.y);
   });
 });

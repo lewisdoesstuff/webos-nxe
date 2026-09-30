@@ -120,7 +120,7 @@ describe("pages", () => {
       items.some((item) => isAllPane(item) || isSettingsPane(item) || isProfilePane(item)),
     ).toBe(false);
     const home = hubRow("home", POINTS, SETTINGS_DEFAULTS);
-    expect(pageItems(home)).toHaveLength(home.length - 2);
+    expect(pageItems(home)).toHaveLength(home.length - 1);
     expect(pageItems(home).some(isProfilePane)).toBe(false);
     const page = channelPage("system", items);
     expect(page.title).toBe("All System");
@@ -148,7 +148,7 @@ describe("moveStep", () => {
   );
 
   it("trades places with the next real item and steps over the profile pane", () => {
-    expect(ROW.map((item) => item.id)).toEqual(["a", "xne:profile", "b", "c", "all:home"]);
+    expect(ROW.map((item) => item.id)).toEqual(["a", "xne:profile", "b", "c"]);
     expect(moveStep(ROW, 0, 1)).toEqual({ order: ["xne:profile", "a", "b", "c"], index: 1 });
     expect(moveStep(ROW, 1, 1)).toEqual({ order: ["a", "b", "xne:profile", "c"], index: 2 });
     expect(moveStep(ROW, 3, -1)).toEqual({ order: ["a", "xne:profile", "c", "b"], index: 2 });
@@ -170,22 +170,22 @@ describe("the Home channel", () => {
 
   it("holds only the profile until something is pinned", () => {
     const row = hubRow("home", POINTS_HOME, SETTINGS_DEFAULTS);
-    expect(row.map((item) => item.id)).toEqual(["xne:profile", "all:home"]);
+    expect(row.map((item) => item.id)).toEqual(["xne:profile"]);
     const one = hubRow("home", POINTS_HOME, { ...SETTINGS_DEFAULTS, homeApps: ["a", "b"] });
-    expect(one.map((item) => item.id)).toEqual(["a", "xne:profile", "b", "all:home"]);
+    expect(one.map((item) => item.id)).toEqual(["a", "xne:profile", "b"]);
   });
 
   it("lists the pinned apps in pin order, and drops any the device no longer has", () => {
     const settings = { ...SETTINGS_DEFAULTS, homeApps: ["b", "gone", "a", "b"] };
     const row = hubRow("home", POINTS_HOME, settings);
-    expect(row.map((item) => item.id)).toEqual(["b", "xne:profile", "a", "all:home"]);
+    expect(row.map((item) => item.id)).toEqual(["b", "xne:profile", "a"]);
     expect(isHideable(row[0])).toBe(true);
     expect(moveStep(row, 2, -1)).toEqual({ order: ["b", "a", "xne:profile"], index: 1 });
   });
 
   it("is never where an app is classified or sent by an override", () => {
     const settings = { ...SETTINGS_DEFAULTS, appSection: { a: "home" } };
-    expect(hubRow("home", POINTS_HOME, settings)).toHaveLength(2);
+    expect(hubRow("home", POINTS_HOME, settings)).toHaveLength(1);
     expect(hubRow("apps", POINTS_HOME, settings).some((item) => item.id === "a")).toBe(true);
   });
 });

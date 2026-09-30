@@ -184,9 +184,10 @@ export function channelItems(
   return rows;
 }
 
-/** A non-empty channel's items with its "All" pane at the end. */
+/** A non-empty channel's items with its "All" pane at the end. Home is the pins themselves, so it has none. */
 export function withAllPane(channel: SectionId, items: readonly HubItem[]): HubItem[] {
   if (items.length === 0) return [];
+  if (channel === "home") return [...items];
   return [
     ...items,
     { id: `all:${channel}`, title: `All ${labelOf(channel)}`, icon: allIcon, all: true },

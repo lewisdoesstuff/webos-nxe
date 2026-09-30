@@ -323,17 +323,25 @@ export const SLAB_LABEL_RUN = SLAB_H;
 export const DIM_ALPHA = 0.88;
 
 /**
- * The open. DERIVED, and not from section 3.7.
+ * The open and the close, MEASURED at 60fps off the 1080p retail capture
+ * (`LeLocNfgexM`, 9:05.5 and 4:38.5).
  *
- * The section's "about a second" is worthplaying measuring the Guide *loading*,
- * not an animation, and this app has the content already resident, so the figure
- * does not apply. The move and the curve are the ones NXE-EXISTING.md section
- * 3.1.3 measures on the hub, which is the same dashboard and the same key. The
- * rise is UNVERIFIED: the frame is a still, so nothing measures how far the
- * chrome comes from.
+ * Opening, the dim lands most of the way in the first frame and settles over
+ * `DIM_IN_MS`. The empty panel grows out of its own centre from about 0.72,
+ * overshoots to 1.05 and settles over `PANEL_IN_MS`; only then do the list and
+ * the clock appear, and the blades slide out from behind the panel over
+ * `SLABS_OUT_MS`. Retail spends the better part of a second loading between
+ * the two; here the content is resident, so it follows at once.
+ *
+ * Closing, the content goes in a frame, the panel pops to 1.04 and shrinks
+ * away over `PANEL_OUT_MS`, and the dim lifts a quarter of the way over
+ * `DIM_OUT_MS` before it drops.
  */
-export const OPEN_MS = 300;
-export const OPEN_RISE = 14;
+export const DIM_IN_MS = 230;
+export const PANEL_IN_MS = 250;
+export const SLABS_OUT_MS = 100;
+export const PANEL_OUT_MS = 170;
+export const DIM_OUT_MS = 250;
 
 /** An item change. UNVERIFIED. */
 export const SELECT_MS = 260;

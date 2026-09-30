@@ -12,6 +12,11 @@ import {
   CLOCK_X,
   CLOCK_Y,
   DIM_ALPHA,
+  DIM_IN_MS,
+  DIM_OUT_MS,
+  PANEL_IN_MS,
+  PANEL_OUT_MS,
+  SLABS_OUT_MS,
   guidePrompts,
   highlightBox,
   inChrome,
@@ -23,8 +28,6 @@ import {
   ITEM_X,
   ITEMS,
   LIST_OUT_MS,
-  OPEN_MS,
-  OPEN_RISE,
   PANEL_H,
   PANEL_W,
   PANEL_X,
@@ -219,8 +222,46 @@ watch(
   },
 );
 
+/**
+ * The open and the close as states. `opening` grows the empty panel; `open`
+ * shows the content and slides the blades out; `closing` hides the content at
+ * once, shrinks the panel and lifts the dim; `closed` rests hidden. A closed
+ * Guide never plays the close, so nothing flashes at mount.
+ */
+type State = "closed" | "opening" | "open" | "closing";
+const state = ref<State>(props.open ? "open" : "closed");
+/** The blades are sliding out from behind the panel, on the reveal's timing. */
+const revealing = ref(false);
+let stage: ReturnType<typeof setTimeout> | undefined;
+let reveal: ReturnType<typeof setTimeout> | undefined;
+
+watch(
+  () => props.open,
+  (open) => {
+    clearTimeout(stage);
+    clearTimeout(reveal);
+    revealing.value = false;
+    if (open) {
+      state.value = "opening";
+      stage = setTimeout(() => {
+        state.value = "open";
+        revealing.value = true;
+        reveal = setTimeout(() => (revealing.value = false), SLABS_OUT_MS);
+      }, PANEL_IN_MS);
+      return;
+    }
+    if (state.value === "closed") return;
+    state.value = "closing";
+    stage = setTimeout(() => (state.value = "closed"), Math.max(PANEL_OUT_MS, DIM_OUT_MS));
+  },
+);
+
+const shown = computed(() => state.value === "open");
+
 onUnmounted(() => {
   clearTimeout(swap);
+  clearTimeout(stage);
+  clearTimeout(reveal);
   cancelAnimationFrame(jumpFrame);
 });
 
@@ -236,12 +277,14 @@ const rootStyle: Record<string, string> = {
   "--chrome-y": `${CHROME.y}px`,
   "--chrome-w": `${CHROME.width}px`,
   "--chrome-h": `${CHROME.height}px`,
-  "--open-ms": `${OPEN_MS}ms`,
+  "--dim-in-ms": `${DIM_IN_MS}ms`,
+  "--dim-out-ms": `${DIM_OUT_MS}ms`,
+  "--panel-in-ms": `${PANEL_IN_MS}ms`,
+  "--panel-out-ms": `${PANEL_OUT_MS}ms`,
   "--select-ms": `${SELECT_MS}ms`,
   "--blade-ms": `${BLADE_MS}ms`,
   "--list-out-ms": `${LIST_OUT_MS}ms`,
   "--list-in-ms": `${BLADE_MS - LIST_OUT_MS}ms`,
-  "--rise": `${OPEN_RISE}px`,
   "--dim": `${DIM_ALPHA}`,
   "--panel-w": `${PANEL_W}px`,
   "--panel-h": `${PANEL_H}px`,
@@ -289,8 +332,9 @@ function itemStyle(row: ItemRow): Record<string, string> {
  * interpolate as one.
  */
 function slabStyle(slab: Slab): Record<string, string> {
-  const edge = park.value.get(slab.d) ?? "left";
-  const under = slab.side === "under";
+  const edge =
+    shown.value || slab.side === "under" ? (park.value.get(slab.d) ?? "left") : slab.side;
+  const under = slab.side === "under" || !shown.value;
   const shift = under
     ? edge === "right"
       ? PANEL_X + PANEL_W - SLAB_W
@@ -303,6 +347,7 @@ function slabStyle(slab: Slab): Record<string, string> {
     ...at(slabOrigin({ ...slab, x: PANEL_X })),
     transform: `translate3d(${shift - PANEL_X}px, 0, 0) scale(${scale})`,
     transition: jumping.value === slab.d ? "none" : "",
+    transitionDuration: revealing.value ? `${SLABS_OUT_MS}ms` : "",
     zIndex: String(under ? 0 : 10 - slab.slot),
   };
 }
@@ -342,18 +387,11 @@ const CLOCK: Box = { x: CLOCK_X, y: CLOCK_Y, width: CLOCK_W, height: CLOCK_H };
 </script>
 
 <template>
-  <div class="guide" :data-open="open || undefined" :style="rootStyle">
+  <div class="guide" :data-state="state" :style="rootStyle">
     <div class="dim" />
 
-    <div class="chrome">
-      <div
-        class="gamerpic"
-        :style="pic ? { ...at(PIC), backgroundImage: `url(${pic})` } : at(PIC)"
-      />
-
-      <div class="clock" :style="at(CLOCK)">{{ showClock ? clock || stamp : "" }}</div>
-
-      <div class="slabs">
+    <div class="frame">
+      <div class="slabs" :data-shown="shown || undefined">
         <div
           v-for="slab in slabs"
           :key="slab.d"
@@ -367,39 +405,49 @@ const CLOCK: Box = { x: CLOCK_X, y: CLOCK_Y, width: CLOCK_W, height: CLOCK_H };
       </div>
 
       <div class="panel" :style="at(PANEL)" />
-      <div class="tab" :style="at(TAB)" />
-      <span class="spinner" :style="at(spinnerBox())" />
 
-      <div class="sheet" :data-fading="fading || undefined">
-        <span class="tab-label" :style="at(tabLabelBox())">{{
-          title(bladeIds[shownBlade] ?? "")
-        }}</span>
-        <div class="bar" :style="barStyle()" />
+      <div class="chrome" :data-shown="shown || undefined">
         <div
-          v-for="row in rows"
-          :key="row.d"
-          class="item"
-          :data-item="row.label || undefined"
-          :style="itemStyle(row)"
-        >
-          {{ row.label }}
-        </div>
-        <span class="chevron" :style="at(CHEVRON_BOX)" />
-      </div>
+          class="gamerpic"
+          :style="pic ? { ...at(PIC), backgroundImage: `url(${pic})` } : at(PIC)"
+        />
 
-      <div
-        v-for="(prompt, i) in prompts"
-        :key="prompt.button"
-        class="prompt"
-        :data-button="prompt.button"
-        :data-index="i"
-      >
-        <span class="disc" :style="[at(promptDisc(i)), discStyle(prompt)]">
-          <span class="letter" :data-remote="remote || undefined">{{
-            faceFor(prompt, remote).letter
+        <div class="clock" :style="at(CLOCK)">{{ showClock ? clock || stamp : "" }}</div>
+
+        <div class="tab" :style="at(TAB)" />
+        <span class="spinner" :style="at(spinnerBox())" />
+
+        <div class="sheet" :data-fading="fading || undefined">
+          <span class="tab-label" :style="at(tabLabelBox())">{{
+            title(bladeIds[shownBlade] ?? "")
           }}</span>
-        </span>
-        <span class="word" :style="at(promptLabel(i))">{{ prompt.label }}</span>
+          <div class="bar" :style="barStyle()" />
+          <div
+            v-for="row in rows"
+            :key="row.d"
+            class="item"
+            :data-item="row.label || undefined"
+            :style="itemStyle(row)"
+          >
+            {{ row.label }}
+          </div>
+          <span class="chevron" :style="at(CHEVRON_BOX)" />
+        </div>
+
+        <div
+          v-for="(prompt, i) in prompts"
+          :key="prompt.button"
+          class="prompt"
+          :data-button="prompt.button"
+          :data-index="i"
+        >
+          <span class="disc" :style="[at(promptDisc(i)), discStyle(prompt)]">
+            <span class="letter" :data-remote="remote || undefined">{{
+              faceFor(prompt, remote).letter
+            }}</span>
+          </span>
+          <span class="word" :style="at(promptLabel(i))">{{ prompt.label }}</span>
+        </div>
       </div>
     </div>
   </div>
@@ -438,34 +486,60 @@ const CLOCK: Box = { x: CLOCK_X, y: CLOCK_Y, width: CLOCK_W, height: CLOCK_H };
   /* Not 0: a layer at 0 drops its texture and is rebuilt mid-open (PERF-STATUS). */
   opacity: 0.001;
   will-change: opacity;
-  transition: opacity var(--open-ms) cubic-bezier(0.215, 0.61, 0.355, 1);
 }
 
-.guide[data-open] .dim {
+/* Most of the way in the first frame, then the rest; lifting a quarter of the way before it drops. */
+.guide[data-state="opening"] .dim,
+.guide[data-state="open"] .dim {
   opacity: 1;
+  animation: dim-in var(--dim-in-ms) cubic-bezier(0.215, 0.61, 0.355, 1);
 }
 
-/*
- * One box for the whole of the Guide's chrome, promoted so the open is a
- * transform and an opacity on a layer that is already there.
- */
-.chrome {
+.guide[data-state="closing"] .dim {
+  opacity: 0.75;
+  animation: dim-out var(--dim-out-ms) linear;
+}
+
+@keyframes dim-in {
+  from {
+    opacity: 0.8;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes dim-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0.75;
+  }
+}
+
+/* The chrome's box, which places the stacks, the panel and the chrome and draws nothing. */
+.frame {
   position: absolute;
   top: var(--chrome-y);
   left: var(--chrome-x);
   width: var(--chrome-w);
   height: var(--chrome-h);
-  opacity: 0.001;
-  transform: translate3d(0, var(--rise), 0);
-  will-change: transform, opacity;
-  transition:
-    transform var(--open-ms) cubic-bezier(0.215, 0.61, 0.355, 1),
-    opacity var(--open-ms) linear;
 }
 
-.guide[data-open] .chrome {
+/*
+ * Everything on the panel but the panel: promoted so it appears and goes in a
+ * frame, an opacity on a layer that is already there.
+ */
+.chrome {
+  position: absolute;
+  inset: 0;
+  opacity: 0.001;
+  will-change: opacity;
+}
+
+.chrome[data-shown] {
   opacity: 1;
-  transform: translate3d(0, 0, 0);
 }
 
 /* The profile plate, centred above the panel at the gamerpic's own box. */
@@ -491,6 +565,12 @@ const CLOCK: Box = { x: CLOCK_X, y: CLOCK_Y, width: CLOCK_W, height: CLOCK_H };
   position: absolute;
   inset: 0;
   z-index: 0;
+  opacity: 0.001;
+  will-change: opacity;
+}
+
+.slabs[data-shown] {
+  opacity: 1;
 }
 
 /*
@@ -594,9 +674,15 @@ const CLOCK: Box = { x: CLOCK_X, y: CLOCK_Y, width: CLOCK_W, height: CLOCK_H };
  */
 /* Promoted at rest: it paints over the animating slabs, so the compositor
    would otherwise split it into a layer of its own mid-open. */
+/*
+ * The panel grows out of its own centre with an overshoot, empty, before
+ * anything is on it, and shrinks away the same way. Promoted, so both are a
+ * transform and an opacity on a layer that already exists.
+ */
 .panel {
   position: absolute;
-  will-change: transform;
+  opacity: 0.001;
+  will-change: transform, opacity;
   border-radius: 6px;
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.12) 0, rgba(255, 255, 255, 0) 12%),
@@ -604,6 +690,52 @@ const CLOCK: Box = { x: CLOCK_X, y: CLOCK_Y, width: CLOCK_W, height: CLOCK_H };
   box-shadow:
     inset 0 2px 0 rgba(255, 255, 255, 0.3),
     0 10px 28px rgba(0, 0, 0, 0.55);
+}
+
+.guide[data-state="opening"] .panel,
+.guide[data-state="open"] .panel {
+  opacity: 1;
+  animation: panel-in var(--panel-in-ms) linear;
+}
+
+.guide[data-state="closing"] .panel {
+  animation: panel-out var(--panel-out-ms) linear both;
+}
+
+@keyframes panel-in {
+  0% {
+    opacity: 0.001;
+    transform: scale(0.72);
+    animation-timing-function: cubic-bezier(0.33, 0.6, 0.6, 1);
+  }
+  40% {
+    opacity: 1;
+    transform: scale(0.95);
+  }
+  72% {
+    transform: scale(1.05);
+    animation-timing-function: cubic-bezier(0.4, 0, 0.6, 1);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes panel-out {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  30% {
+    opacity: 1;
+    transform: scale(1.04);
+    animation-timing-function: cubic-bezier(0.4, 0, 1, 1);
+  }
+  100% {
+    opacity: 0.001;
+    transform: scale(0.75);
+  }
 }
 
 .tab {
@@ -761,11 +893,12 @@ const CLOCK: Box = { x: CLOCK_X, y: CLOCK_Y, width: CLOCK_W, height: CLOCK_H };
 
 @media (prefers-reduced-motion: reduce) {
   .dim,
-  .chrome,
+  .panel,
   .bar,
   .slab,
   .sheet {
     transition: none;
+    animation: none;
   }
 }
 </style>

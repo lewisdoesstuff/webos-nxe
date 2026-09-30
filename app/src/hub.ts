@@ -267,21 +267,26 @@ export const CARD_PIC_X = px(1120);
 export const CARD_PIC_Y = px(64);
 
 /**
- * How long a row move takes, and on what curve. 300ms on the scene data's
- * decelerating S-curve, as before; the 9199 capture runs under emulation, so
- * its timing is not evidence.
+ * How long a row move takes, and on what curve. MEASURED at 60fps off the
+ * 1080p retail capture (`LeLocNfgexM`, 5:49.8): the incoming pane's edge
+ * travels at an almost even speed and stops in about 225ms, with none of an
+ * ease-out's long tail. The curve is the least-squares fit to that track.
  */
-export const MOVE_MS = 300;
-export const MOVE_EASE = "cubic-bezier(0.215, 0.61, 0.355, 1)";
+export const MOVE_MS = 225;
+export const MOVE_EASE = "cubic-bezier(0.62, 0.73, 0.52, 0.63)";
 
 /**
- * A channel change, read off `chan-148`: the row fades out, the new focused
- * pane fades in where the old one was, then the spill deals out to the right
- * from behind it, nearest first. CHOSEN durations in those proportions.
+ * A channel change, MEASURED at 60fps off the same capture (7:29.1): the row
+ * fades out in about 70ms, the screen holds empty for two frames, the new
+ * focused pane fades in where the old one was over 150ms, and then the spill
+ * deals out to the right from behind it on a 370ms ease-out. The stagger
+ * between spill panes is CHOSEN: they fade in as they clear the pane before
+ * them, so the capture does not show when each one starts.
  */
-export const CHANNEL_OUT_MS = 150;
+export const CHANNEL_OUT_MS = 70;
 export const CHANNEL_IN_MS = 150;
-export const DEAL_MS = 320;
+export const DEAL_MS = 370;
+export const DEAL_EASE = "cubic-bezier(0.215, 0.61, 0.355, 1)";
 export const DEAL_STAGGER_MS = 45;
 
 /** Where hub navigation stands. */

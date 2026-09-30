@@ -40,8 +40,11 @@ import {
   ITEM_TOP,
   ITEM_X,
   ITEMS,
-  OPEN_MS,
-  OPEN_RISE,
+  DIM_IN_MS,
+  DIM_OUT_MS,
+  PANEL_IN_MS,
+  PANEL_OUT_MS,
+  SLABS_OUT_MS,
   PANEL_H,
   PANEL_W,
   PANEL_X,
@@ -62,7 +65,6 @@ import {
   promptDisc,
   promptLabel,
   ROTATED_LINE,
-  SELECT_MS,
   SLAB_COUNT,
   SLAB_H,
   SLAB_LABEL_X,
@@ -808,12 +810,13 @@ describe("the chrome", () => {
   });
 });
 
-describe("the open", () => {
-  it("is a rise and a fade, both of them transform and opacity", () => {
-    expect(OPEN_RISE).toBeGreaterThan(0);
-    expect(OPEN_MS).toBeGreaterThan(0);
-    expect(SELECT_MS).toBeGreaterThan(0);
-    expect(SELECT_MS).toBeLessThanOrEqual(OPEN_MS);
+describe("the open and the close", () => {
+  it("takes the measured frames: the panel before the content, the close quicker than the open", () => {
+    expect([DIM_IN_MS, PANEL_IN_MS, SLABS_OUT_MS, PANEL_OUT_MS, DIM_OUT_MS]).toEqual([
+      230, 250, 100, 170, 250,
+    ]);
+    expect(PANEL_OUT_MS).toBeLessThan(PANEL_IN_MS);
+    expect(SLABS_OUT_MS).toBeLessThan(PANEL_IN_MS);
   });
 });
 
@@ -930,8 +933,18 @@ describe("the overlay's render", () => {
     expect(OVERLAY).toContain("(prompt, i) => (prompt.button)");
   });
 
-  it("takes the open state as one attribute on the root and nothing else", () => {
-    expect(OVERLAY).toMatch(/_setAttr\(n\d+, "data-open", \$props\.open \|\| undefined\)/);
+  it("takes the open state as one attribute on the root", () => {
+    expect(OVERLAY).toMatch(/_setAttr\(n\d+, "data-state", _ctx\.state\)/);
+  });
+
+  it("animates only transform and opacity in its keyframes", () => {
+    const frames = OVERLAY_STYLE.match(/@keyframes[^{]+\{(?:[^{}]*\{[^}]*\})+\s*\}/g) ?? [];
+    expect(frames.length).toBeGreaterThan(0);
+    for (const block of frames) {
+      for (const [, property] of block.matchAll(/([a-z-]+):/g)) {
+        expect(["opacity", "transform", "animation-timing-function"]).toContain(property);
+      }
+    }
   });
 
   it("hoists one template per element shape, so a shape is built once", () => {

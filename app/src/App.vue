@@ -32,6 +32,7 @@ import {
   COUNTER_X,
   COUNTER_Y,
   counterText,
+  DEAL_EASE,
   DEAL_MS,
   DEAL_STAGGER_MS,
   HIDDEN,
@@ -868,7 +869,7 @@ function paneMotion(pane: PooledPane): PaneMotion {
     const dealt = pane.offset > 0;
     const delay = dealt ? CHANNEL_IN_MS + (pane.offset - 1) * DEAL_STAGGER_MS : 0;
     const fade = dealt ? DEAL_MS / 2 : CHANNEL_IN_MS;
-    transition = `transform ${DEAL_MS}ms ${MOVE_EASE} ${delay}ms, opacity ${fade}ms linear ${delay}ms`;
+    transition = `transform ${DEAL_MS}ms ${DEAL_EASE} ${delay}ms, opacity ${fade}ms linear ${delay}ms`;
   }
   return { x, y, scale, opacity, transition };
 }

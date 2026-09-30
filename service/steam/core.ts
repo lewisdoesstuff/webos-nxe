@@ -34,6 +34,9 @@ export interface SteamDeps {
 
 const API = "https://api.steampowered.com";
 
+/** `EFriendRelationship.Friend`; the list also carries requests and ignored accounts. */
+const FRIEND = 3;
+
 const STATES: readonly PersonaState[] = [
   "offline",
   "online",
@@ -131,18 +134,17 @@ export function createSteamBackend(deps: SteamDeps): SteamApi {
     const { access } = await accessToken();
     const query = new URLSearchParams({ ...params, access_token: access });
     const response = await deps.fetch(`${API}${path}?${query}`);
-    if (!response.ok) throw new Error(`Steam answered ${response.status}.`);
+    if (!response.ok) throw new Error(`Steam answered ${response.status} for ${path}.`);
     return (await response.json()) as T;
   }
 
   async function summaries(ids: readonly string[]): Promise<Summary[]> {
     const out: Summary[] = [];
     for (let at = 0; at < ids.length; at += 100) {
-      const reply = await get<{ response?: { players?: Summary[] } }>(
-        "/ISteamUser/GetPlayerSummaries/v2/",
-        { steamids: ids.slice(at, at + 100).join(",") },
-      );
-      out.push(...(reply.response?.players ?? []));
+      const reply = await get<{ players?: Summary[] }>("/ISteamUserOAuth/GetUserSummaries/v1/", {
+        steamids: ids.slice(at, at + 100).join(","),
+      });
+      out.push(...(reply.players ?? []));
     }
     return out;
   }
@@ -202,12 +204,15 @@ export function createSteamBackend(deps: SteamDeps): SteamApi {
     },
 
     async friends(): Promise<readonly SteamFriend[]> {
-      const { steamId } = await accessToken();
-      const list = await get<{ friendslist?: { friends?: { steamid: string }[] } }>(
-        "/ISteamUser/GetFriendList/v1/",
-        { steamid: steamId, relationship: "friend" },
-      );
-      const ids = (list.friendslist?.friends ?? []).map((friend) => friend.steamid);
+      await accessToken();
+      const list = await get<{
+        response?: {
+          friendslist?: { friends?: { ulfriendid: string; efriendrelationship: number }[] };
+        };
+      }>("/IFriendsListService/GetFriendsList/v1/", {});
+      const ids = (list.response?.friendslist?.friends ?? [])
+        .filter((friend) => friend.efriendrelationship === FRIEND)
+        .map((friend) => friend.ulfriendid);
       return (await summaries(ids)).map(toFriend);
     },
 

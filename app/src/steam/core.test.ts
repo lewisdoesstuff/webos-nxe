@@ -60,16 +60,24 @@ function setup(stored: string | null = null) {
     fetch: (async (url: string) => {
       calls.push(url);
       const path = new URL(url).pathname;
-      const body = path.includes("GetFriendList")
-        ? { friendslist: { friends: [{ steamid: "2" }, { steamid: "3" }] } }
-        : {
+      const body = path.includes("GetFriendsList")
+        ? {
             response: {
-              players: [
-                { steamid: "2", personaname: "Ann", avatarfull: "a.jpg", personastate: 1 },
-                { steamid: "3", personaname: "Bob", personastate: 1, gameextrainfo: "Halo 3" },
-                { steamid: "76561198000000001", personaname: "Me" },
-              ],
+              friendslist: {
+                friends: [
+                  { ulfriendid: "2", efriendrelationship: 3 },
+                  { ulfriendid: "3", efriendrelationship: 3 },
+                  { ulfriendid: "9", efriendrelationship: 5 },
+                ],
+              },
             },
+          }
+        : {
+            players: [
+              { steamid: "2", personaname: "Ann", avatarfull: "a.jpg", personastate: 1 },
+              { steamid: "3", personaname: "Bob", personastate: 1, gameextrainfo: "Halo 3" },
+              { steamid: "76561198000000001", personaname: "Me" },
+            ],
           };
       return new Response(JSON.stringify(body));
     }) as typeof fetch,

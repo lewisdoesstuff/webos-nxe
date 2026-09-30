@@ -1104,8 +1104,15 @@ const counterStyle = computed(() =>
     : { left: `${COUNTER_X}px`, top: `${COUNTER_Y}px` },
 );
 
+/**
+ * Anchored by its left edge like the picture beside it, so a window that is not
+ * 1920 wide moves both together. A box this wide holds any gamertag, and its
+ * text is right-aligned to the edge that touches the picture.
+ */
+const CARD_W = 480;
 const cardStyle = {
-  right: `${1920 - CARD_RIGHT}px`,
+  left: `${CARD_RIGHT - CARD_W}px`,
+  width: `${CARD_W}px`,
   top: `${CARD_PIC_Y}px`,
 };
 

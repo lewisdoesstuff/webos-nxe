@@ -346,12 +346,16 @@ export interface AvatarCanvas {
   readonly feet: number;
 }
 
+/** A friend's figure stands just past the focused pane's right edge, so the picture on the pane stays clear. */
+export const AVATAR_FRIEND = { centre: px(452), feet: px(392), size: 1 } as const;
+
 export function avatarPlace(
   pane: { readonly x: number; readonly y: number; readonly scale: number },
   offset: number,
   canvas: AvatarCanvas,
+  friend = false,
 ): { x: number; y: number; scale: number } {
-  const anchor = offset === 0 ? AVATAR_FOCUSED : AVATAR_SPILL;
+  const anchor = friend ? AVATAR_FRIEND : offset === 0 ? AVATAR_FOCUSED : AVATAR_SPILL;
   const scale = pane.scale * anchor.size;
   return {
     x: pane.x + pane.scale * anchor.centre - scale * canvas.centre,

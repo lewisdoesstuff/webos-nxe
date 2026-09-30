@@ -5,6 +5,7 @@ import { describeApp } from "./appDescriptions";
 import { checkArt, prepareArt, prepareFloor } from "./artCache";
 import avatarUrl from "./assets/avatar/avatar.glb?url";
 import { AVATAR_CANVAS } from "./avatar/framing";
+import { lookFor, type Look } from "./avatar/look";
 import { type BootReason, type BootSpeed, resolveBootMode } from "./boot";
 import AvatarFigure from "./components/AvatarFigure.vue";
 import BootScreen from "./components/BootScreen.vue";
@@ -971,7 +972,19 @@ function paneStyle(pane: PooledPane): Record<string, string> {
  * own transition, at the pane's depth so nearer panes cover it. Away from
  * Apps it rests hidden where it last stood, so its layer keeps its texture.
  */
-const avatarPane = computed(() => pool.value.find((pane) => isProfilePane(paneItem(pane))));
+const avatarPane = computed(() =>
+  onFriendsChannel.value
+    ? pool.value.find((pane) => pane.offset === 0)
+    : pool.value.find((pane) => isProfilePane(paneItem(pane))),
+);
+
+/** On Friends the one figure stands by the focused pane, tinted for that friend. */
+const onFriendsChannel = computed(() => CHANNEL_ORDER[hub.value.channel] === "friends");
+const friendLook = computed((): Look | null => {
+  if (!onFriendsChannel.value) return null;
+  const item = shownRow.value[shown.value.item];
+  return isFriendPane(item) && item ? lookFor(item.id.slice("friend:".length)) : null;
+});
 let avatarRest = "translate3d(0px, 0px, 0) scale(1)";
 
 const avatarStyle = computed((): Record<string, string> => {
@@ -984,8 +997,26 @@ const avatarStyle = computed((): Record<string, string> => {
       transition: `opacity ${CHANNEL_OUT_MS}ms linear`,
     };
   }
+  if (friendCard.value !== null) {
+    const scale = 0.88;
+    return {
+      transform: `translate3d(${1440 - scale * AVATAR_CANVAS.centre}px, ${900 - scale * AVATAR_CANVAS.feet}px, 0) scale(${scale})`,
+      opacity: "1",
+      "z-index": "60",
+      transition: `opacity ${CHANNEL_OUT_MS}ms linear`,
+    };
+  }
   const motion = paneMotion(pane);
-  const place = avatarPlace(motion, pane.offset, AVATAR_CANVAS);
+  const place = avatarPlace(motion, pane.offset, AVATAR_CANVAS, onFriendsChannel.value);
+  if (onFriendsChannel.value) {
+    const still = !settling.value && phase.value === "rest" && friendLook.value !== null;
+    return {
+      transform: `translate3d(${place.x}px, ${place.y}px, 0) scale(${place.scale})`,
+      opacity: still ? "1" : `${HIDDEN}`,
+      "z-index": `${pane.slot.z}`,
+      transition: `opacity ${still ? 160 : 60}ms linear`,
+    };
+  }
   avatarRest = `translate3d(${place.x}px, ${place.y}px, 0) scale(${place.scale})`;
   return {
     transform: avatarRest,
@@ -1010,6 +1041,7 @@ function settle(): void {
 
 const avatarPlaying = computed(() => {
   const pane = avatarPane.value;
+  if (friendCard.value !== null) return !booting.value && loaded.value && phase.value === "rest";
   return (
     !booting.value &&
     loaded.value &&
@@ -1435,6 +1467,7 @@ function expose(): void {
       :src="avatarSrc"
       :fallback="avatarUrl"
       :playing="avatarPlaying"
+      :look="friendLook"
       @portrait="gamerpic = $event"
       :style="avatarStyle"
     />

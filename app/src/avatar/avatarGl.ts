@@ -32,6 +32,7 @@ import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { fetchBytes } from "../sound/engine";
 import { AVATAR_MIRROR, AVATAR_VIEW, frameAvatar } from "./framing";
 import { firstIdle, nextIdle, planIdle, type IdlePlan, type IdleStep } from "./idle";
+import type { Look } from "./look";
 
 /**
  * The avatar: one glTF model, skinned and animated, in one small canvas.
@@ -233,6 +234,33 @@ export class AvatarRenderer {
 
     this.place(model);
     this.draw();
+  }
+
+  /**
+   * Tint the figure from a look, or restore the model's own colours for null.
+   * Draws once so the change shows while the loop is stopped.
+   */
+  setLook(look: Look | null): void {
+    const root = this.stand;
+    const parts: [RegExp, number | null][] = [
+      [/^(body|head)$/, look?.skin ?? null],
+      [/^hair/, look?.hair ?? null],
+      [/^shirt/, look?.shirt ?? null],
+      [/^trousers/, look?.trousers ?? null],
+      [/^shoes/, look?.shoes ?? null],
+    ];
+    root.traverse((node) => {
+      if (!(node instanceof Mesh)) return;
+      const materials: Material[] = Array.isArray(node.material) ? node.material : [node.material];
+      for (const [pattern, colour] of parts) {
+        if (!pattern.test(node.name)) continue;
+        for (const material of materials) {
+          if (material instanceof MeshStandardMaterial) material.color.setHex(colour ?? 0xffffff);
+        }
+      }
+      if (node.name.startsWith("glasses")) node.visible = look === null || look.glasses;
+    });
+    if (this.bounds !== null) this.draw();
   }
 
   /** Frame the model as it stands on its first posed frame, and put its shadow under it. */

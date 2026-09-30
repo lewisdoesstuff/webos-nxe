@@ -3,6 +3,7 @@ import { onMounted, onUnmounted, ref, watch } from "vue";
 
 import type { AvatarRenderer } from "../avatar/avatarGl";
 import { AVATAR_H, AVATAR_W } from "../avatar/framing";
+import type { Look } from "../avatar/look";
 
 /**
  * The avatar, standing. One canvas of a fixed size, promoted at rest, so the
@@ -19,10 +20,12 @@ const props = withDefaults(
     /** Loaded instead when `src` is missing or unreadable. */
     fallback?: string;
     playing?: boolean;
+    /** Tints the figure for someone else; null is the owner's own. */
+    look?: Look | null;
     renderScale?: number;
     fps?: number;
   }>(),
-  { fallback: "", playing: true, renderScale: 1, fps: 30 },
+  { fallback: "", playing: true, look: null, renderScale: 1, fps: 30 },
 );
 
 const emit = defineEmits<{
@@ -81,6 +84,7 @@ async function begin(): Promise<void> {
   emit("loaded");
   const portrait = own.portrait();
   if (portrait !== null) emit("portrait", portrait);
+  if (props.look !== null) own.setLook(props.look);
 }
 
 onMounted(() => void begin());
@@ -92,6 +96,10 @@ onUnmounted(() => {
 });
 
 watch(() => props.playing, sync);
+watch(
+  () => props.look,
+  (look) => renderer?.setLook(look),
+);
 watch(
   () => props.src,
   () => void begin(),

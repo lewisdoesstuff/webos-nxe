@@ -67,8 +67,6 @@ defineProps<{
         <span class="text">{{ item }}</span>
       </div>
     </div>
-    <img v-if="card?.avatar" class="figure" :src="card.avatar" alt="" />
-    <i class="shadow" />
     <span class="count">1 of 2</span>
   </div>
 </template>
@@ -291,29 +289,6 @@ defineProps<{
 
 .item[data-focused] .hilite {
   opacity: 1;
-}
-
-.figure {
-  position: absolute;
-  left: 894px;
-  top: 232px;
-  width: 136px;
-  height: 136px;
-  box-sizing: border-box;
-  border: 3px solid rgba(238, 244, 246, 0.92);
-  border-radius: 3px;
-  object-fit: cover;
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.45);
-}
-
-.shadow {
-  position: absolute;
-  left: 880px;
-  top: 384px;
-  width: 164px;
-  height: 18px;
-  border-radius: 50%;
-  background: radial-gradient(closest-side, rgba(0, 0, 0, 0.42), rgba(0, 0, 0, 0));
 }
 
 .count {

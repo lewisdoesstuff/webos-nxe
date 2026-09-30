@@ -307,6 +307,11 @@ export class BootRenderer {
       false,
       poleBasis(scene.pole[0], scene.pole[1], scene.pole[2]),
     );
+    gl.uniformMatrix3fv(
+      this.location(gl, "uBasisStar"),
+      false,
+      poleBasis(scene.starPole[0], scene.starPole[1], scene.starPole[2]),
+    );
     gl.uniformMatrix3fv(this.location(gl, "uSettle"), false, SETTLE_BASIS);
     gl.drawArrays(gl.TRIANGLES, 0, 3);
   }

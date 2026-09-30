@@ -15,6 +15,7 @@ const BODY = `
 uniform vec2 uRes;
 uniform vec4 uSphere;
 uniform mat3 uBasis;
+uniform mat3 uBasisStar;
 uniform mat3 uSettle;
 uniform vec4 uDecal;
 uniform vec4 uLight;
@@ -130,14 +131,19 @@ vec3 shell(vec3 n, float px) {
   vec3 h = normalize(key + vec3(0.0, 0.0, 1.0));
   c += cSpec * pow(max(dot(nb, h), 0.0), 30.0) * uLight.x * 0.3 * (1.0 + 3.0 * uShape.w * grain);
 
-  float a1 = q.x * sa + q.y * ca;
-  float a2 = q.y * ca - q.x * sa;
-  float t1 = max(1.0 - theta / (uStar.x * (a1 > 0.0 ? 0.75 : 0.85)), 0.0);
-  float t2 = max(1.0 - theta / (uStar.x * (a2 > 0.0 ? 1.0 : 1.3)), 0.0);
-  float sw1 = uStar.y * sqrt(t1) + 1e-4;
-  float sw2 = uStar.y * sqrt(t2) + 1e-4;
-  float star = max(exp(-d1 * d1 / (sw1 * sw1)) * sqrt(t1), exp(-d2 * d2 / (sw2 * sw2)) * sqrt(t2));
-  c += mix(cRim, cCore, 0.4) * star * uMark.x * front;
+  vec3 qs = n * uBasisStar;
+  float ths = acos(clamp(qs.z, -1.0, 1.0));
+  float sd1 = abs(dot(qs, m1));
+  float sd2 = abs(dot(qs, m2));
+  float a1 = qs.x * sa + qs.y * ca;
+  float a2 = qs.y * ca - qs.x * sa;
+  float t1 = max(1.0 - ths / (uStar.x * (a1 > 0.0 ? 0.75 : 0.85)), 0.0);
+  float t2 = max(1.0 - ths / (uStar.x * (a2 > 0.0 ? 1.0 : 1.3)), 0.0);
+  float sw1 = uStar.y * t1 + 1e-4;
+  float sw2 = uStar.y * t2 + 1e-4;
+  float starFront = smoothstep(-0.35, -0.05, qs.z) * grooveOff;
+  float star = max(exp(-sd1 * sd1 / (sw1 * sw1)) * sqrt(t1), exp(-sd2 * sd2 / (sw2 * sw2)) * sqrt(t2));
+  c += mix(cRim, cCore, 0.4) * star * uMark.x * starFront;
 
   vec3 vq = vec3(uBasis[0].z, uBasis[1].z, uBasis[2].z);
   float s = dot(m, vq);

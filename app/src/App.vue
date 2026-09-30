@@ -1071,15 +1071,16 @@ function expose(): void {
       rgba(226, 246, 240, 0) 100%
     ),
     radial-gradient(
-      ellipse 34% 60% at 96% 100%,
-      rgba(228, 242, 190, 0.85) 0%,
-      rgba(200, 225, 130, 0.45) 45%,
+      ellipse 40% 60% at 92% 100%,
+      rgba(246, 252, 215, 0.95) 0%,
+      rgba(214, 236, 150, 0.55) 45%,
       rgba(200, 225, 130, 0) 100%
     ),
     radial-gradient(
-      ellipse 40% 45% at 52% 82%,
-      rgba(204, 232, 120, 0.7) 0%,
-      rgba(204, 232, 120, 0) 100%
+      ellipse 46% 45% at 60% 95%,
+      rgba(244, 255, 250, 0.9) 0%,
+      rgba(230, 246, 190, 0.4) 50%,
+      rgba(230, 246, 190, 0) 100%
     ),
     radial-gradient(
       ellipse 58% 72% at 72% 58%,

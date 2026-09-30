@@ -113,23 +113,23 @@ const rootStyle = { width: `${PANE_W}px`, height: `${PANE_H}px` };
   position: absolute;
   inset: 0;
   background:
-    linear-gradient(180deg, #e9ea14 0, #e4e91a 3px, rgba(228, 233, 26, 0) 7px),
+    linear-gradient(180deg, #c6e01a 0, #b4dd0d 3px, rgba(164, 217, 5, 0) 7px),
     radial-gradient(
       ellipse 70% 40% at 55% 0%,
-      rgba(245, 248, 150, 0.4),
-      rgba(245, 248, 150, 0) 100%
+      rgba(210, 240, 110, 0.3),
+      rgba(210, 240, 110, 0) 100%
     ),
     url("../assets/hub/card-bokeh.svg") 0 0 / 630px 480px no-repeat,
     linear-gradient(
       180deg,
-      #d2dd1c 0%,
-      #c0d818 25%,
-      #9fc905 53%,
-      #75aa01 71%,
-      #628a08 80%,
-      #3e5e08 90%,
-      #1e3402 97%,
-      #182d01 100%
+      #a0d70a 0%,
+      #a2d905 25%,
+      #94d200 47%,
+      #8ed100 60%,
+      #589800 72%,
+      #1d4f00 85%,
+      #0a2c00 92%,
+      #001900 100%
     );
 }
 

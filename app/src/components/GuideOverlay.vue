@@ -397,7 +397,7 @@ const CLOCK: Box = { x: CLOCK_X, y: CLOCK_Y, width: CLOCK_W, height: CLOCK_H };
 .slab {
   position: absolute;
   transform-origin: 100% 50%;
-  border-radius: 8px 0 0 8px;
+  border-radius: 22px 4px 0 0 / 18px 4px 0 0;
   background: linear-gradient(90deg, #cfd4d8 0%, #e6e9ec 45%, #f4f5f6 100%);
   box-shadow: -3px 0 8px rgba(0, 0, 0, 0.5);
   will-change: transform;
@@ -454,16 +454,35 @@ const CLOCK: Box = { x: CLOCK_X, y: CLOCK_Y, width: CLOCK_W, height: CLOCK_H };
 }
 
 /*
- * The arc above the tab label, the Guide's spinner. It is not animated: a
- * spinner is a promise that something is loading, and the Guide's content is
- * already resident, so there is nothing in flight to spin for.
+ * The ring above the tab label, the Guide's spinner: eight grey dashes with a
+ * lime arc on the upper left. It is not animated, since the Guide's content is
+ * already resident and there is nothing in flight to spin for.
  */
 .spinner {
   position: absolute;
-  margin-left: calc(var(--spinner-d) / -2);
-  border: 3px solid rgba(255, 255, 255, 0.85);
-  border-top-color: rgba(255, 255, 255, 0.25);
   border-radius: 50%;
+  background: repeating-conic-gradient(
+    from 6deg,
+    rgba(214, 222, 228, 0.75) 0deg 33deg,
+    rgba(0, 0, 0, 0) 33deg 45deg
+  );
+  -webkit-mask: radial-gradient(circle, transparent 54%, #000 56%);
+  mask: radial-gradient(circle, transparent 54%, #000 56%);
+}
+
+.spinner::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: conic-gradient(
+    from -75deg,
+    rgba(140, 220, 30, 0) 0deg,
+    #a4e21a 30deg,
+    #a4e21a 75deg,
+    rgba(140, 220, 30, 0) 90deg,
+    rgba(0, 0, 0, 0) 360deg
+  );
 }
 
 .tab-label {

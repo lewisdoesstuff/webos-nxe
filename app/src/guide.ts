@@ -54,7 +54,7 @@ export const TAB_LABEL_FONT = 21;
 export const ROTATED_LINE = 22;
 
 /** The arc above the tab label. The frame has one; its size is UNVERIFIED. */
-export const SPINNER_D = 26;
+export const SPINNER_D = 30;
 export const SPINNER_Y = 210;
 
 /**

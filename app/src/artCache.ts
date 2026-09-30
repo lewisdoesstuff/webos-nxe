@@ -2,7 +2,7 @@ import { shallowReactive, shallowRef } from "vue";
 
 import { readAllArt, type StoredArt, writeArt } from "./artStore";
 import cardBokeh from "./assets/hub/card-bokeh.svg";
-import { edgeColor, faceStops } from "./tileColor";
+import { css, edgeColor, faceStops } from "./tileColor";
 
 /**
  * Every pane's art, redrawn once at the size it is shown, with its reflections
@@ -23,7 +23,7 @@ import { edgeColor, faceStops } from "./tileColor";
  */
 
 /** Bumped whenever what a bake draws changes, so older stored bakes are ignored. */
-const BAKE_VERSION = 2;
+const BAKE_VERSION = 3;
 const FLOOR_KEY = "floor-face";
 
 /** The size the hub shows art at, in CSS px, which is what this TV rasters at. */
@@ -65,6 +65,8 @@ interface Baked {
   floor: string;
   /** Set for an icon drawn on its own flat colour: the whole card, echo included, at half size. */
   face?: string;
+  /** The flat colour of a face, as CSS. */
+  color?: string;
 }
 
 /** The logo of a flat-colour card, in card px, and the card scale it is baked at. */
@@ -95,6 +97,11 @@ export function shownFloorPatch(url: string | null): string | null {
   const own = url === null ? undefined : baked.get(url);
   if (own?.face) return null;
   return own?.floor ?? floorFace.value?.patch ?? null;
+}
+
+/** The flat colour an icon sits on, as CSS, or null. */
+export function shownColor(url: string | null): string | null {
+  return url === null ? null : (baked.get(url)?.color ?? null);
 }
 
 /** The card face of an icon on a flat colour, or null for the lime card. */
@@ -156,12 +163,13 @@ async function store(
   key: string,
   hash: number,
   canvases: Record<string, HTMLCanvasElement>,
+  color?: string,
 ): Promise<Record<string, string> | null> {
   const names = Object.keys(canvases);
   const blobs = await Promise.all(names.map((name) => encode(canvases[name]!)));
   if (blobs.some((blob) => blob === null)) return null;
   const images = Object.fromEntries(names.map((name, index) => [name, blobs[index]!]));
-  void writeArt({ key, version: BAKE_VERSION, hash, images });
+  void writeArt({ key, version: BAKE_VERSION, hash, images, ...(color ? { color } : {}) });
   return showAll(images);
 }
 
@@ -297,6 +305,7 @@ export async function prepareArt(url: string): Promise<void> {
       echo: urls["echo"] ?? null,
       floor: urls["floor"],
       ...(urls["face"] ? { face: urls["face"] } : {}),
+      ...(record.color ? { color: record.color } : {}),
     });
     unchecked.set(url, record.hash);
     return;
@@ -412,8 +421,15 @@ async function bakeFlat(
   mirrorContext.setTransform(1, 0, 0, 1, 0, 0);
   fade(mirrorContext, 0, mirror.height, MIRROR_FADE);
 
-  const urls = await store(url, hash, { art, face, floor: mirror });
+  const color = css(base);
+  const urls = await store(url, hash, { art, face, floor: mirror }, color);
   if (urls?.["art"] && urls["face"] && urls["floor"]) {
-    baked.set(url, { art: urls["art"], echo: null, floor: urls["floor"], face: urls["face"] });
+    baked.set(url, {
+      art: urls["art"],
+      echo: null,
+      floor: urls["floor"],
+      face: urls["face"],
+      color,
+    });
   }
 }

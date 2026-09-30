@@ -17,6 +17,8 @@ export interface StoredArt {
   /** A hash of the source as scaled, to tell when an icon has changed. */
   hash: number;
   images: Record<string, Blob>;
+  /** The flat colour an icon sits on, when it has one. */
+  color?: string;
 }
 
 let opened: Promise<IDBDatabase | null> | null = null;

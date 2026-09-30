@@ -1,7 +1,7 @@
 <script setup lang="ts" vapor>
 import { computed } from "vue";
 
-import { shownArt } from "../artCache";
+import { shownArt, shownColor } from "../artCache";
 import { HIDDEN, LABEL_H, LABEL_W, MOVE_EASE, MOVE_MS, placePool, type PooledPane } from "../hub";
 import {
   PAGE_POOL_SIZE,
@@ -58,7 +58,14 @@ function focusStyle(pane: PooledPane, shown: number): Record<string, string> {
   return { opacity: `${focused(pane) ? shown : HIDDEN}` };
 }
 
+function flatColor(pane: PooledPane): string | null {
+  const item = itemOf(pane);
+  return item ? shownColor(paneArt(item)) : null;
+}
+
 function artStyle(pane: PooledPane): Record<string, string> {
+  const flat = flatColor(pane);
+  if (flat) return { background: flat };
   const tint = artTint(itemOf(pane)?.iconColor);
   return { background: `linear-gradient(180deg, ${tint.top}, ${tint.bottom})` };
 }
@@ -80,8 +87,11 @@ const titleStyle = computed((): Record<string, string> => ({
     <span class="title" :style="titleStyle">{{ title }}</span>
     <div class="pane" v-for="pane in pool" :key="pane.element" :style="[paneBox, paneStyle(pane)]">
       <div class="clip">
-        <span class="name">{{ itemOf(pane)?.title ?? "" }}</span>
-        <div class="art" :style="artStyle(pane)">
+        <span class="name" :class="{ two: itemOf(pane)?.detail }">{{
+          itemOf(pane)?.title ?? ""
+        }}</span>
+        <span v-if="itemOf(pane)?.detail" class="sub">{{ itemOf(pane)?.detail }}</span>
+        <div class="art" :class="{ flat: flatColor(pane) }" :style="artStyle(pane)">
           <img
             v-if="itemOf(pane) && paneArt(itemOf(pane)!)"
             :src="shownArt(paneArt(itemOf(pane)!))!"
@@ -170,6 +180,23 @@ const titleStyle = computed((): Record<string, string> => ({
   text-overflow: ellipsis;
 }
 
+.name.two {
+  top: 22px;
+}
+
+.sub {
+  position: absolute;
+  top: 76px;
+  left: 51px;
+  right: 51px;
+  overflow: hidden;
+  font-size: 22px;
+  line-height: 26px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: rgba(255, 255, 255, 0.7);
+}
+
 .art {
   position: absolute;
   top: 108px;
@@ -202,6 +229,15 @@ const titleStyle = computed((): Record<string, string> => ({
   border-radius: 30px;
   object-fit: cover;
   box-shadow: 0 8px 18px rgba(0, 0, 0, 0.45);
+}
+
+.art.flat img {
+  top: 0;
+  width: 236px;
+  height: 236px;
+  margin-left: -118px;
+  border-radius: 0;
+  box-shadow: none;
 }
 
 .initial {

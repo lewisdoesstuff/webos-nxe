@@ -1,9 +1,5 @@
 import allIcon from "./assets/system/all.svg?inline";
-import generalIcon from "./assets/system/general.svg?inline";
-import networkIcon from "./assets/system/network.svg?inline";
-import pictureIcon from "./assets/system/picture.svg?inline";
-import settingsIcon from "./assets/system/settings.svg?inline";
-import soundIcon from "./assets/system/sound.svg?inline";
+import settingsIcon from "./assets/system/settings.png?inline";
 import type { ListPage } from "./pages";
 import { recentlyLaunched, type Reported, type SectionId, SECTIONS, sectionRows } from "./sections";
 import type { Settings } from "./settings";
@@ -28,6 +24,10 @@ export interface HubItem extends LaunchPoint {
   readonly empty?: true;
   /** The dashboard's own settings page, opened rather than launched. */
   readonly settings?: true;
+  /** Art drawn straight on the card, without the glossy tile. */
+  readonly bare?: true;
+  /** A second line under the name, such as free space. */
+  readonly detail?: string;
   /** The profile pane: the gamercard, with the avatar standing beside it. */
   readonly profile?: true;
   /** The profile's gamerscore. */
@@ -36,56 +36,12 @@ export interface HubItem extends LaunchPoint {
   readonly recent?: readonly LaunchPoint[];
 }
 
-const SETTINGS_APP = "com.palm.app.settings";
-const NETWORK_APP = "com.webos.app.firstuse-overlay";
-
-/**
- * The TV's own settings pages, VERIFIED on the TV. Settings maps `picture`,
- * `sound` and `general` to its pages and falls back to Picture for anything
- * else; it opens its own network page through the first-use overlay.
- */
-export const SYSTEM_PANES: readonly HubItem[] = [
-  {
-    id: "system:picture",
-    title: "Picture",
-    icon: pictureIcon,
-    launch: { id: SETTINGS_APP, params: { target: "picture" } },
-  },
-  {
-    id: "system:sound",
-    title: "Sound",
-    icon: soundIcon,
-    launch: { id: SETTINGS_APP, params: { target: "sound" } },
-  },
-  {
-    id: "system:network",
-    title: "Network",
-    icon: networkIcon,
-    launch: { id: NETWORK_APP, params: { target: "network" } },
-  },
-  {
-    id: "system:general",
-    title: "General",
-    icon: generalIcon,
-    launch: { id: SETTINGS_APP, params: { target: "general" } },
-  },
-  {
-    id: "system:settings",
-    title: "All Settings",
-    icon: settingsIcon,
-    launch: { id: SETTINGS_APP, params: {} },
-  },
-];
-
-/**
- * The dashboard's own settings, beside the TV's. It opens a page rather than
- * launching anything. It shares the sun tile with All Settings: channels have
- * no icons of their own, and the titles tell them apart until they do.
- */
+/** System settings, first on System. It opens a page rather than launching anything. */
 export const XNE_SETTINGS_PANE: HubItem = {
   id: "xne:settings",
-  title: "XNE Settings",
+  title: "System Settings",
   icon: settingsIcon,
+  bare: true,
   settings: true,
 };
 
@@ -210,6 +166,12 @@ function homeItems(rows: readonly HubItem[], profile: HubItem, settings: Setting
   return order.map((id) => byId.get(id) as HubItem);
 }
 
+/** A row with one pane's second line set. A blank line, or no such pane, leaves the row as it is. */
+export function withDetail(row: readonly HubItem[], id: string, detail: string): HubItem[] {
+  if (detail === "") return [...row];
+  return row.map((item) => (item.id === id ? { ...item, detail } : item));
+}
+
 /** The channel's items, without the "All" pane. Empty when there are none. */
 export function channelItems(
   channel: SectionId,
@@ -217,7 +179,7 @@ export function channelItems(
   settings: Settings,
 ): HubItem[] {
   const rows: HubItem[] = sectionRows(channel, points, settings);
-  if (channel === "system") return [...SYSTEM_PANES, XNE_SETTINGS_PANE, ...rows];
+  if (channel === "system") return [XNE_SETTINGS_PANE, ...rows];
   if (channel === "home") return homeItems(rows, profilePane(settings, points), settings);
   return rows;
 }

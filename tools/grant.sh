@@ -41,7 +41,7 @@ CLIENT_KEY="${APP_ID}-*"
 # Space separated so it drops straight into a python list.
 # Not named GROUPS: that is a bash special variable holding the caller's group
 # ids, so an assignment to it is silently ignored and reads back as a bare GID.
-NEEDED="applications.internal capture.client settings notifications"
+NEEDED="applications.internal capture.client settings notifications attachedstoragemanager.read"
 GROUP="applications.internal"
 
 MODE="show"

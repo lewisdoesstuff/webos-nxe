@@ -53,12 +53,13 @@ const rootStyle = { width: `${PANE_W}px`, height: `${PANE_H}px` };
         </div>
       </template>
       <template v-else>
-        <div class="tile">
+        <div class="tile" :class="{ bare: props.item?.bare }">
           <img v-if="art" class="art" :src="art" alt="" />
           <span v-else class="initial">{{ initial }}</span>
         </div>
         <img v-if="echo" class="echo" :src="echo" alt="" />
-        <span class="name">{{ props.item?.title ?? "" }}</span>
+        <span class="name" :class="{ two: props.item?.detail }">{{ props.item?.title ?? "" }}</span>
+        <span v-if="props.item?.detail" class="detail">{{ props.item.detail }}</span>
       </template>
     </div>
     <div class="mirror">
@@ -147,6 +148,17 @@ const rootStyle = { width: `${PANE_W}px`, height: `${PANE_H}px` };
   background: rgba(255, 255, 255, 0.14);
 }
 
+.tile.bare {
+  overflow: visible;
+  border-radius: 0;
+  box-shadow: none;
+  background: none;
+}
+
+.tile.bare::after {
+  display: none;
+}
+
 .echo {
   position: absolute;
   top: 334px;
@@ -195,6 +207,25 @@ const rootStyle = { width: `${PANE_W}px`, height: `${PANE_H}px` };
   font-family: "Convection", "Inter", sans-serif;
   font-size: 34px;
   line-height: 42px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+.name.two {
+  bottom: 70px;
+}
+
+.detail {
+  position: absolute;
+  bottom: 34px;
+  left: 28px;
+  right: 28px;
+  overflow: hidden;
+  color: rgba(255, 255, 255, 0.85);
+  font-family: "Convection", "Inter", sans-serif;
+  font-size: 26px;
+  line-height: 32px;
   white-space: nowrap;
   text-overflow: ellipsis;
   text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);

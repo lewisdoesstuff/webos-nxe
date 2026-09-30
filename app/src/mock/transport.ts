@@ -62,6 +62,22 @@ const handlers: Record<string, (params: LunaParams) => unknown> = {
     const title = INPUT_TITLES[id];
     return title ? { returnValue: true, id, title } : NOT_FOUND;
   },
+  "com.webos.service.attachedstoragemanager/listDevices": (_params) => ({
+    returnValue: true,
+    devices: [
+      { deviceType: "internal camera", deviceName: "CAMERA", deviceId: "INTERNAL_STORAGE_CAMERA" },
+      {
+        deviceType: "internal samples",
+        deviceName: "SAMPLES",
+        deviceId: "INTERNAL_STORAGE_SAMPLES",
+      },
+    ],
+  }),
+  "com.webos.service.attachedstoragemanager/getProperties": (_params) => ({
+    returnValue: true,
+    totalSpace: 5897,
+    freeSpace: 2882,
+  }),
   // `?serial=` previews another set's floor rings.
   "com.webos.service.tv.systemproperty/getSystemInfo": (_params) => ({
     returnValue: true,

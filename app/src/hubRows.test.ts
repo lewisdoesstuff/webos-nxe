@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  XNE_SETTINGS_PANE,
   channelItems,
   channelPage,
   hubRow,
@@ -14,7 +15,6 @@ import {
   moveStep,
   pageItems,
   PROFILE_RECENT,
-  SYSTEM_PANES,
   withAllPane,
 } from "./hubRows";
 import { SETTINGS_DEFAULTS } from "./settings";
@@ -55,7 +55,7 @@ describe("hubRow", () => {
     expect(isHideable(row[0])).toBe(true);
     expect(isHideable(row[row.length - 1])).toBe(false);
     expect(isHideable(hubRow("games", [], SETTINGS_DEFAULTS)[0])).toBe(false);
-    expect(isHideable(SYSTEM_PANES[0])).toBe(false);
+    expect(isHideable(XNE_SETTINGS_PANE)).toBe(false);
     expect(isHideable(null)).toBe(false);
     expect(isHideable(undefined)).toBe(false);
   });
@@ -95,37 +95,25 @@ describe("hubRow", () => {
     );
   });
 
-  it("puts the settings panes on System, ahead of system apps", () => {
+  it("seats System Settings first on System, opened and never launched", () => {
     const items = channelItems("system", POINTS, SETTINGS_DEFAULTS);
-    expect(items.slice(0, SYSTEM_PANES.length)).toEqual(SYSTEM_PANES);
-    expect(items.some(isProfilePane)).toBe(false);
-    expect(channelItems("apps", POINTS, SETTINGS_DEFAULTS)).not.toContain(SYSTEM_PANES[0]);
-  });
-
-  it("seats the dashboard's own settings beside the TV's, opened and never launched", () => {
-    const items = channelItems("system", POINTS, SETTINGS_DEFAULTS);
-    const pane = items[SYSTEM_PANES.length];
+    const pane = items[0];
     expect(pane?.id).toBe("xne:settings");
     expect(isSettingsPane(pane)).toBe(true);
     expect(isHideable(pane)).toBe(false);
+    expect(items.some(isProfilePane)).toBe(false);
     expect(pageItems(items)).not.toContain(pane);
-  });
-
-  it("gives every synthetic pane a unique id, an icon and a target", () => {
-    const ids = new Set(SYSTEM_PANES.map((pane) => pane.id));
-    expect(ids.size).toBe(SYSTEM_PANES.length);
-    for (const pane of SYSTEM_PANES) {
-      expect(pane.icon).toBeTruthy();
-      expect(pane.launch?.id).toBeTruthy();
-    }
-    const network = SYSTEM_PANES.find((pane) => pane.id === "system:network");
-    expect(network?.launch?.id).toBe("com.webos.app.firstuse-overlay");
+    expect(channelItems("apps", POINTS, SETTINGS_DEFAULTS)).not.toContain(pane);
   });
 });
 
 describe("pages", () => {
   it("lists the row without its All pane or its settings pane", () => {
-    const row = hubRow("system", POINTS, SETTINGS_DEFAULTS);
+    const points = [
+      ...POINTS,
+      { id: "com.webos.app.inputcommon", title: "Inputs", systemApp: true },
+    ];
+    const row = hubRow("system", points, SETTINGS_DEFAULTS);
     const items = pageItems(row);
     expect(items).toHaveLength(row.length - 2);
     expect(
@@ -140,9 +128,9 @@ describe("pages", () => {
   });
 
   it("launches a pane's own target, or the launch point", () => {
-    expect(launchTarget(SYSTEM_PANES[0]!)).toEqual({
-      id: "com.palm.app.settings",
-      params: { target: "picture" },
+    expect(launchTarget({ id: "x", title: "X", launch: { id: "y", params: { a: 1 } } })).toEqual({
+      id: "y",
+      params: { a: 1 },
     });
     expect(launchTarget({ id: "x", title: "X" })).toEqual({ id: "x", params: {} });
   });

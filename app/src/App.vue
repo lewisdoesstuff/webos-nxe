@@ -68,6 +68,7 @@ import {
   launchTarget,
   moveStep,
   pageItems,
+  withDetail,
 } from "./hubRows";
 import { PAGE_COUNTER_X, PAGE_COUNTER_Y } from "./pageRow";
 import {
@@ -106,6 +107,7 @@ import { playSound, playToastSound } from "./sound";
 import { useAppsStore } from "./stores/apps";
 import { useInputsStore } from "./stores/inputs";
 import { useSettingsStore } from "./stores/settings";
+import { useStorageStore } from "./stores/storage";
 import { useSystemToastsStore } from "./stores/systemToasts";
 import { useTvStore } from "./stores/tv";
 import { advance, enqueue, EMPTY_TOASTS, TOAST_FADE_MS, TOAST_MS, type Toast } from "./toasts";
@@ -125,6 +127,8 @@ const apps = useAppsStore();
 const settings = useSettingsStore();
 const tv = useTvStore();
 const inputs = useInputsStore();
+const storage = useStorageStore();
+void storage.refresh();
 
 /** Where the user is. The labels follow it at once. Resumes the stored
  * channel rather than always starting on Apps. */
@@ -270,6 +274,7 @@ const rowSettings = computed((previous?: Settings) => {
 const rows = computed(() =>
   channels.map((channel) => {
     const row = hubRow(channel.id, apps.launchPoints, rowSettings.value);
+    if (channel.id === "system") return withDetail(row, "xne:settings", storage.free);
     return channel.id === "inputs" ? nameInputs(row, inputs.statuses) : row;
   }),
 );
@@ -512,7 +517,7 @@ function launchListed(): void {
 /**
  * The dashboard's own settings, as a real drill stack: the root names the
  * categories, `A` pushes a category or writes one change, `B` pops a level.
- * Opened from the System channel's XNE Settings pane or the Guide, never
+ * Opened from the System channel's System Settings pane or the Guide, never
  * beside a channel page.
  */
 const settingsStack = ref<PageStack>([]);
@@ -679,6 +684,7 @@ watch(
     }, 500);
     const onInputs = channels[shown.value.channel]?.id === "inputs";
     if (onInputs) void inputs.refresh();
+    if (channels[shown.value.channel]?.id === "system") void storage.refresh();
     inputs.watch(settings.settings.livePreviews && onInputs);
   },
   { immediate: true },

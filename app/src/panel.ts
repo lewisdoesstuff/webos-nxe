@@ -14,6 +14,10 @@ export interface PaneItem {
   readonly largeIcon?: string;
   readonly extraLargeIcon?: string;
   readonly iconColor?: string;
+  /** Art drawn straight on the card, without the glossy tile. */
+  readonly bare?: true;
+  /** A second line under the name, such as free space. */
+  readonly detail?: string;
   /** The profile pane, which draws the gamercard instead of art. */
   readonly profile?: true;
   /** The profile's gamerscore. */

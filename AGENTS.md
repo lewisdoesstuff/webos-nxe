@@ -74,7 +74,7 @@ deploy — and `../weboshome-web/PLAN.md` before that.
 app/src/
   App.vue              the shell: channel list, pane row, page, Guide, keys
   hub.ts               hub geometry and navigation, pure
-  hubRows.ts           synthetic rows: System settings panes, "All" panes
+  hubRows.ts           synthetic rows: the System Settings pane, "All" panes
   boot*.ts             the WebGL boot: timing, keyframes, shader, theme
   paths.ts             the `hack` prefix, for reaching outside the app directory
   avatar/              the 3D avatar: renderer, idle clips, framing; /avatar.html in dev

@@ -68,8 +68,8 @@ export const SPINNER_Y = 210;
  * without the box being asked to grow.
  */
 export const TAB_LABEL_X = PANEL_X + TAB_W / 2 + ROTATED_LINE / 2;
-export const TAB_LABEL_Y = 250;
-export const TAB_LABEL_RUN = PANEL_Y + PANEL_H - TAB_LABEL_Y;
+export const TAB_LABEL_Y = SPINNER_Y + SPINNER_D;
+export const TAB_LABEL_RUN = 2 * (PANEL_Y + PANEL_H / 2 - TAB_LABEL_Y);
 
 /**
  * The profile's gamerpic, centred above the panel at x 616-664, y 148-198.

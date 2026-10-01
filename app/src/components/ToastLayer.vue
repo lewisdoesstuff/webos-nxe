@@ -68,7 +68,7 @@ const width = computed(() => {
       <svg class="alt console" viewBox="0 0 64 64" aria-hidden="true">
         <path
           fill-rule="evenodd"
-          d="M28 7h8a3 3 0 0 1 3 3v43a3 3 0 0 1-3 3h-8a3 3 0 0 1-3-3V10a3 3 0 0 1 3-3zm0 25v8h8v-8z"
+          d="M28 7h8a3 3 0 0 1 3 3v18q-2 8 0 16v9a3 3 0 0 1-3 3h-8a3 3 0 0 1-3-3v-9q2-8 0-16V10a3 3 0 0 1 3-3zm4 24.5a4.5 4.5 0 1 0 0 9 4.5 4.5 0 0 0 0-9z"
         />
       </svg>
       <svg class="alt friends" viewBox="0 0 64 64" aria-hidden="true">

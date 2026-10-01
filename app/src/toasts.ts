@@ -21,9 +21,9 @@ export interface ToastQueue {
 
 export const EMPTY_TOASTS: ToastQueue = { current: null, pending: [] };
 
-/** How long a toast stays up, and how long its fade takes. */
+/** How long a toast stays up, and how long its exit takes, which is retail's 900ms. */
 export const TOAST_MS = 4200;
-export const TOAST_FADE_MS = 400;
+export const TOAST_FADE_MS = 900;
 
 /** More waiting than this and the oldest are dropped, so a burst never plays for a minute. */
 export const TOAST_BACKLOG = 4;

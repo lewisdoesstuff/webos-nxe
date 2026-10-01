@@ -1,5 +1,5 @@
 <script setup lang="ts" vapor>
-import { computed } from "vue";
+import { computed, ref, watch } from "vue";
 
 import type { Toast } from "../toasts";
 
@@ -9,7 +9,7 @@ import type { Toast } from "../toasts";
  * black centre in a grey ring cut by four black gaps with a green arc on its
  * upper left, and two left-aligned lines. The disc shows the Xbox ball and, for
  * an achievement or a friend, cross-fades to a trophy or a friends icon
- * through black every one and a half seconds.
+ * through black on a two second cycle, a second to a face.
  *
  * It is authored 116px tall and drawn at 0.828, which takes retail's 64px at
  * 720p to 96px at 1080p.
@@ -45,12 +45,22 @@ const width = computed(() => {
   );
   return Math.min(1000, Math.round(190 + longest));
 });
+
+/** Set once the toast has been shown, so the exit plays on the hide and not at mount. */
+const seen = ref(props.shown);
+watch(
+  () => props.shown,
+  (shown) => {
+    if (shown) seen.value = true;
+  },
+);
 </script>
 
 <template>
   <div
     class="toast"
     :data-shown="shown || undefined"
+    :data-seen="seen || undefined"
     :data-icon="toast?.icon ?? 'xbox'"
     :style="{ '--w': `${width}px` }"
   >
@@ -96,9 +106,6 @@ const width = computed(() => {
   height: 116px;
   opacity: 0.001;
   transform: translate3d(0, 20px, 0) scale(0.828);
-  transition:
-    transform 260ms ease-out,
-    opacity 200ms ease-out;
   will-change: transform, opacity;
   pointer-events: none;
 }
@@ -106,6 +113,22 @@ const width = computed(() => {
 .toast[data-shown] {
   opacity: 1;
   transform: translate3d(0, 0, 0) scale(0.828);
+  transition:
+    transform 260ms ease-out,
+    opacity 200ms ease-out;
+}
+
+/* Holds the toast up while the exit plays, 900ms in retail. */
+.toast[data-seen]:not([data-shown]) {
+  animation: toast-hold 900ms linear;
+}
+
+@keyframes toast-hold {
+  from,
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(0.828);
+  }
 }
 
 .cap-l,
@@ -132,8 +155,7 @@ const width = computed(() => {
   border-width: 3px 0;
   transform: scaleX(0.001);
   transform-origin: 0 0;
-  transition: transform 460ms cubic-bezier(0.2, 0.7, 0.2, 1);
-  will-change: transform;
+  will-change: transform, opacity;
 }
 
 .cap-r {
@@ -142,16 +164,131 @@ const width = computed(() => {
   border-width: 3px 3px 3px 0;
   border-radius: 0 58px 58px 0;
   transform: translate3d(calc(116px - var(--w)), 0, 0);
-  transition: transform 460ms cubic-bezier(0.2, 0.7, 0.2, 1);
-  will-change: transform;
+  will-change: transform, opacity;
+}
+
+.cap-l {
+  will-change: opacity;
+}
+
+/*
+ * The pill, from retail's scene (frames at 60 per second): it appears at 383ms,
+ * unrolls to 1.194 by 733ms and settles by 850ms. The right cap rides the
+ * body's edge. On the way out it rolls back over the last 200ms and fades.
+ */
+.toast[data-shown] .cap-l {
+  animation: pill-in 850ms linear both;
 }
 
 .toast[data-shown] .body {
-  transform: scaleX(1);
+  animation: body-in 850ms linear both;
 }
 
 .toast[data-shown] .cap-r {
-  transform: translate3d(0, 0, 0);
+  animation: cap-in 850ms linear both;
+}
+
+.toast[data-seen]:not([data-shown]) .cap-l {
+  animation: pill-out 900ms linear both;
+}
+
+.toast[data-seen]:not([data-shown]) .body {
+  animation: body-out 900ms linear both;
+}
+
+.toast[data-seen]:not([data-shown]) .cap-r {
+  animation: cap-out 900ms linear both;
+}
+
+@keyframes pill-in {
+  0%,
+  45% {
+    opacity: 0.001;
+  }
+  53%,
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes body-in {
+  0%,
+  45% {
+    opacity: 0.001;
+    transform: scaleX(0.1);
+  }
+  53% {
+    opacity: 1;
+    transform: scaleX(0.1);
+    animation-timing-function: cubic-bezier(0.2, 0.7, 0.3, 1);
+  }
+  86.2% {
+    opacity: 1;
+    transform: scaleX(1.194);
+    animation-timing-function: linear;
+  }
+  100% {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+}
+
+@keyframes cap-in {
+  0%,
+  45% {
+    opacity: 0.001;
+    transform: translate3d(calc(-0.9 * (var(--w) - 112px)), 0, 0);
+  }
+  53% {
+    opacity: 1;
+    transform: translate3d(calc(-0.9 * (var(--w) - 112px)), 0, 0);
+    animation-timing-function: cubic-bezier(0.2, 0.7, 0.3, 1);
+  }
+  86.2% {
+    opacity: 1;
+    transform: translate3d(calc(0.194 * (var(--w) - 112px)), 0, 0);
+    animation-timing-function: linear;
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes pill-out {
+  0%,
+  77.7% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.001;
+  }
+}
+
+@keyframes body-out {
+  0%,
+  77.7% {
+    opacity: 1;
+    transform: scaleX(1);
+    animation-timing-function: ease-in;
+  }
+  100% {
+    opacity: 0.001;
+    transform: scaleX(0.076);
+  }
+}
+
+@keyframes cap-out {
+  0%,
+  77.7% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+    animation-timing-function: ease-in;
+  }
+  100% {
+    opacity: 0.001;
+    transform: translate3d(calc(-0.924 * (var(--w) - 112px)), 0, 0);
+  }
 }
 
 .disc {
@@ -162,6 +299,57 @@ const width = computed(() => {
   height: 108px;
   border-radius: 50%;
   background: #0a0b0b;
+  will-change: transform, opacity;
+}
+
+/*
+ * The disc's backing grows 0.1 to 1.45 by 467ms and settles to 1 by 650ms. On
+ * the way out it swells to 1.45 over 400ms and shrinks to 0.2 by 783ms.
+ */
+.toast[data-shown] .disc {
+  animation: disc-in 650ms linear both;
+}
+
+.toast[data-seen]:not([data-shown]) .disc {
+  animation: disc-out 900ms linear both;
+}
+
+@keyframes disc-in {
+  0% {
+    opacity: 0.001;
+    transform: scale(0.1);
+    animation-timing-function: cubic-bezier(0, 0, 0.58, 1);
+  }
+  71.8% {
+    opacity: 1;
+    transform: scale(1.45);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes disc-out {
+  0%,
+  18.5% {
+    opacity: 1;
+    transform: scale(1);
+    animation-timing-function: ease-in-out;
+  }
+  44.4% {
+    opacity: 1;
+    transform: scale(1.45);
+    animation-timing-function: ease-in-out;
+  }
+  87% {
+    opacity: 1;
+    transform: scale(0.2);
+  }
+  100% {
+    opacity: 0.001;
+    transform: scale(0.2);
+  }
 }
 
 .ring,
@@ -238,25 +426,24 @@ const width = computed(() => {
 .toast[data-shown][data-icon="achievement"] .ball,
 .toast[data-shown][data-icon="friend"] .ball,
 .toast[data-shown][data-icon="signin"] .ball {
-  animation: toast-ball 1500ms linear infinite;
+  animation: toast-ball 2000ms linear infinite;
 }
 
 .toast[data-shown][data-icon="achievement"] .alt,
 .toast[data-shown][data-icon="friend"] .alt,
 .toast[data-shown][data-icon="signin"] .alt {
-  animation: toast-alt 1500ms linear infinite;
+  animation: toast-alt 2000ms linear infinite;
 }
 
 @keyframes toast-ball {
   0%,
-  40% {
+  45.85% {
     opacity: 1;
   }
-  46%,
-  90% {
+  50%,
+  95.85% {
     opacity: 0.001;
   }
-  96%,
   100% {
     opacity: 1;
   }
@@ -264,14 +451,13 @@ const width = computed(() => {
 
 @keyframes toast-alt {
   0%,
-  46% {
+  45.85% {
     opacity: 0.001;
   }
-  52%,
-  84% {
+  50%,
+  95.85% {
     opacity: 1;
   }
-  90%,
   100% {
     opacity: 0.001;
   }
@@ -289,13 +475,27 @@ const width = computed(() => {
   text-align: left;
   color: #d9dddd;
   opacity: 0.001;
-  transition: opacity 240ms ease-out;
   will-change: opacity;
 }
 
 .toast[data-shown] .words {
   opacity: 1;
-  transition-delay: 320ms;
+  transition: opacity 100ms linear 633ms;
+}
+
+.toast[data-seen]:not([data-shown]) .words {
+  animation: words-out 900ms linear;
+}
+
+@keyframes words-out {
+  0%,
+  57.5% {
+    opacity: 1;
+  }
+  68.6%,
+  100% {
+    opacity: 0.001;
+  }
 }
 
 b,

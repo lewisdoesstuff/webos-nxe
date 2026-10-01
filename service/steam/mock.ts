@@ -5,7 +5,7 @@ import type {
   SteamFriend,
   SteamGames,
   SteamStatus,
-} from "../../app/src/steam/types";
+} from "../../app/src/steam/types.ts";
 
 /** A friend's avatar as a data URI: a flat square, so the mock needs no network. */
 function avatar(hue: number, letter: string): string {

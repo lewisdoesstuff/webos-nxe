@@ -1,5 +1,5 @@
-import { STEAM_METHODS } from "../../app/src/steam/types";
-import { createLiveBackend } from "./index";
+import { STEAM_METHODS } from "../../app/src/steam/types.ts";
+import { createLiveBackend } from "./index.ts";
 
 /**
  * The webOS JS service the app reaches over Luna as `luna://ooo.lew.nxe.steam/<method>`.

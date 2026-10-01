@@ -34,7 +34,7 @@ const floorPatch = computed(() => shownFloorPatch(source.value));
 const face = computed(() => shownFace(source.value));
 const floorOwn = computed(() => shownFloorOwn(source.value));
 const initial = computed(() => (props.item ? initialsFor(props.item.title) : ""));
-const profile = computed(() => props.item?.profile === true);
+const profile = computed(() => props.item?.kind === "profile");
 const score = computed(() => formatGamerscore(props.item?.score ?? 0));
 const recent = computed(() =>
   (props.item?.recent ?? []).map((app) => ({

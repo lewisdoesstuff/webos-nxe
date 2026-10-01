@@ -1,6 +1,7 @@
 import { describeApp } from "./appDescriptions";
 import allIcon from "./assets/system/all.svg?inline";
 import type { ListPage } from "./pages";
+import type { PaneKind } from "./panel";
 import { recentlyLaunched, type Reported, type SectionId, SECTIONS, sectionRows } from "./sections";
 import type { Settings } from "./settings";
 import { presenceLine } from "./steam/presence";
@@ -15,30 +16,22 @@ export interface LaunchTarget {
 }
 
 /**
- * A pane of the hub's row. Most are launch points, and two kinds are made here:
- * a settings page, which launches the TV's settings app with a target, and an
- * "All" pane, which opens the channel's page instead of launching anything.
- * An empty channel's row holds one more kind: a placeholder, which is drawn
- * and never launched or listed.
+ * A pane of the hub's row. Most are launch points; the rest carry a `kind`:
+ * an "All" pane opens the channel's page, `settings` the dashboard's own
+ * settings, `profile` the profile menu and `friend` a Steam friend's card, and
+ * an `empty` placeholder is drawn and never launched or listed.
  */
 export interface HubItem extends LaunchPoint {
   readonly launch?: LaunchTarget;
-  readonly all?: true;
-  readonly empty?: true;
-  /** The dashboard's own settings page, opened rather than launched. */
-  readonly settings?: true;
+  readonly kind?: PaneKind;
   /** Art drawn straight on the card, without the glossy tile. */
   readonly bare?: true;
   /** A second line under the name, such as free space. */
   readonly detail?: string;
-  /** The profile pane: the gamercard, with the avatar standing beside it. */
-  readonly profile?: true;
   /** The profile's gamerscore. */
   readonly score?: number;
   /** The profile's recent apps, newest first. */
   readonly recent?: readonly LaunchPoint[];
-  /** A Steam friend: A opens their card instead of launching anything. */
-  readonly friend?: true;
 }
 
 /** System settings, first on System. It opens a page rather than launching anything. */
@@ -47,7 +40,7 @@ export const NXE_SETTINGS_PANE: HubItem = {
   title: "System Settings",
   icon: theme().art.settings,
   bare: true,
-  settings: true,
+  kind: "settings",
 };
 
 /**
@@ -65,26 +58,33 @@ export function profilePane(settings: Settings, points: readonly Reported[] = []
   return {
     id: "nxe:profile",
     title: settings.gamertag || "Player1",
-    profile: true,
+    kind: "profile",
     score: settings.gamerscore,
     recent: recentlyLaunched(points, settings, PROFILE_RECENT),
   };
 }
 
 export function isProfilePane(item: HubItem | null | undefined): boolean {
-  return item?.profile === true;
+  return item?.kind === "profile";
 }
 
 export function isAllPane(item: HubItem | null | undefined): boolean {
-  return item?.all === true;
+  return item?.kind === "all";
 }
 
 export function isEmptyPane(item: HubItem | null | undefined): boolean {
-  return item?.empty === true;
+  return item?.kind === "empty";
 }
 
 export function isFriendPane(item: HubItem | null | undefined): boolean {
-  return item?.friend === true;
+  return item?.kind === "friend";
+}
+
+const FRIEND_PREFIX = "friend:";
+
+/** The Steam ID behind a friend pane, or null for any other pane. */
+export function friendIdOf(item: HubItem | null | undefined): string | null {
+  return item?.kind === "friend" ? item.id.slice(FRIEND_PREFIX.length) : null;
 }
 
 /** The most friends the row holds: every one is a baked pane, and the list is already online first. */
@@ -94,19 +94,19 @@ export const FRIEND_PANES = 48;
 export function friendsRow(friends: readonly SteamFriend[], signedIn: boolean): HubItem[] {
   if (friends.length === 0) {
     const title = signedIn ? "No friends to show" : "Sign in to Steam in System Settings";
-    return [{ id: "empty:friends", title, empty: true }];
+    return [{ id: "empty:friends", title, kind: "empty" }];
   }
   return friends.slice(0, FRIEND_PANES).map((friend) => ({
-    id: `friend:${friend.id}`,
+    id: `${FRIEND_PREFIX}${friend.id}`,
     title: friend.name,
     detail: presenceLine(friend),
     ...(friend.avatar ? { icon: friend.avatar, largeIcon: friend.avatar } : {}),
-    friend: true as const,
+    kind: "friend" as const,
   }));
 }
 
 export function isSettingsPane(item: HubItem | null | undefined): boolean {
-  return item?.settings === true;
+  return item?.kind === "settings";
 }
 
 /**
@@ -117,15 +117,7 @@ export function isSettingsPane(item: HubItem | null | undefined): boolean {
  * hidden real item leaves the row because `sectionRows` filters it.
  */
 export function isHideable(item: HubItem | null | undefined): item is HubItem {
-  return (
-    !!item &&
-    !isAllPane(item) &&
-    !isEmptyPane(item) &&
-    !isSettingsPane(item) &&
-    !isProfilePane(item) &&
-    !isFriendPane(item) &&
-    item.launch === undefined
-  );
+  return !!item && item.kind === undefined && item.launch === undefined;
 }
 
 /** Whether a pane can be picked up and moved: a real item, or the profile. */
@@ -178,7 +170,7 @@ function emptyPane(channel: SectionId): HubItem {
   const label = labelOf(channel);
   const title =
     channel === "home" ? "Nothing pinned to Home" : `No ${label.toLowerCase()} installed`;
-  return { id: `empty:${channel}`, title, empty: true };
+  return { id: `empty:${channel}`, title, kind: "empty" };
 }
 
 /**
@@ -206,8 +198,7 @@ export function withDescriptions(
   overrides: Readonly<Record<string, string>>,
 ): HubItem[] {
   return row.map((item) => {
-    if (item.detail || item.all || item.empty || item.settings || item.profile || item.friend)
-      return item;
+    if (item.detail || item.kind !== undefined) return item;
     const detail = describeApp(item.id, overrides);
     return detail === "" ? item : { ...item, detail };
   });
@@ -231,7 +222,7 @@ export function withAllPane(channel: SectionId, items: readonly HubItem[]): HubI
   if (channel === "home") return [...items];
   return [
     ...items,
-    { id: `all:${channel}`, title: `All ${labelOf(channel)}`, icon: allIcon, all: true },
+    { id: `all:${channel}`, title: `All ${labelOf(channel)}`, icon: allIcon, kind: "all" },
   ];
 }
 

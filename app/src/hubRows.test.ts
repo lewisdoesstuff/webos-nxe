@@ -4,6 +4,8 @@ import {
   NXE_SETTINGS_PANE,
   channelItems,
   channelPage,
+  friendIdOf,
+  friendsRow,
   hubRow,
   isAllPane,
   isEmptyPane,
@@ -70,7 +72,7 @@ describe("hubRow", () => {
     expect(pane).toMatchObject({
       id: "nxe:profile",
       title: "Matty",
-      profile: true,
+      kind: "profile",
       score: 0,
       recent: [],
     });
@@ -187,5 +189,22 @@ describe("the Home channel", () => {
     const settings = { ...SETTINGS_DEFAULTS, appSection: { a: "home" } };
     expect(hubRow("home", POINTS_HOME, settings)).toHaveLength(1);
     expect(hubRow("apps", POINTS_HOME, settings).some((item) => item.id === "a")).toBe(true);
+  });
+});
+
+describe("the Friends channel", () => {
+  const FRIEND = { id: "7656", name: "Halo Fan 42", avatar: "", state: "online" as const };
+
+  it("makes each friend a pane that names their Steam ID and never leaves the row", () => {
+    const [pane] = friendsRow([FRIEND], true);
+    expect(friendIdOf(pane)).toBe("7656");
+    expect(isHideable(pane)).toBe(false);
+    expect(isMovable(pane)).toBe(false);
+  });
+
+  it("holds one placeholder, which is no friend, when there are none", () => {
+    const [pane] = friendsRow([], false);
+    expect(isEmptyPane(pane)).toBe(true);
+    expect(friendIdOf(pane)).toBeNull();
   });
 });

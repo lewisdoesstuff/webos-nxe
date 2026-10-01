@@ -75,6 +75,7 @@ import {
   withDetail,
   friendsRow,
   isFriendPane,
+  friendIdOf,
 } from "./hubRows";
 import { PAGE_COUNTER_X, PAGE_COUNTER_Y } from "./pageRow";
 import {
@@ -317,7 +318,7 @@ const rows = computed(() =>
       rowSettings.value.appDescriptions,
     );
     if (channel.id === "home") {
-      return row.map((item) => (item.profile ? { ...item, title: gamertag.value } : item));
+      return row.map((item) => (isProfilePane(item) ? { ...item, title: gamertag.value } : item));
     }
     if (channel.id === "system") return withDetail(row, "nxe:settings", storage.free);
     return channel.id === "inputs" ? nameInputs(row, inputs.statuses) : row;
@@ -1009,8 +1010,8 @@ const avatarPane = computed(() =>
 const onFriendsChannel = computed(() => CHANNEL_ORDER[hub.value.channel] === "friends");
 const friendLook = computed((): Look | null => {
   if (!onFriendsChannel.value) return null;
-  const item = shownRow.value[shown.value.item];
-  return isFriendPane(item) && item ? lookFor(item.id.slice("friend:".length)) : null;
+  const id = friendIdOf(shownRow.value[shown.value.item]);
+  return id === null ? null : lookFor(id);
 });
 let avatarRest = "translate3d(0px, 0px, 0) scale(1)";
 
@@ -1260,8 +1261,9 @@ function activate(): void {
     openSettings();
     return;
   }
-  if (isFriendPane(item)) {
-    openFriend(item.id.slice("friend:".length));
+  const friendId = friendIdOf(item);
+  if (friendId !== null) {
+    openFriend(friendId);
     return;
   }
   if (isAllPane(item)) {

@@ -1,8 +1,6 @@
 <script setup lang="ts" vapor>
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 
-import { describeApp } from "./appDescriptions";
-import { checkArt, prepareArt, prepareFloor } from "./artCache";
 import { AVATAR_CANVAS } from "./avatar/framing";
 import { lookFor, type Look } from "./avatar/look";
 import { type BootReason, type BootSpeed, resolveBootMode } from "./boot";
@@ -17,8 +15,7 @@ import PromptBar from "./components/PromptBar.vue";
 import SettingsLayer from "./components/SettingsLayer.vue";
 import ToastLayer from "./components/ToastLayer.vue";
 import { deviceSeed } from "./deviceSeed";
-import { stepFocus } from "./focus/row";
-import { BLADE_COUNT, BLADE_IDS, DIM_OUT_MS } from "./guide";
+import { DIM_OUT_MS } from "./guide";
 import {
   avatarPlace,
   BULLET_SIZE,
@@ -60,72 +57,53 @@ import {
 import {
   type HubItem,
   channelPage,
+  friendIdOf,
+  friendsRow,
   hubRow,
-  movableIds,
   isAllPane,
   isEmptyPane,
+  isFriendPane,
   isHideable,
-  isMovable,
   isProfilePane,
   isSettingsPane,
   launchTarget,
-  moveStep,
   pageItems,
   withDescriptions,
   withDetail,
-  friendsRow,
-  isFriendPane,
-  friendIdOf,
 } from "./hubRows";
+import { type Button, buttonFor, GREEN, horizontal } from "./keys";
 import { PAGE_COUNTER_X, PAGE_COUNTER_Y } from "./pageRow";
 import {
   counterText as pageCounterText,
   DRILL_MS,
   type PageFocus,
-  type PageStack,
-  pop,
-  push,
   ROOT_FOCUS,
-  rowCount,
   shellPrompts,
   stepAlong,
   stepAlongBy,
-  stepVertical,
-  top,
 } from "./pages";
-import { paneArt, type PaneItem } from "./panel";
+import type { PaneItem } from "./panel";
 import { PARK_WARM_MS, PARKED, useParked } from "./parked";
 import { liveTarget, nameInputs } from "./preview/live";
 import { CANVAS_H, CANVAS_W } from "./ribbon";
 import { ringImage, ripplePattern } from "./ripples";
-import { CHANNEL_ORDER, SECTIONS, startChannel } from "./sections";
+import { CHANNEL_ORDER, isChannel, SECTIONS, startChannel } from "./sections";
 import type { Settings } from "./settings";
-import {
-  AVATAR_DOWNLOAD,
-  formatGamerscore,
-  parseGamerscore,
-  DESCRIPTION_KEY,
-  profilePage,
-  settingsAction,
-  settingsStep,
-  settingsDetail,
-  settingsPageFor,
-  settingsRoot,
-  type SettingDetail,
-} from "./settingsScreen";
-import { playBladeSound, playSound, playToastSound, type Sound } from "./sound";
-import { friendCard as makeFriendCard, type FriendCard } from "./steam/card";
-import { friendPageId, STEAM_FRIEND, STEAM_GAMES, STEAM_QR, type SteamView } from "./steam/pages";
+import { AVATAR_DOWNLOAD, formatGamerscore } from "./settingsScreen";
+import { nextFrame, wait } from "./shell/frames";
+import { useArtBake } from "./shell/useArtBake";
+import { useGuideNav } from "./shell/useGuideNav";
+import { usePaneMove } from "./shell/usePaneMove";
+import { useSettingsDrill } from "./shell/useSettingsDrill";
+import { useToasts } from "./shell/useToasts";
+import { playSound, type Sound } from "./sound";
 import { useAppsStore } from "./stores/apps";
 import { useInputsStore } from "./stores/inputs";
 import { useSettingsStore } from "./stores/settings";
 import { useSteamStore } from "./stores/steam";
 import { useStorageStore } from "./stores/storage";
 import { useSystemToastsStore } from "./stores/systemToasts";
-import { useTvStore } from "./stores/tv";
 import { theme } from "./theme";
-import { chooseTheme } from "./theme/loader";
-import { advance, enqueue, EMPTY_TOASTS, TOAST_FADE_MS, TOAST_MS, type Toast } from "./toasts";
 
 /**
  * The hub: the channel list at the top left, the channel's row of panes below
@@ -140,7 +118,6 @@ import { advance, enqueue, EMPTY_TOASTS, TOAST_FADE_MS, TOAST_MS, type Toast } f
 
 const apps = useAppsStore();
 const settings = useSettingsStore();
-const tv = useTvStore();
 const steam = useSteamStore();
 /** The gamertag shown: the Steam persona name while signed in to Steam, else the stored one. */
 const gamertag = computed(() => {
@@ -148,13 +125,6 @@ const gamertag = computed(() => {
   if (status.state === "signedIn" && status.name) return status.name;
   return settings.settings.gamertag || "Player1";
 });
-const steamView = computed((): SteamView => ({
-  status: steam.status,
-  friends: steam.friends,
-  qr: steam.qr,
-  error: steam.error,
-  games: steam.games,
-}));
 const inputs = useInputsStore();
 const storage = useStorageStore();
 void storage.refresh();
@@ -186,7 +156,7 @@ const guide = ref(false);
  * put an allocation inside the transition, which is the one thing this project
  * treats as a defect.
  *
- * `boot` is a counter rather than a boolean so that `Y` can replay it: setting
+ * `boot` is a counter rather than a boolean so that `R` can replay it: setting
  * the same boolean to true twice would not remount the component.
  */
 const boot = ref(0);
@@ -208,69 +178,13 @@ function chooseBootMode(): void {
   });
 }
 
-const toastQueue = ref(EMPTY_TOASTS);
-const toastShown = ref(false);
-const toastText = ref<Toast | null>(null);
-
-/** The toast's face, loaded before the first toast so its words are never held back by a font still arriving. */
-let toastFont: Promise<unknown> | null = null;
-function loadToastFont(): Promise<unknown> {
-  toastFont ??= Promise.all([
-    document.fonts.load('400 40px "Segoe UI"'),
-    document.fonts.load('400 40px "Inter"'),
-  ]).catch(() => undefined);
-  return toastFont;
-}
-
-function playToast(): void {
-  const current = toastQueue.value.current;
-  if (current === null) return;
-  void loadToastFont().then(() => {
-    toastText.value = current;
-    toastShown.value = true;
-    playToastSound();
-    setTimeout(() => {
-      toastShown.value = false;
-      setTimeout(() => {
-        toastQueue.value = advance(toastQueue.value);
-        playToast();
-      }, TOAST_FADE_MS);
-    }, TOAST_MS);
-  });
-}
-
-/** Shows a toast over the hub, or queues it behind the one showing. */
-function notify(toast: Toast): void {
-  if (!settings.settings.toasts) return;
-  const idle = toastQueue.value.current === null;
-  toastQueue.value = enqueue(toastQueue.value, toast);
-  if (idle && toastQueue.value.current !== null) playToast();
-}
-
-/** `?toast=friend|achievement` previews those toasts in development. */
-const DEMO_TOASTS: Record<string, Toast> = {
-  friend: { title: "Halo Fan 42", body: "is online", icon: "friend" },
-  achievement: {
-    title: "Achievement unlocked",
-    body: "100G - True Dedication",
-    icon: "achievement",
-  },
-};
+const { text: toastText, shown: toastShown, notify, loadFont, signIn } = useToasts();
 
 /** Steam's answer to who is signed in, which the sign-in toast waits for so it names the right account. */
 let steamStarted: Promise<void> = Promise.resolve();
-const STEAM_WAIT_MS = 2500;
 
 function signInToast(): void {
-  const demo = DEMO_TOASTS[new URLSearchParams(window.location.search).get("toast") ?? ""];
-  if (demo) {
-    notify(demo);
-    return;
-  }
-  const waited = new Promise<void>((resolve) => setTimeout(resolve, STEAM_WAIT_MS));
-  void Promise.race([steamStarted, waited]).then(() =>
-    notify({ title: gamertag.value, body: "Signed in", icon: "xbox" }),
-  );
+  signIn(() => gamertag.value, steamStarted);
 }
 
 function onBootDone(payload: { reason: BootReason }): void {
@@ -325,6 +239,9 @@ const rows = computed(() =>
   }),
 );
 
+/** The item under the hub's focus, if there is one. */
+const focused = computed(() => rows.value[hub.value.channel]?.[hub.value.item]);
+
 /** The "All" page over the hub. Always mounted; opening it changes one transform and opacity. */
 const pageOpen = ref(false);
 const pageFocus = ref<PageFocus>(ROOT_FOCUS);
@@ -339,6 +256,54 @@ const pageLatch = ref<{ title: string; items: readonly PaneItem[] }>({
   items: [],
 });
 
+const {
+  stack: settingsStack,
+  isOpen: settingsOpen,
+  open: openSettings,
+  openProfile,
+  openFriend,
+  draft,
+  draftKey,
+  commitDraft,
+  cancelDraft,
+  onButton: onSettingsButton,
+  page: settingsPage,
+  focus: settingsFocus,
+  detail: settingsDetailShown,
+  friendCard,
+} = useSettingsDrill(() => {
+  pageOpen.value = false;
+});
+
+/** Which element each item index draws on, once a reorder or a slide past one has moved an item off its modulo place. */
+const pins = ref<ReadonlyMap<number, number>>(new Map());
+
+const shownRow = computed(() => rows.value[shown.value.channel] ?? []);
+
+const pool = computed(() =>
+  placePool(shown.value.item, shownRow.value.length, paneSlot, POOL_SIZE, pins.value),
+);
+
+const {
+  moving,
+  canMove,
+  pinLabel,
+  start: startMove,
+  onButton: onMoveButton,
+} = usePaneMove({ rows, hub, shown, pool, pins, resting: () => phase.value === "rest" });
+
+const {
+  blade: guideBlade,
+  item: guideItem,
+  items: guideItems,
+  onButton: onGuideButton,
+} = useGuideNav(rows, (item) => {
+  guide.value = false;
+  playSound("hudSelect");
+  if (isSettingsPane(item)) openSettings();
+  else launchItem(item);
+});
+
 /**
  * The shell's prompt row: the hub's at the root, the open page's over it, and
  * nothing under the Guide, which carries its own row inside its chrome. The
@@ -346,104 +311,17 @@ const pageLatch = ref<{ title: string; items: readonly PaneItem[] }>({
  * does: `A` Select, `B` Back.
  */
 const prompts = computed(() => {
-  if (settingsStack.value.length > 0) return shellPrompts(guide.value, settingsStack.value);
+  if (settingsOpen.value) return shellPrompts(guide.value, settingsStack.value);
   return shellPrompts(
     guide.value,
     pageOpen.value ? [{ page: page.value, focus: pageFocus.value }] : [],
-    canHide.value,
+    isHideable(focused.value),
     moving.value !== null,
-    pinLabel.value ?? (onHome(hub.value.channel) ? "Remove" : null),
+    pinLabel.value ?? (isChannel(hub.value.channel, "home") ? "Remove" : null),
     canMove.value,
-    onFriendPane.value ? "View Details" : null,
+    isFriendPane(focused.value) ? "View Details" : null,
   );
 });
-
-/** Whether X can hide the focused pane: a real item under the focus. */
-const canHide = computed(() => isHideable(rows.value[hub.value.channel]?.[hub.value.item]));
-
-/** The pane being moved along its row, and the order to put back if it is cancelled. */
-const moving = ref<{ readonly channel: number; readonly before: readonly string[] } | null>(null);
-
-/** The pane in hand can be pinned to Home from any other channel, and leaves Home from Home. */
-const pinLabel = computed(() => {
-  if (moving.value === null || onHome(moving.value.channel)) return null;
-  const item = rows.value[moving.value.channel]?.[hub.value.item];
-  return item && settings.isAppHome(item.id) ? "Remove from Home" : "Add to Home";
-});
-
-function onHome(channel: number): boolean {
-  return CHANNEL_ORDER[channel] === "home";
-}
-
-function togglePin(): void {
-  const held = moving.value;
-  const item = held && rows.value[held.channel]?.[hub.value.item];
-  if (!item || onHome(held.channel)) return;
-  settings.setAppHome(item.id, !settings.isAppHome(item.id));
-  playSound("option");
-}
-
-function writeOrder(channel: number, order: readonly string[], save: boolean): void {
-  if (onHome(channel)) settings.setHomeOrder(order, save);
-  else settings.setAppOrder(order, save);
-}
-
-function startMove(): void {
-  const row = rows.value[hub.value.channel] ?? [];
-  if (!isMovable(row[hub.value.item]) || phase.value !== "rest") return;
-  moving.value = { channel: hub.value.channel, before: movableIds(row) };
-  playSound("option");
-}
-
-/** One step of the moved pane along its row: the order changes and the focus follows the pane. */
-function stepMove(direction: -1 | 1): void {
-  const held = moving.value;
-  if (held === null) return;
-  const row = rows.value[held.channel] ?? [];
-  const step = moveStep(row, hub.value.item, direction);
-  if (step === null) return;
-  const elements = new Map<string, number>();
-  for (const pane of pool.value) {
-    const id = pane.item === null ? undefined : row[pane.item]?.id;
-    if (id !== undefined) elements.set(id, pane.element);
-  }
-  writeOrder(held.channel, step.order, false);
-  const next = { channel: held.channel, item: step.index };
-  hub.value = next;
-  shown.value = next;
-  const moved = new Map<number, number>();
-  (rows.value[held.channel] ?? []).forEach((item, index) => {
-    const element = elements.get(item.id);
-    if (element !== undefined) moved.set(index, element);
-  });
-  pins.value = moved;
-  playSound(direction === 1 ? "panelRight" : "panelLeft");
-}
-
-function endMove(keep: boolean): void {
-  const held = moving.value;
-  if (held === null) return;
-  if (keep) {
-    settings.persist();
-    playSound("select");
-  } else {
-    const row = rows.value[held.channel] ?? [];
-    const id = row[hub.value.item]?.id;
-    writeOrder(held.channel, held.before, false);
-    const after = rows.value[held.channel] ?? [];
-    const item = Math.max(
-      0,
-      after.findIndex((candidate) => candidate.id === id),
-    );
-    hub.value = { channel: held.channel, item };
-    shown.value = hub.value;
-    playSound("back");
-  }
-  moving.value = null;
-}
-
-/** Whether Y can pick the focused pane up: a real item, or the profile. */
-const canMove = computed(() => isMovable(rows.value[hub.value.channel]?.[hub.value.item]));
 
 /** Keep a state inside its channel's row, which hiding may have shortened. */
 function clampItem(state: HubState): HubState {
@@ -458,74 +336,13 @@ function clampItem(state: HubState): HubState {
  * that cannot leave it, the way A is silent on a placeholder.
  */
 function toggleHide(): void {
-  const item = rows.value[hub.value.channel]?.[hub.value.item];
+  const item = focused.value;
   if (!isHideable(item)) return;
-  if (onHome(hub.value.channel)) settings.setAppHome(item.id, false);
+  if (isChannel(hub.value.channel, "home")) settings.setAppHome(item.id, false);
   else settings.setAppHidden(item.id, !settings.isAppHidden(item.id));
   playSound("option");
   hub.value = clampItem(hub.value);
   shown.value = clampItem(shown.value);
-}
-
-/**
- * The Guide's blades, mapped onto this TV: Settings is the System channel,
- * Games and Media are those channels, Marketplace is LG's store, and the
- * gamertag blade, the scene data's `home`, is the Apps channel. It opens on
- * Settings.
- */
-const guideBlade = ref(BLADE_IDS.indexOf("settings"));
-const guideItem = ref(0);
-
-function channelItems(id: string) {
-  return pageItems(rows.value[CHANNEL_ORDER.indexOf(id as (typeof CHANNEL_ORDER)[number])] ?? []);
-}
-
-const guideRows = computed(() => {
-  switch (BLADE_IDS[guideBlade.value]) {
-    case "settings":
-      return channelItems("system");
-    case "games":
-      return channelItems("games");
-    case "media":
-      return channelItems("media");
-    case "marketplace":
-      return channelItems("apps").filter((row) => row.id === "com.webos.app.discovery");
-    default:
-      return channelItems("apps");
-  }
-});
-
-const guideItems = computed(() => guideRows.value.map((row) => row.title));
-
-function onGuideKey(event: KeyboardEvent): boolean {
-  const code = event.keyCode;
-  if (code === 37 || code === 39) {
-    // The blades stop at either end rather than wrap: the stacks are the ring laid flat.
-    const next = Math.min(Math.max(guideBlade.value + (code === 39 ? 1 : -1), 0), BLADE_COUNT - 1);
-    if (next === guideBlade.value) return true;
-    guideBlade.value = next;
-    guideItem.value = 0;
-    playBladeSound();
-    return true;
-  }
-  if (code === 38 || code === 40) {
-    guideItem.value = stepFocus(guideItem.value, code === 40 ? 1 : -1, guideRows.value.length);
-    playSound("hudFocus");
-    return true;
-  }
-  if (code === 13 || code === 404) {
-    const row = guideRows.value[guideItem.value];
-    if (!row) return true;
-    guide.value = false;
-    playSound("hudSelect");
-    if (isSettingsPane(row)) {
-      openSettings();
-      return true;
-    }
-    launchItem(row);
-    return true;
-  }
-  return false;
 }
 
 /** Launch a pane's item. A real app goes to the top of the profile's Recent Apps. */
@@ -566,234 +383,15 @@ function launchListed(): void {
   launchItem(item);
 }
 
-/**
- * The dashboard's own settings, as a real drill stack: the root names the
- * categories, `A` pushes a category or writes one change, `B` pops a level.
- * Opened from the System channel's System Settings pane or the Guide, never
- * beside a channel page.
- */
-const settingsStack = ref<PageStack>([]);
-
-/** Open the settings over the hub, from its System pane or the Guide. */
-function openSettings(): void {
-  pageOpen.value = false;
-  settingsStack.value = push([], settingsRoot());
-  playSound("transition");
-  void tv.loadSystem().then(refreshSettingsTop);
-}
-
-/** The profile's menu, opened by A on the profile pane, in the settings screen's layout. */
-function openProfile(): void {
-  pageOpen.value = false;
-  settingsStack.value = push([], profilePage());
-  playSound("transition");
-}
-
-/** A friend's card, opened by A on their pane, in the settings screen's layout. */
-function openFriend(friendId: string): void {
-  const card = settingsPageFor(
-    friendPageId(friendId),
-    settings.settings,
-    [],
-    tv.snapshot,
-    steamView.value,
-  );
-  if (!card) return;
-  pageOpen.value = false;
-  settingsStack.value = push([], card);
-  playSound("transition");
-}
-
-/** What is being typed in the profile menu, or null. While it is set, keys belong to the entry. */
-const draft = ref<string | null>(null);
-const draftKey = ref<string>("gamertag");
-
-/** Keep a typed value. An empty gamertag or a gamerscore that is not a number is refused and kept open. */
-function commitDraft(value: string): void {
-  if (draftKey.value === "gamerscore") {
-    const score = parseGamerscore(value);
-    if (score === null) {
-      playSound("back");
-      return;
-    }
-    settings.applyChange({ kind: "level", key: "gamerscore", value: score });
-  } else if (draftKey.value.startsWith(DESCRIPTION_KEY)) {
-    const appId = draftKey.value.slice(DESCRIPTION_KEY.length);
-    settings.applyChange({ kind: "app-description", appId, text: value });
-  } else {
-    if (value === "") {
-      playSound("back");
-      return;
-    }
-    settings.applyChange({ kind: "choice", key: "gamertag", value });
-  }
-  draft.value = null;
-  playSound("select");
-  refreshSettingsTop();
-}
-
-function cancelDraft(): void {
-  draft.value = null;
-  playSound("back");
-}
-
-function stepSettings(delta: number): void {
-  const next = stepVertical(settingsStack.value, delta);
-  if (next === settingsStack.value) return;
-  settingsStack.value = next;
-  playSound("focus");
-}
-
-function activateSettings(): void {
-  const frame = top(settingsStack.value);
-  if (!frame) return;
-  const action = settingsAction(
-    frame.page,
-    frame.focus,
-    settings.settings,
-    apps.launchPoints,
-    tv.snapshot,
-    steamView.value,
-  );
-  if (!action) return;
-  playSound("select");
-  if (action.kind === "push") {
-    const pushed = [...push(settingsStack.value, action.page)];
-    const last = pushed[pushed.length - 1];
-    if (last && action.focusItem !== undefined) {
-      pushed[pushed.length - 1] = { ...last, focus: { ...last.focus, item: action.focusItem } };
-    }
-    settingsStack.value = pushed;
-    const pageId = action.page.id.slice("settings:".length);
-    if (action.page.id === STEAM_QR) void steam.beginQr();
-    if (action.page.id.startsWith(STEAM_GAMES)) {
-      void steam.loadGames(action.page.id.slice(STEAM_GAMES.length));
-    }
-    if (pageId === "system") void tv.loadSystem().then(refreshSettingsTop);
-    else if (pageId.startsWith("tv-")) void tv.loadPage(pageId).then(refreshSettingsTop);
-    return;
-  }
-  if (action.kind === "edit") {
-    draftKey.value = action.key;
-    draft.value = action.key.startsWith(DESCRIPTION_KEY)
-      ? describeApp(action.key.slice(DESCRIPTION_KEY.length), settings.settings.appDescriptions)
-      : action.key === "gamerscore"
-        ? String(settings.settings.gamerscore)
-        : settings.settings.gamertag || "Player1";
-    return;
-  }
-  if (action.kind === "theme") {
-    chooseTheme(action.id);
-    settingsStack.value = pop(settingsStack.value);
-    refreshSettingsTop();
-    return;
-  }
-  if (action.kind === "launch") {
-    const target = action.params["target"];
-    // Desktop Chrome has no TV browser to launch, so the page opens in a tab.
-    if (typeof target === "string" && typeof window.PalmServiceBridge !== "function") {
-      window.open(target, "_blank", "noopener");
-      return;
-    }
-    void apps.launch(action.id, { ...action.params });
-    return;
-  }
-  if (action.kind === "steam") {
-    void steam.signOut();
-    return;
-  }
-  if (action.kind === "tv") {
-    tv.apply(action.def, action.value);
-    if (action.pop) settingsStack.value = pop(settingsStack.value);
-    refreshSettingsTop();
-    return;
-  }
-  settings.applyChange(action.change);
-  refreshSettingsTop();
-}
-
-/** Left or right on a TV row: a toggle flips, a choice steps, a slider moves. */
-function stepSettingsValue(dir: number): void {
-  const frame = top(settingsStack.value);
-  if (!frame) return;
-  const action = settingsStep(frame.page, frame.focus, tv.snapshot, dir);
-  if (!action || action.kind !== "tv") return;
-  tv.apply(action.def, action.value);
-  playSound("focus");
-  refreshSettingsTop();
-}
-
-function closeSettingsLevel(): void {
-  settingsStack.value = pop(settingsStack.value);
-  playSound("back");
-  if (settingsStack.value.length === 0) playSound("transition");
-}
-
-/**
- * Rebuild the open settings page after a change, keeping the focus where it
- * was. Unhiding shrinks the Hidden Apps list under the focus, so the stored
- * page would point past its end; the rebuilt one cannot. A rebuild is paint
- * on a surface whose layer already exists.
- */
-function refreshSettingsTop(): void {
-  const stack = settingsStack.value;
-  const frame = top(stack);
-  if (!frame) return;
-  const rebuilt = settingsPageFor(
-    frame.page.id,
-    settings.settings,
-    apps.launchPoints,
-    tv.snapshot,
-    steamView.value,
-  );
-  if (!rebuilt) return;
-  const count = rowCount(rebuilt, frame.focus);
-  const focus =
-    count === 0 ? frame.focus : { ...frame.focus, item: Math.min(frame.focus.item, count - 1) };
-  settingsStack.value = [...stack.slice(0, -1), { page: rebuilt, focus }];
-}
-
-const settingsPage = computed(() => top(settingsStack.value)?.page ?? settingsRoot());
-const settingsFocus = computed(() => top(settingsStack.value)?.focus ?? ROOT_FOCUS);
-const settingsDetailShown = computed((): SettingDetail => {
-  const frame = top(settingsStack.value);
-  if (!frame) return { values: [], description: "" };
-  return settingsDetail(
-    frame.page,
-    frame.focus,
-    settings.settings,
-    apps.launchPoints,
-    tv.snapshot,
-    steamView.value,
-  );
-});
-
 const counts = computed(() => rows.value.map((row) => row.length));
-
-/** The friend card shown while a friend's page is the open settings page. */
-const friendCard = computed((): FriendCard | null => {
-  const id = top(settingsStack.value)?.page.id ?? "";
-  if (!id.startsWith(STEAM_FRIEND)) return null;
-  const friend = steam.friends.find((entry) => entry.id === id.slice(STEAM_FRIEND.length));
-  return friend ? makeFriendCard(friend) : null;
-});
-
-/** Whether the row rests on a friend pane, which the prompt row and the figure read. */
-const restingFriend = computed(() => {
-  const item = rows.value[hub.value.channel]?.[hub.value.item];
-  return isFriendPane(item) ? item : null;
-});
-const onFriendPane = restingFriend;
 
 /** The Friends channel swaps the gamerscore for how many friends are online, as retail's card did. */
 const onFriends = computed(
-  () => CHANNEL_ORDER[shown.value.channel] === "friends" && steam.status.state === "signedIn",
+  () => isChannel(shown.value.channel, "friends") && steam.status.state === "signedIn",
 );
 const onlineCount = computed(
   () => steam.friends.filter((friend) => friend.state !== "offline").length,
 );
-
-const shownRow = computed(() => rows.value[shown.value.channel] ?? []);
 
 /** Nothing has moved for half a second: the live input preview may come up. */
 const stood = ref(false);
@@ -813,9 +411,9 @@ watch(
     standTimer = setTimeout(() => {
       stood.value = true;
     }, 500);
-    const onInputs = channels[shown.value.channel]?.id === "inputs";
+    const onInputs = isChannel(shown.value.channel, "inputs");
     if (onInputs) void inputs.refresh();
-    if (channels[shown.value.channel]?.id === "system") void storage.refresh();
+    if (isChannel(shown.value.channel, "system")) void storage.refresh();
     inputs.watch(settings.settings.livePreviews && onInputs);
   },
   { immediate: true },
@@ -829,13 +427,11 @@ const liveInput = computed(() =>
     channel: channels[shown.value.channel]?.id ?? "",
     itemId: shownRow.value[shown.value.item]?.id ?? null,
     settled: stood.value,
-    covered: pageOpen.value || guide.value || settingsStack.value.length > 0 || booting.value,
+    covered: pageOpen.value || guide.value || settingsOpen.value || booting.value,
     statuses: inputs.statuses,
   }),
 );
 
-/** Which element each item index draws on, once a reorder or a slide past one has moved an item off its modulo place. */
-const pins = ref<ReadonlyMap<number, number>>(new Map());
 watch(
   () => [shown.value.channel, shown.value.item] as const,
   ([channel, item], [was, before]) => {
@@ -843,10 +439,6 @@ watch(
       channel === was ? advancePins(pins.value, before - 1, item - 1) : new Map<number, number>();
   },
   { flush: "sync" },
-);
-
-const pool = computed(() =>
-  placePool(shown.value.item, shownRow.value.length, paneSlot, POOL_SIZE, pins.value),
 );
 
 /** The row rests hidden until the first load resolves, so an empty hub is never seen. */
@@ -862,73 +454,12 @@ const counter = computed(() =>
         : counterText(shown.value.item, shownRow.value.length),
 );
 
-function artOf(items: readonly HubItem[]): Set<string> {
-  return new Set(items.map((item) => paneArt(item)).filter((url) => url !== null));
-}
-
-/**
- * The boot waits on black until the channel it hands over to has its art
- * scaled and its reflections baked (`artCache.ts`), so that work and the row's
- * first paint land before the run rather than in its frames. Capped, so a slow
- * Luna never holds the boot for long.
- */
-const BOOT_WAIT_MS = 4000;
-const bootReady = ref(false);
-function readyToBoot(reason: string): void {
-  if (bootReady.value) return;
-  bootReady.value = true;
-  console.info(`[nxe] boot starts at ${Math.round(performance.now())}ms: ${reason}`);
-}
-setTimeout(() => readyToBoot("waited the longest it may"), BOOT_WAIT_MS);
-
-async function prepareShown(): Promise<void> {
-  const urls = [...artOf(rows.value[hub.value.channel] ?? [])];
-  await Promise.all([prepareFloor(), ...urls.map((url) => prepareArt(url))]);
-  await nextFrame();
-  await nextFrame();
-  readyToBoot("the channel is ready");
-}
-
-watch(loaded, (is) => is && void prepareShown(), { immediate: true });
-
-/** Every other channel's art once the boot has finished, one a frame, and any stored art checked against its icon. */
-let baking = 0;
-/** Past the boot's last frame and the teardown of its layer. */
-const BAKE_DELAY_MS = 1500;
-/** How long the hub must be left alone before the next bake, so a bake never lands inside a transition. */
-const QUIET_MS = 600;
-let lastKeyAt = 0;
-
-async function quiet(): Promise<void> {
-  while (performance.now() - lastKeyAt < QUIET_MS) await nextFrame();
-}
-
-async function bakeArt(): Promise<void> {
-  const mine = ++baking;
-  await prepareFloor();
-  for (const url of artOf(rows.value.flat())) {
-    if (mine !== baking) return;
-    await quiet();
-    await prepareArt(url);
-    await nextFrame();
-  }
-  for (const url of artOf(rows.value.flat())) {
-    if (mine !== baking) return;
-    await quiet();
-    await checkArt(url);
-    await nextFrame();
-  }
-}
-watch(
-  [() => apps.launchPoints, booting],
-  ([, busy]) => {
-    if (busy) return;
-    baking += 1;
-    const mine = baking;
-    setTimeout(() => mine === baking && void bakeArt(), BAKE_DELAY_MS);
-  },
-  { immediate: true },
-);
+const { bootReady, noteKey } = useArtBake({
+  rows,
+  channel: () => hub.value.channel,
+  loaded,
+  booting,
+});
 
 /**
  * A channel change swaps every pane's content while the row is hidden, and
@@ -953,7 +484,7 @@ function paneItem(pane: PooledPane): HubItem | null {
 const moveTransition = `transform ${MOVE_MS}ms ${MOVE_EASE}, opacity ${MOVE_MS}ms ${MOVE_EASE}`;
 
 /** A page or the settings screen is over the hub; its promoted layers rest hidden and keep their textures. */
-const hubAway = computed(() => pageOpen.value || settingsStack.value.length > 0);
+const hubAway = computed(() => pageOpen.value || settingsOpen.value);
 
 interface PaneMotion {
   readonly x: number;
@@ -966,10 +497,7 @@ interface PaneMotion {
 function paneMotion(pane: PooledPane): PaneMotion {
   let { x, y, scale, opacity } = pane.slot;
   let transition = moveTransition;
-  if (hubAway.value || !loaded.value) {
-    opacity = HIDDEN;
-    transition = `opacity ${CHANNEL_OUT_MS}ms linear`;
-  } else if (phase.value === "out") {
+  if (hubAway.value || !loaded.value || phase.value === "out") {
     opacity = HIDDEN;
     transition = `opacity ${CHANNEL_OUT_MS}ms linear`;
   } else if (phase.value === "collapsed") {
@@ -995,6 +523,14 @@ function paneStyle(pane: PooledPane): Record<string, string> {
   };
 }
 
+/** On Friends the one figure stands by the focused pane, tinted for that friend. */
+const onFriendsChannel = computed(() => isChannel(hub.value.channel, "friends"));
+const friendLook = computed((): Look | null => {
+  if (!onFriendsChannel.value) return null;
+  const id = friendIdOf(shownRow.value[shown.value.item]);
+  return id === null ? null : lookFor(id);
+});
+
 /**
  * The avatar stands beside the profile pane and moves with it, on the pane's
  * own transition, at the pane's depth so nearer panes cover it. Away from
@@ -1006,13 +542,6 @@ const avatarPane = computed(() =>
     : pool.value.find((pane) => isProfilePane(paneItem(pane))),
 );
 
-/** On Friends the one figure stands by the focused pane, tinted for that friend. */
-const onFriendsChannel = computed(() => CHANNEL_ORDER[hub.value.channel] === "friends");
-const friendLook = computed((): Look | null => {
-  if (!onFriendsChannel.value) return null;
-  const id = friendIdOf(shownRow.value[shown.value.item]);
-  return id === null ? null : lookFor(id);
-});
 let avatarRest = "translate3d(0px, 0px, 0) scale(1)";
 
 const avatarStyle = computed((): Record<string, string> => {
@@ -1130,6 +659,12 @@ const cardStyle = {
 /** The avatar's own gamer picture, taken once it has loaded; the default until then. */
 const gamerpic = ref("");
 
+/** The signed-in Steam account's picture in place of the avatar's portrait, while there is one. */
+const shownPic = computed(() => {
+  const status = steam.status;
+  return status.state === "signedIn" && status.avatar ? status.avatar : gamerpic.value;
+});
+
 const picStyle = computed(() => ({
   left: `${CARD_PIC_X}px`,
   top: `${CARD_PIC_Y}px`,
@@ -1137,12 +672,6 @@ const picStyle = computed(() => ({
   height: `${CARD_PIC}px`,
   ...(shownPic.value ? { backgroundImage: `url(${shownPic.value})` } : {}),
 }));
-
-/** The signed-in Steam account's picture in place of the avatar's portrait, while there is one. */
-const shownPic = computed(() => {
-  const status = steam.status;
-  return status.state === "signedIn" && status.avatar ? status.avatar : gamerpic.value;
-});
 
 /** The 720p frame's own size, which the prompt row and the Guide are authored in. */
 const frameStyle = {
@@ -1181,9 +710,8 @@ const motion = {
   "--move-ease": MOVE_EASE,
 };
 
-function nextFrame(): Promise<void> {
-  return new Promise((resolve) => requestAnimationFrame(() => resolve()));
-}
+/** How long the deal takes, from the focused pane fading up to the last pane landing. */
+const DEAL_SETTLE_MS = CHANNEL_IN_MS + DEAL_MS + DEAL_STAGGER_MS * POOL_SIZE;
 
 async function releasePanes(mine: number): Promise<void> {
   for (let rank = 2; rank <= 2 * POOL_SIZE; rank++) {
@@ -1197,7 +725,7 @@ async function releasePanes(mine: number): Promise<void> {
 async function changeChannel(): Promise<void> {
   const mine = ++generation;
   phase.value = "out";
-  await new Promise((resolve) => setTimeout(resolve, CHANNEL_OUT_MS));
+  await wait(CHANNEL_OUT_MS);
   if (mine !== generation) return;
   held.value = new Map(pool.value.map((pane) => [pane.element, paneItem(pane)]));
   released.value = 1;
@@ -1208,8 +736,7 @@ async function changeChannel(): Promise<void> {
   if (mine !== generation) return;
   phase.value = "in";
   void releasePanes(mine);
-  const settle = CHANNEL_IN_MS + DEAL_MS + DEAL_STAGGER_MS * POOL_SIZE;
-  await new Promise((resolve) => setTimeout(resolve, settle));
+  await wait(DEAL_SETTLE_MS);
   if (mine === generation) phase.value = "rest";
 }
 
@@ -1217,8 +744,10 @@ async function changeChannel(): Promise<void> {
 let rememberTimer: ReturnType<typeof setTimeout> | undefined;
 function rememberChannel(id: string): void {
   clearTimeout(rememberTimer);
-  const settle = CHANNEL_OUT_MS + CHANNEL_IN_MS + DEAL_MS + DEAL_STAGGER_MS * POOL_SIZE;
-  rememberTimer = setTimeout(() => settings.updateSetting("lastChannel", id), settle);
+  rememberTimer = setTimeout(
+    () => settings.updateSetting("lastChannel", id),
+    CHANNEL_OUT_MS + DEAL_SETTLE_MS,
+  );
 }
 
 /** The cue a hub move plays. Down the channel list plays `channelup`, the list itself moving up, as retail does. */
@@ -1250,157 +779,80 @@ function navigate(move: HubMove): void {
 /** A launches the focused pane's item. A placeholder is drawn and nothing
  * else: pressing A on it does nothing, the way B does nothing at the hub root. */
 function activate(): void {
-  const item = rows.value[hub.value.channel]?.[hub.value.item];
+  const item = focused.value;
   if (!item || isEmptyPane(item)) return;
   playSound("select");
-  if (isProfilePane(item)) {
-    openProfile();
-    return;
-  }
-  if (isSettingsPane(item)) {
-    openSettings();
-    return;
-  }
   const friendId = friendIdOf(item);
-  if (friendId !== null) {
-    openFriend(friendId);
-    return;
-  }
-  if (isAllPane(item)) {
-    openPage();
-    return;
-  }
-  launchItem(item);
+  if (isProfilePane(item)) openProfile();
+  else if (isSettingsPane(item)) openSettings();
+  else if (friendId !== null) openFriend(friendId);
+  else if (isAllPane(item)) openPage();
+  else launchItem(item);
 }
 
-/**
- * The remote, mapped to the controller: OK and green are A, Back and red are
- * B, the arrows are the D-pad, and Channel +/- are the bumpers. B does nothing
- * at the hub root, as on the dashboard.
- */
-const MOVES: Readonly<Record<number, HubMove>> = {
-  37: "left",
-  38: "up",
-  39: "right",
-  40: "down",
-  34: "pageLeft",
-  33: "pageRight",
+const HUB_MOVES: Partial<Record<Button, HubMove>> = {
+  left: "left",
+  right: "right",
+  up: "up",
+  down: "down",
+  pageLeft: "pageLeft",
+  pageRight: "pageRight",
 };
 
-/** Back and red on the remote, Escape, Backspace and B on a desktop keyboard. */
-const BACK_KEYS: ReadonlySet<number> = new Set([461, 403, 27, 8, 66]);
+/** A button while the Guide is open: its own navigation, and Y, the Guide button or B closes it. */
+function onGuideKey(button: Button | null): boolean {
+  if (onGuideButton(button)) return true;
+  if (button !== "y" && button !== "guide" && button !== "b") return false;
+  guide.value = false;
+  playSound("hudClose");
+  return true;
+}
 
-/** The remote's yellow key, which NXE's Y button maps to here. */
-const YELLOW = 405;
+/** A button while a channel's page is open. Up and down are swallowed: the page is one row. */
+function onPageKey(button: Button | null): boolean {
+  const across = horizontal(button);
+  if (across !== null) stepPage(across);
+  else if (button === "pageRight") stepPage(PAGE_STEP, stepAlongBy);
+  else if (button === "pageLeft") stepPage(-PAGE_STEP, stepAlongBy);
+  else if (button === "a") launchListed();
+  else if (button === "b") closePage();
+  else return button === "up" || button === "down";
+  return true;
+}
 
-/** Move a pane along its row: Y on a desktop keyboard, the remote's green key on a pane that can move. */
-const MOVE_KEY = 89;
-const GREEN = 404;
-
-/** The remote's blue key, which NXE's X button maps to here. UNVERIFIED on the TV. */
-const BLUE = 406;
-
-function onKeyDown(event: KeyboardEvent): void {
-  lastKeyAt = performance.now();
-  if (draft.value !== null) return;
-  if (guide.value) {
-    if (onGuideKey(event)) {
-      event.preventDefault();
-      return;
-    }
-    if (
-      event.keyCode === 89 ||
-      event.keyCode === 71 ||
-      event.keyCode === YELLOW ||
-      event.keyCode === 461 ||
-      event.keyCode === 27 ||
-      event.keyCode === 403
-    ) {
-      event.preventDefault();
-      guide.value = false;
-      playSound("hudClose");
-    }
-    return;
-  }
-  if (settingsStack.value.length > 0) {
-    if (event.keyCode === 38 || event.keyCode === 40) {
-      event.preventDefault();
-      stepSettings(event.keyCode === 40 ? 1 : -1);
-    } else if (event.keyCode === 37 || event.keyCode === 39) {
-      event.preventDefault();
-      stepSettingsValue((event.keyCode === 39 ? 1 : -1) * (event.repeat ? 5 : 1));
-    } else if (event.keyCode === 13 || event.keyCode === 404) {
-      event.preventDefault();
-      activateSettings();
-    } else if (BACK_KEYS.has(event.keyCode)) {
-      event.preventDefault();
-      closeSettingsLevel();
-    }
-    return;
-  }
-  if (pageOpen.value) {
-    if (event.keyCode === 37 || event.keyCode === 39) {
-      event.preventDefault();
-      stepPage(event.keyCode === 39 ? 1 : -1);
-    } else if (event.keyCode === 33 || event.keyCode === 34) {
-      // The bumpers page along the row, in the hub's own 33/34 direction.
-      event.preventDefault();
-      stepPage(event.keyCode === 33 ? PAGE_STEP : -PAGE_STEP, stepAlongBy);
-    } else if (event.keyCode === 13 || event.keyCode === 404) {
-      event.preventDefault();
-      launchListed();
-    } else if (BACK_KEYS.has(event.keyCode)) {
-      event.preventDefault();
-      closePage();
-    } else if (event.keyCode === 38 || event.keyCode === 40) {
-      event.preventDefault();
-    }
-    return;
-  }
-  if (moving.value !== null) {
-    event.preventDefault();
-    if (event.keyCode === 37 || event.keyCode === 39) stepMove(event.keyCode === 39 ? 1 : -1);
-    else if (event.keyCode === 13 || event.keyCode === 404) endMove(true);
-    else if (event.keyCode === 88 || event.keyCode === BLUE) togglePin();
-    else if (BACK_KEYS.has(event.keyCode)) endMove(false);
-    return;
-  }
-  if (event.keyCode === MOVE_KEY || (event.keyCode === GREEN && canMove.value)) {
-    event.preventDefault();
+/** A button at the hub root. B does nothing here, as on the dashboard. */
+function onHubKey(button: Button | null, keyCode: number): boolean {
+  if (button === "y" || (keyCode === GREEN && canMove.value)) {
     startMove();
-    return;
+    return true;
   }
-  const move = MOVES[event.keyCode];
-  if (move) {
-    event.preventDefault();
-    navigate(move);
-    return;
-  }
-  if (event.keyCode === 13 || event.keyCode === 404) {
-    event.preventDefault();
-    activate();
-    return;
-  }
-  // `X` on a desktop keyboard hides the focused pane; the remote's blue key on
-  // the TV, by the same analogy that maps red to B and yellow to Y.
-  if (event.keyCode === 88 || event.keyCode === BLUE) {
-    event.preventDefault();
-    toggleHide();
-    return;
-  }
-  // `R` on a desktop keyboard replays the boot.
-  if (event.keyCode === 82) {
-    event.preventDefault();
+  const move = button === null ? undefined : HUB_MOVES[button];
+  if (move) navigate(move);
+  else if (button === "a") activate();
+  else if (button === "x") toggleHide();
+  else if (button === "replay") {
     booting.value = true;
     boot.value += 1;
-    return;
-  }
-  // The Guide: G on a desktop keyboard, the remote's yellow key on the TV.
-  if (event.keyCode === 71 || event.keyCode === YELLOW) {
-    event.preventDefault();
+  } else if (button === "guide") {
     guide.value = true;
     playSound("hudOpen");
-  }
+  } else return false;
+  return true;
+}
+
+function onKeyDown(event: KeyboardEvent): void {
+  noteKey();
+  if (draft.value !== null) return;
+  const button = buttonFor(event.keyCode);
+  let consumed: boolean;
+  if (guide.value) consumed = onGuideKey(button);
+  else if (settingsOpen.value) consumed = onSettingsButton(button, event.repeat);
+  else if (pageOpen.value) consumed = onPageKey(button);
+  else if (moving.value !== null) {
+    onMoveButton(button);
+    consumed = true;
+  } else consumed = onHubKey(button, event.keyCode);
+  if (consumed) event.preventDefault();
 }
 
 const rings = ripplePattern(deviceSeed()).map((group) => ({
@@ -1417,31 +869,12 @@ const rings = ripplePattern(deviceSeed()).map((group) => ({
 
 watch([hubAway, guide], settle);
 
-/** The Steam screens follow the store, and the code is dropped once its page is left. */
-watch(
-  () => [steam.status, steam.friends, steam.qr, steam.games],
-  () => {
-    const id = top(settingsStack.value)?.page.id ?? "";
-    if (id === STEAM_QR && steam.status.state === "signedIn") {
-      settingsStack.value = pop(settingsStack.value);
-      playSound("select");
-    }
-    if (id.startsWith("settings:steam")) refreshSettingsTop();
-  },
-);
-watch(
-  () => top(settingsStack.value)?.page.id,
-  (id) => {
-    if (id !== STEAM_QR && steam.qr !== null) steam.cancelQr();
-  },
-);
-
 onMounted(() => {
   chooseBootMode();
   settleBoot();
   window.addEventListener("keydown", onKeyDown);
   void apps.load();
-  void loadToastFont();
+  void loadFont();
   useSystemToastsStore().start(notify);
   steamStarted = steam.start(notify);
   expose();
@@ -1467,7 +900,7 @@ function expose(): void {
 <template>
   <main
     class="stage"
-    :data-settings="settingsStack.length > 0 || undefined"
+    :data-settings="settingsOpen || undefined"
     :data-page="pageOpen || undefined"
     :style="motion"
   >
@@ -1542,7 +975,7 @@ function expose(): void {
       <SettingsLayer
         :page="settingsPage"
         :focus="settingsFocus"
-        :open="settingsStack.length > 0 && !friendCard"
+        :open="settingsOpen && !friendCard"
         :detail="settingsDetailShown"
         :rest="settingsRestBox"
         :draft="draft"

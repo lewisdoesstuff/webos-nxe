@@ -1,13 +1,13 @@
-import qrcode from "qrcode-generator";
+import qrcodeGenerator from "qrcode-generator";
 
 /** The QR's modules as rows of booleans, true for a dark one. */
 export function qrMatrix(text: string): boolean[][] {
-  const code = qrcode(0, "M");
+  const code = qrcodeGenerator(0, "M");
   code.addData(text);
   code.make();
   const size = code.getModuleCount();
-  return Array.from({ length: size }, (_, y) =>
-    Array.from({ length: size }, (_, x) => code.isDark(y, x)),
+  return Array.from({ length: size }, (_row, y) =>
+    Array.from({ length: size }, (_column, x) => code.isDark(y, x)),
   );
 }
 

@@ -6,6 +6,12 @@
  * face and its name bottom left (docs/REFERENCES.md).
  */
 
+/**
+ * The kinds of pane the dashboard makes itself. A pane with no kind is an
+ * installed app's launch point.
+ */
+export type PaneKind = "all" | "empty" | "settings" | "profile" | "friend";
+
 /** The row fields a pane reads. */
 export interface PaneItem {
   readonly id: string;
@@ -18,8 +24,8 @@ export interface PaneItem {
   readonly bare?: true;
   /** A second line under the name, such as free space. */
   readonly detail?: string;
-  /** The profile pane, which draws the gamercard instead of art. */
-  readonly profile?: true;
+  /** A pane the dashboard makes itself; the profile draws the gamercard instead of art. */
+  readonly kind?: PaneKind;
   /** The profile's gamerscore. */
   readonly score?: number;
   /** The profile's recent apps, drawn small under its heading. */

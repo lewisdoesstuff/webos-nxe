@@ -249,7 +249,6 @@ describe("hidden app rows", () => {
 
 describe("profile menu", () => {
   const page = profilePage();
-  const at = (item: number): PageFocus => ({ ...ROOT_FOCUS, item });
 
   it("offers the gamertag and the avatar", () => {
     expect(page.groups[0].items.map((item) => item.label)).toEqual([
@@ -262,14 +261,20 @@ describe("profile menu", () => {
 
   it("edits the gamertag, showing the current one", () => {
     const settings = { ...SETTINGS_DEFAULTS, gamertag: "Matty" };
-    expect(settingsAction(page, at(0), settings, [])).toEqual({ kind: "edit", key: "gamertag" });
-    expect(settingsDetail(page, at(0), settings, []).values).toEqual(["Matty"]);
+    expect(settingsAction(page, focus(0, 0), settings, [])).toEqual({
+      kind: "edit",
+      key: "gamertag",
+    });
+    expect(settingsDetail(page, focus(0, 0), settings, []).values).toEqual(["Matty"]);
   });
 
   it("edits the gamerscore, showing it grouped", () => {
     const settings = { ...SETTINGS_DEFAULTS, gamerscore: 12345 };
-    expect(settingsAction(page, at(1), settings, [])).toEqual({ kind: "edit", key: "gamerscore" });
-    expect(settingsDetail(page, at(1), settings, []).values).toEqual(["12,345"]);
+    expect(settingsAction(page, focus(0, 1), settings, [])).toEqual({
+      kind: "edit",
+      key: "gamerscore",
+    });
+    expect(settingsDetail(page, focus(0, 1), settings, []).values).toEqual(["12,345"]);
   });
 
   it("reads a typed gamerscore, or refuses it", () => {
@@ -283,7 +288,7 @@ describe("profile menu", () => {
   });
 
   it("opens 360sona in the TV's browser", () => {
-    expect(settingsAction(page, at(2), SETTINGS_DEFAULTS, [])).toEqual({
+    expect(settingsAction(page, focus(0, 2), SETTINGS_DEFAULTS, [])).toEqual({
       kind: "launch",
       id: BROWSER_APP,
       params: { target: AVATAR_EDITOR_URL },

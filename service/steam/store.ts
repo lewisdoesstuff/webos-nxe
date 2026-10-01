@@ -1,7 +1,7 @@
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 
-import type { TokenStore } from "./core";
+import type { TokenStore } from "./core.ts";
 
 /** The refresh token in a file only its owner can read. */
 export function fileTokenStore(path: string): TokenStore {

@@ -74,7 +74,9 @@ deploy — and `../weboshome-web/PLAN.md` before that.
 
 ```
 app/src/
-  App.vue              the shell: channel list, pane row, page, Guide, keys
+  App.vue              the shell: channel list, pane row, page, avatar, key dispatch
+  shell/               the shell's composables: settings drill, Guide, pane move, toasts, art bake
+  keys.ts              key codes to controller buttons, pure
   hub.ts               hub geometry and navigation, pure
   hubRows.ts           synthetic rows: the System Settings pane, "All" panes
   boot*.ts             the WebGL boot: timing, keyframes, shader, theme
@@ -83,10 +85,9 @@ app/src/
   avatar/              the 3D avatar: renderer, idle clips, framing; /avatar.html in dev
   luna.ts, mock/       the typed Luna wrapper and its desktop mock
   stores/              apps (launch points) and persisted settings
-  focus/               the generic focus layer
+  focus/row.ts         focus stepping along a row, pure
   sound/               menu blips and background music
   preview/             HDMI input stills
-  screensaver/         idle tracking
   styles/main.css      the dashboard's stylesheet
 tools/
   gate.mjs             the transition gate: allocates nothing, or fails

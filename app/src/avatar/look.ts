@@ -37,8 +37,11 @@ function stream(seed: number): () => number {
   };
 }
 
+function byte(v: number): number {
+  return Math.max(0, Math.min(255, Math.round(v * 255)));
+}
+
 function rgb(r: number, g: number, b: number): number {
-  const byte = (v: number): number => Math.max(0, Math.min(255, Math.round(v * 255)));
   return (byte(r) << 16) | (byte(g) << 8) | byte(b);
 }
 

@@ -23,6 +23,10 @@ beforeEach(() => {
   setActivePinia(createPinia());
 });
 
+function storedOrder(): unknown {
+  return JSON.parse(window.localStorage.getItem("ooo.lew.nxe.settings") ?? "{}").appOrder;
+}
+
 function appliedStore() {
   const store = useSettingsStore();
   for (const change of APPLIED) store.applyChange(change);
@@ -79,11 +83,9 @@ describe("settings store", () => {
     const store = useSettingsStore();
     store.setAppOrder(["b", "a"], false);
     expect(store.settings.appOrder).toEqual(["b", "a"]);
-    const stored = () =>
-      JSON.parse(window.localStorage.getItem("ooo.lew.nxe.settings") ?? "{}").appOrder;
-    expect(stored()).toEqual([]);
+    expect(storedOrder()).toEqual([]);
     store.persist();
-    expect(stored()).toEqual(["b", "a"]);
+    expect(storedOrder()).toEqual(["b", "a"]);
   });
 
   it("clears the hidden list in one go", () => {

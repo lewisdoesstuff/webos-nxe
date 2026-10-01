@@ -123,7 +123,7 @@ function labels(stack: PageStack): [string, string][] {
 
 /** The shell's row the same way, so its assertions read the same way. */
 function shellLabels(guideOpen: boolean, stack: PageStack, canHide = false): [string, string][] {
-  return shellPrompts(guideOpen, stack, canHide).map((prompt) => [
+  return shellPrompts(guideOpen, stack, { canHide }).map((prompt) => [
     prompt.button,
     prompt.label ?? "",
   ]);
@@ -676,16 +676,19 @@ describe("the shell's prompt row", () => {
       ["a", "Select"],
       ["b", "Back"],
     ]);
-    expect(shellPrompts(true, [], true)).toEqual([]);
-    expect(shellPrompts(true, open(FITS), true)).toEqual([]);
+    expect(shellPrompts(true, [], { canHide: true })).toEqual([]);
+    expect(shellPrompts(true, open(FITS), { canHide: true })).toEqual([]);
   });
 
   it("offers Move beside Hide, and Place and Cancel while a pane is held", () => {
-    expect(shellPrompts(false, [], true).map((prompt) => prompt.button)).toEqual(["a", "x", "y"]);
-    expect(shellPrompts(false, [], true, true).map((prompt) => prompt.label)).toEqual([
-      "Place",
-      "Cancel",
+    expect(shellPrompts(false, [], { canHide: true }).map((prompt) => prompt.button)).toEqual([
+      "a",
+      "x",
+      "y",
     ]);
+    expect(
+      shellPrompts(false, [], { canHide: true, moving: true }).map((prompt) => prompt.label),
+    ).toEqual(["Place", "Cancel"]);
   });
 
   it("draws nothing with the Guide open, which carries its own row", () => {

@@ -6,6 +6,8 @@ import { useAppsStore } from "./apps";
 
 const LAUNCH = "luna://com.webos.applicationManager/launch";
 
+function ignore(): void {}
+
 function transportReturning(payload: LunaPayload) {
   const request = vi.fn(async () => payload);
   setTransport({ request } satisfies LunaTransport);
@@ -32,7 +34,7 @@ describe("apps store", () => {
     await useAppsStore().load();
 
     setActivePinia(createPinia());
-    let answer = (_payload: LunaPayload) => {};
+    let answer: (payload: LunaPayload) => void = ignore;
     setTransport({
       request: (uri: string) =>
         uri.endsWith("listLaunchPoints")

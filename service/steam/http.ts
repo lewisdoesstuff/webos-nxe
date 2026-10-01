@@ -1,6 +1,6 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 
-import { STEAM_METHODS, type SteamApi, type SteamMethod } from "../../app/src/steam/types";
+import { STEAM_METHODS, type SteamApi, type SteamMethod } from "../../app/src/steam/types.ts";
 
 /**
  * `/steam/<method>` over HTTP, for the dev server. `backendFor` picks the

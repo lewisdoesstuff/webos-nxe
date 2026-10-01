@@ -573,6 +573,20 @@ export function pagePrompts(stack: PageStack): Prompt[] {
   return promptsFor({ a: SELECT.label, b: BACK.label, ...context });
 }
 
+/** What the hub root offers for the focused pane. */
+export interface RootPrompts {
+  /** X toggles the focused pane's item out of the row. */
+  readonly canHide?: boolean;
+  /** Y picks the focused pane up; as `canHide` unless given. */
+  readonly canMove?: boolean;
+  /** A pane is in hand: A places it and B cancels. */
+  readonly moving?: boolean;
+  /** X's label in place of Hide. */
+  readonly pin?: string | null;
+  /** A's label in place of Select. */
+  readonly select?: string | null;
+}
+
 /**
  * The shell's own prompt row for whatever the hub is showing.
  *
@@ -582,19 +596,15 @@ export function pagePrompts(stack: PageStack): Prompt[] {
  * draws nothing: the Guide carries its own prompt row inside its chrome, and
  * the hub behind it is dimmed almost to black.
  *
- * `canHide` adds the `X` Hide prompt at the root, where X toggles the focused
- * pane's item out of the row. Nowhere else: a page's rows are not panes, and
- * the Guide owns its row.
+ * `root` says what the hub root offers for the focused pane. Nowhere else: a
+ * page's rows are not panes, and the Guide owns its row.
  */
 export function shellPrompts(
   guideOpen: boolean,
   stack: PageStack,
-  canHide = false,
-  moving = false,
-  pin: string | null = null,
-  canMove = canHide,
-  select: string | null = SELECT.label,
+  root: RootPrompts = {},
 ): Prompt[] {
+  const { canHide = false, moving = false, pin = null, canMove = canHide, select = null } = root;
   if (guideOpen) return [];
   if (stack.length === 0) {
     if (moving) return promptsFor({ a: PLACE.label, b: CANCEL.label, ...(pin ? { x: pin } : {}) });

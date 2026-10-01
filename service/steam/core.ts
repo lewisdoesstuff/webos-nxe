@@ -5,7 +5,7 @@ import type {
   SteamFriend,
   SteamGames,
   SteamStatus,
-} from "../../app/src/steam/types";
+} from "../../app/src/steam/types.ts";
 
 /** The part of steam-session's `LoginSession` this backend uses, so a test can stand in for it. */
 export interface QrSession {

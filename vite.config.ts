@@ -4,9 +4,9 @@ import { extname, resolve } from "node:path";
 import vue from "@vitejs/plugin-vue";
 import { defineConfig, type Plugin } from "vitest/config";
 
-import type { SteamApi } from "./app/src/steam/types";
-import { steamHandler } from "./service/steam/http";
-import { createMockBackend } from "./service/steam/mock";
+import type { SteamApi } from "./app/src/steam/types.ts";
+import { steamHandler } from "./service/steam/http.ts";
+import { createMockBackend } from "./service/steam/mock.ts";
 
 const root = import.meta.dirname;
 const appDir = resolve(root, "app");
@@ -99,7 +99,7 @@ function serveSteam(): Plugin {
     configureServer(server) {
       let loaded: SteamApi | null = null;
       const live = lazy(async () => {
-        loaded ??= (await import("./service/steam/index")).createLiveBackend();
+        loaded ??= (await import("./service/steam/index.ts")).createLiveBackend();
         return loaded;
       });
       const mock = createMockBackend();

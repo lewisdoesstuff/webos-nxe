@@ -3,10 +3,10 @@ import { join } from "node:path";
 
 import { EAuthTokenPlatformType, LoginSession } from "steam-session";
 
-import type { SteamApi } from "../../app/src/steam/types";
-import { createSteamBackend, type QrSession } from "./core";
-import { httpsFetch } from "./fetch";
-import { fileTokenStore } from "./store";
+import type { SteamApi } from "../../app/src/steam/types.ts";
+import { createSteamBackend, type QrSession } from "./core.ts";
+import { httpsFetch } from "./fetch.ts";
+import { fileTokenStore } from "./store.ts";
 
 /** The live backend: steam-session over the network, the token in `dataDir`. */
 export function createLiveBackend(dataDir = join(homedir(), ".nxe")): SteamApi {

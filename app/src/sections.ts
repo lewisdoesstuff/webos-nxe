@@ -107,6 +107,11 @@ export const CHANNEL_ORDER: readonly SectionId[] = [
   "home",
 ];
 
+/** Whether the channel at `index` in the list is `id`. */
+export function isChannel(index: number, id: SectionId): boolean {
+  return CHANNEL_ORDER[index] === id;
+}
+
 /** The channel the hub starts on: the bottom of the list. */
 export const START_CHANNEL = CHANNEL_ORDER.length - 1;
 

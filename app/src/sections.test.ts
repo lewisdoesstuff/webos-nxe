@@ -11,6 +11,7 @@ import {
   type SectionId,
   sectionFor,
   sectionRows,
+  isChannel,
   startChannel,
   START_CHANNEL,
   unclassifiedRows,
@@ -95,6 +96,14 @@ describe("the section list", () => {
       expect(section.tint).toMatch(/^#[0-9a-f]{6}$/i);
     }
     expect(new Set(SECTIONS.map((section) => section.label)).size).toBe(SECTIONS.length);
+  });
+});
+
+describe("isChannel", () => {
+  it("names the channel at a place in the list", () => {
+    expect(isChannel(CHANNEL_ORDER.indexOf("home"), "home")).toBe(true);
+    expect(isChannel(CHANNEL_ORDER.indexOf("apps"), "home")).toBe(false);
+    expect(isChannel(-1, "home")).toBe(false);
   });
 });
 

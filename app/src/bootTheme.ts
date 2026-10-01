@@ -3,17 +3,12 @@
  *
  * The shader draws a sphere, a mark cut into its face, the light that comes
  * out of the mark, a field behind it and a settled lockup of two textures. It
- * knows nothing about Xbox: the colours, the sphere's material, the mark's
- * geometry and the two textures all come from here, so a re-theme is a second
- * object of this shape and no GLSL.
+ * knows nothing about any brand: the colours, the sphere's material, the mark's
+ * geometry and the two textures all come from the active theme, so a re-theme
+ * is a second object of this shape and no GLSL.
  *
- * Colours are linear 0..1 RGB triples, sampled off the timing master
- * (`dkKAW_GXXZk`) where a frame shows them clean.
+ * Colours are 0..1 RGB triples.
  */
-
-import flareUrl from "./assets/boot/flare.png?inline";
-import markUrl from "./assets/boot/mark.png?inline";
-import orbUrl from "./assets/boot/orb.png?inline";
 
 export type Rgb = readonly [number, number, number];
 
@@ -93,38 +88,8 @@ export interface BootTheme {
   readonly lockup: BootLockup;
 }
 
-const hex = (value: number): Rgb => [
+export const hex = (value: number): Rgb => [
   ((value >> 16) & 255) / 255,
   ((value >> 8) & 255) / 255,
   (value & 255) / 255,
 ];
-
-export const XBOX_THEME: BootTheme = {
-  field: {
-    greyTop: hex(0xa4a4a4),
-    greyEdge: hex(0x3a3a3a),
-    pale: hex(0xe2e6e1),
-    settledEdge: hex(0x8fa680),
-    settledMid: hex(0xa3bd8a),
-    settledGlow: hex(0xd8f4a8),
-  },
-  sphere: {
-    base: hex(0x9aa198),
-    shadow: hex(0x1c201c),
-    specular: hex(0xf4fff0),
-    rim: hex(0xc8e8b8),
-    grain: 0.05,
-  },
-  mark: {
-    angle: 45,
-    width: 0.026,
-    wall: hex(0x2fa313),
-    floor: hex(0x8cff46),
-    core: hex(0xf6ffc8),
-  },
-  accent: hex(0x8ef070),
-  orb: { url: orbUrl, width: 480, height: 480, cx: 247.5, cy: 252.5, rx: 214, ry: 189 },
-  wordmark: { url: markUrl, width: 1192, height: 252 },
-  flare: { url: flareUrl, width: 768, height: 360 },
-  lockup: { orbX: 977.5, orbY: 441.5, orbRy: 144, markX: 536, markY: 595, markWidth: 882 },
-};

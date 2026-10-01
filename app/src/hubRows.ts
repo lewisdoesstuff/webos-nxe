@@ -1,11 +1,11 @@
 import { describeApp } from "./appDescriptions";
 import allIcon from "./assets/system/all.svg?inline";
-import settingsIcon from "./assets/system/settings.png?inline";
 import type { ListPage } from "./pages";
 import { recentlyLaunched, type Reported, type SectionId, SECTIONS, sectionRows } from "./sections";
 import type { Settings } from "./settings";
 import { presenceLine } from "./steam/presence";
 import type { SteamFriend } from "./steam/types";
+import { theme } from "./theme";
 import type { LaunchPoint } from "./types";
 
 /** What a pane launches when it is not an installed app's own launch point. */
@@ -45,7 +45,7 @@ export interface HubItem extends LaunchPoint {
 export const NXE_SETTINGS_PANE: HubItem = {
   id: "nxe:settings",
   title: "System Settings",
-  icon: settingsIcon,
+  icon: theme().art.settings,
   bare: true,
   settings: true,
 };

@@ -28,6 +28,8 @@ import {
   type SteamOp,
   type SteamView,
 } from "./steam/pages";
+import { theme } from "./theme";
+import { selectedTheme } from "./theme/loader";
 import {
   choicesFor,
   detailControl,
@@ -348,9 +350,10 @@ export function profilePage(): ListPage {
         id: "profile",
         title: "Profile",
         items: [
-          { id: "gamertag", label: "Gamertag" },
-          { id: "gamerscore", label: "Gamerscore" },
+          { id: "gamertag", label: theme().strings.gamertag },
+          { id: "gamerscore", label: theme().strings.gamerscore },
           { id: "avatar", label: "Customize Avatar" },
+          { id: "theme", label: "Theme" },
         ],
       },
     ],
@@ -384,6 +387,13 @@ function profileDetail(id: string, settings: Settings): SettingDetail {
     return {
       values: [formatGamerscore(settings.gamerscore)],
       description: "Press A and type a new gamerscore.",
+    };
+  }
+  if (id === "theme") {
+    return {
+      values: [selectedTheme().name],
+      description:
+        "Press A to switch to the next installed theme. It takes effect when the dashboard next starts.",
     };
   }
   if (id === "avatar") {
@@ -533,6 +543,7 @@ export type SettingsAction =
   | { readonly kind: "push"; readonly page: ListPage; readonly focusItem?: number }
   | { readonly kind: "change"; readonly change: SettingChange }
   | { readonly kind: "edit"; readonly key: string }
+  | { readonly kind: "theme" }
   | {
       readonly kind: "tv";
       readonly def: TvDef;
@@ -595,6 +606,7 @@ export function settingsAction(
   if (page.id === "profile") {
     if (item.id === "gamertag") return { kind: "edit", key: "gamertag" };
     if (item.id === "gamerscore") return { kind: "edit", key: "gamerscore" };
+    if (item.id === "theme") return { kind: "theme" };
     if (item.id === "avatar") {
       return { kind: "launch", id: BROWSER_APP, params: { target: AVATAR_EDITOR_URL } };
     }

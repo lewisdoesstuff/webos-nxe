@@ -237,11 +237,12 @@ describe("profile menu", () => {
   const page = profilePage();
   const at = (item: number): PageFocus => ({ ...ROOT_FOCUS, item });
 
-  it("offers the gamertag and the avatar", () => {
+  it("offers the gamertag, the avatar and the theme", () => {
     expect(page.groups[0].items.map((item) => item.label)).toEqual([
       "Gamertag",
       "Gamerscore",
       "Customize Avatar",
+      "Theme",
     ]);
     expect(settingsPageFor("profile", SETTINGS_DEFAULTS, [])).toEqual(page);
   });

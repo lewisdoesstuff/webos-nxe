@@ -19,8 +19,8 @@ import {
   STAGE_INDEX,
 } from "../boot";
 import { BootRenderer } from "../bootGl";
-import { XBOX_THEME } from "../bootTheme";
 import { bootSound } from "../sound";
+import { theme } from "../theme";
 
 /**
  * The boot screen: the 2005 pre-Kinect Xbox 360 bumper, drawn by one fragment
@@ -224,7 +224,7 @@ function onKeyDown(event: KeyboardEvent): void {
 onMounted(() => {
   const element = canvas.value;
   if (sounded.value) bootSound.preload();
-  if (element !== undefined) renderer = new BootRenderer(element, XBOX_THEME);
+  if (element !== undefined) renderer = new BootRenderer(element, theme().boot);
   window.addEventListener("keydown", onKeyDown, true);
   const asked = new URLSearchParams(window.location.search).get("at");
   const at = asked === null ? Number.NaN : Number(asked);

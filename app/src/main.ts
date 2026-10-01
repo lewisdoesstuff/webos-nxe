@@ -1,9 +1,9 @@
 import { createVaporApp } from "@vue/runtime-vapor";
 import { createPinia } from "pinia";
 
-import App from "./App.vue";
 import { loadDeviceSeed } from "./deviceSeed";
 import { createPalmTransport, setTransport, type LunaTransport } from "./luna";
+import { loadTheme } from "./theme/loader";
 
 import "./styles/main.css";
 
@@ -26,6 +26,9 @@ async function selectTransport(): Promise<LunaTransport> {
 async function boot(): Promise<void> {
   setTransport(await selectTransport());
   await loadDeviceSeed();
+  await loadTheme();
+  // Imported only now: modules read the active theme as they are evaluated.
+  const { default: App } = await import("./App.vue");
   createVaporApp(App).use(createPinia()).mount("#app");
 }
 

@@ -20,6 +20,8 @@ deploy — and `../weboshome-web/PLAN.md` before that.
 - [`docs/REFERENCES.md`](./docs/REFERENCES.md) — the retail frames and what they
   settle. `tools/refs.sh` rebuilds them; `tools/compare.mjs` compares against
   them. **Check every visual change against a frame.**
+- [`docs/THEMES.md`](./docs/THEMES.md) — the theme format and loader. The default
+  theme ships; the retail look is the `themes/nxe/` add-on.
 - [`docs/PERF.md`](./docs/PERF.md) — the measured bandwidth ceiling and the rules
   that follow from it. **The design rests on this; read it before touching the
   DOM.**
@@ -77,6 +79,7 @@ app/src/
   hubRows.ts           synthetic rows: the System Settings pane, "All" panes
   boot*.ts             the WebGL boot: timing, keyframes, shader, theme
   paths.ts             the `hack` prefix, for reaching outside the app directory
+  theme/               the active theme: default (original assets), manifest merge, loader
   avatar/              the 3D avatar: renderer, idle clips, framing; /avatar.html in dev
   luna.ts, mock/       the typed Luna wrapper and its desktop mock
   stores/              apps (launch points) and persisted settings
@@ -93,6 +96,9 @@ tools/
   capture.mjs          screenshot the TV with key presses
   compare.mjs          screenshot the dev build beside a reference frame
   refs.sh              rebuild docs/refs/ from the source videos
+  gen-default-theme.sh regenerate the default theme's sounds, cards, boot art, icons
+  pack-theme.sh        zip themes/<id> for installing
+  install-theme.sh     copy a theme to the TV's themes folder
   deploy.sh            build and sync into the installed dir
   restart.sh           closeByAppId and launch
 ```

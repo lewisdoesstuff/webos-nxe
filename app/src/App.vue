@@ -3,7 +3,6 @@ import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 
 import { describeApp } from "./appDescriptions";
 import { checkArt, prepareArt, prepareFloor } from "./artCache";
-import avatarUrl from "./assets/avatar/avatar.glb?url";
 import { AVATAR_CANVAS } from "./avatar/framing";
 import { lookFor, type Look } from "./avatar/look";
 import { type BootReason, type BootSpeed, resolveBootMode } from "./boot";
@@ -123,6 +122,8 @@ import { useSteamStore } from "./stores/steam";
 import { useStorageStore } from "./stores/storage";
 import { useSystemToastsStore } from "./stores/systemToasts";
 import { useTvStore } from "./stores/tv";
+import { theme } from "./theme";
+import { cycleTheme } from "./theme/loader";
 import { advance, enqueue, EMPTY_TOASTS, TOAST_FADE_MS, TOAST_MS, type Toast } from "./toasts";
 
 /**
@@ -678,6 +679,11 @@ function activateSettings(): void {
       : action.key === "gamerscore"
         ? String(settings.settings.gamerscore)
         : settings.settings.gamertag || "Player1";
+    return;
+  }
+  if (action.kind === "theme") {
+    cycleTheme();
+    refreshSettingsTop();
     return;
   }
   if (action.kind === "launch") {
@@ -1515,7 +1521,7 @@ function expose(): void {
 
     <AvatarFigure
       :src="avatarSrc"
-      :fallback="avatarUrl"
+      :fallback="theme().avatar"
       :playing="avatarPlaying"
       :look="friendLook"
       @portrait="gamerpic = $event"
@@ -1739,7 +1745,7 @@ function expose(): void {
   top: -36px;
   width: 72px;
   height: 72px;
-  background: url("./assets/hub/orb.png") center / 72px 72px no-repeat;
+  background: var(--theme-orb) center / 72px 72px no-repeat;
   will-change: transform;
 }
 

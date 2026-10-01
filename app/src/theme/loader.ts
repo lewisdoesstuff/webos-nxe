@@ -60,21 +60,24 @@ async function inline(url: string): Promise<string> {
   for (let index = 0; index < bytes.length; index += 0x8000) {
     binary += String.fromCharCode(...bytes.subarray(index, index + 0x8000));
   }
-  return `data:image/png;base64,${btoa(binary)}`;
+  const mime = /\.jpe?g$/i.test(url) ? "image/jpeg" : "image/png";
+  return `data:${mime};base64,${btoa(binary)}`;
 }
 
 /** The boot textures, and the settings pane's icon, which the hub treats as a path unless it is a data URI. */
 async function inlineImages(theme: Theme): Promise<Theme> {
   const { orb, wordmark, flare } = theme.boot;
-  const [orbUrl, markUrl, flareUrl, settingsUrl] = await Promise.all([
+  const [orbUrl, markUrl, flareUrl, settingsUrl, cards] = await Promise.all([
     inline(orb.url),
     inline(wordmark.url),
     inline(flare.url),
     inline(theme.art.settings),
+    Promise.all(theme.cards.map(inline)),
   ]);
   return {
     ...theme,
     art: { ...theme.art, settings: settingsUrl },
+    cards,
     boot: {
       ...theme.boot,
       orb: { ...orb, url: orbUrl },

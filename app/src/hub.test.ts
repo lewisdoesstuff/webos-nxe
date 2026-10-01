@@ -13,6 +13,7 @@ import {
   PANE_Y,
   paneSlot,
   placePool,
+  projectCard,
   POOL_SIZE,
   px,
   stepHub,
@@ -43,6 +44,21 @@ describe("paneSlot", () => {
       expect(far.z).toBeLessThan(near.z);
     }
     expect(paneSlot(1).x + PANE_W * paneSlot(1).scale).toBeCloseTo(px(827), -1);
+  });
+
+  it("projects retail's card line onto the spill measured off t062", () => {
+    const measured = [
+      [827, 0.744, 401],
+      [1012, 0.594, 397],
+      [1134, 0.4875, 394],
+      [1222, 0.4125, 392],
+    ] as const;
+    measured.forEach(([right, scale, centre], index) => {
+      const card = projectCard(index + 1);
+      expect(Math.abs(card.left + 420 * card.scale - right)).toBeLessThan(3);
+      expect(Math.abs(card.scale - scale)).toBeLessThan(0.01);
+      expect(Math.abs(card.bottom - 160 * card.scale - centre)).toBeLessThan(2);
+    });
   });
 
   it("parks panes beyond either end invisibly", () => {

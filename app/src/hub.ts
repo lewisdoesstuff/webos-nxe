@@ -55,14 +55,53 @@ export interface PaneSlot {
 }
 
 /**
- * The spill, read off `t062`: each pane's visible right edge, its height
- * over 320, and its vertical centre, which rises toward the horizon. The fifth
- * is the sliver past the frame's right edge. MEASURED to about 3px, except the
- * fifth, which is extrapolated.
+ * The launch hub's card line, from `controlp/Variables.xur` in dash.xex 7357
+ * (docs/research/HUB-ENGINE.md). Cards stand on a line in 3D from
+ * `MobyFrontPosition` toward `MobyBackPosition`, `MobyDefaultSpacing` apart
+ * along it, anchored at their bottom-left corner. VERIFIED from the scene,
+ * which puts the front at 96,570; the line is moved 1px right and 2px up so
+ * the focused card lands on the box measured off `t062`.
  */
-const SPILL_RIGHT = [827, 1012, 1134, 1222, 1290] as const;
-const SPILL_SCALE = [0.744, 0.594, 0.4875, 0.4125, 0.35] as const;
-const SPILL_CENTRE_Y = [401, 397, 394, 392, 390] as const;
+const MOBY_FRONT = [97, 568, 0] as const;
+const MOBY_BACK = [1185, 588, 1000] as const;
+const MOBY_SPACING = 505;
+
+/**
+ * The camera the line is seen through, in 720p pixels. FITTED: a focal length
+ * and centre that put cards 1 to 4 within 2px of the edges, scales and centres
+ * measured off `t062`. The fit is to the measured frame, the line it projects
+ * is retail's.
+ */
+const CAMERA_FOCAL = 982;
+const CAMERA_X = 657;
+const CAMERA_Y = 362;
+
+const MOBY_LENGTH = Math.hypot(
+  MOBY_BACK[0] - MOBY_FRONT[0],
+  MOBY_BACK[1] - MOBY_FRONT[1],
+  MOBY_BACK[2] - MOBY_FRONT[2],
+);
+const MOBY_STEP = MOBY_FRONT.map(
+  (front, axis) => ((MOBY_BACK[axis]! - front) / MOBY_LENGTH) * MOBY_SPACING,
+);
+
+/** Where a card `offset` places along the line projects to, as its 720p left edge, bottom and scale. */
+export function projectCard(offset: number): { left: number; bottom: number; scale: number } {
+  const [x, y, z] = MOBY_FRONT.map((front, axis) => front + MOBY_STEP[axis]! * offset) as [
+    number,
+    number,
+    number,
+  ];
+  const scale = CAMERA_FOCAL / (CAMERA_FOCAL + z);
+  return {
+    left: CAMERA_X + (x - CAMERA_X) * scale,
+    bottom: CAMERA_Y + (y - CAMERA_Y) * scale,
+    scale,
+  };
+}
+
+/** How many cards stand to the right of the focused one. The sixth is past the frame's edge. */
+const SPILL_COUNT = 5;
 
 /**
  * The opacity of anything parked out of sight. Not 0: a promoted layer at 0
@@ -93,7 +132,7 @@ export function slotAt720(
 
 /** Offsets the pool covers: one pane gone left, the focused pane, the spill, one waiting. */
 export const FIRST_OFFSET = -1;
-export const LAST_OFFSET = SPILL_RIGHT.length + 1;
+export const LAST_OFFSET = SPILL_COUNT + 1;
 export const POOL_SIZE = LAST_OFFSET - FIRST_OFFSET + 1;
 
 /**
@@ -103,15 +142,10 @@ export const POOL_SIZE = LAST_OFFSET - FIRST_OFFSET + 1;
  */
 export function paneSlot(offset: number): PaneSlot {
   if (offset <= FIRST_OFFSET) return slotAt720(GONE_X, 408, 1, HIDDEN, 10);
-  if (offset === 0) return slotAt720(97, 408, 1, 1, 10);
-  const spill = offset - 1;
-  if (spill < SPILL_RIGHT.length) {
-    const scale = SPILL_SCALE[spill] ?? 0.35;
-    const right = SPILL_RIGHT[spill] ?? 1290;
-    const centre = SPILL_CENTRE_Y[spill] ?? 390;
-    return slotAt720(right - 420 * scale, centre, scale, 1, 9 - spill);
-  }
-  return slotAt720(1330, 390, 0.3, HIDDEN, 1);
+  const card = projectCard(Math.min(offset, LAST_OFFSET));
+  const centre = card.bottom - (320 * card.scale) / 2;
+  const opacity = offset >= LAST_OFFSET ? HIDDEN : 1;
+  return slotAt720(card.left, centre, card.scale, opacity, 10 - Math.min(offset, LAST_OFFSET));
 }
 
 /** A pooled pane element and the row item it currently shows, or null. */
@@ -267,13 +301,14 @@ export const CARD_PIC_X = px(1120);
 export const CARD_PIC_Y = px(64);
 
 /**
- * How long a row move takes, and on what curve. MEASURED at 60fps off the
- * 1080p retail capture (`LeLocNfgexM`, 5:49.8): the incoming pane's edge
- * travels at an almost even speed and stops in about 225ms, with none of an
- * ease-out's long tail. The curve is the least-squares fit to that track.
+ * How long a row move takes, and on what curve. Retail moves the row with a
+ * spring (`MobyPanelInputAcceleration` 40, `Deceleration` 30, `MaxVelocity` 20,
+ * run 1.75 times fast while moving; HUB-ENGINE.md), which settles one card in
+ * 12 frames at 60fps. The curve is the least-squares fit to that spring's
+ * track. The 1080p capture measured the same move at about 225ms.
  */
-export const MOVE_MS = 225;
-export const MOVE_EASE = "cubic-bezier(0.62, 0.73, 0.52, 0.63)";
+export const MOVE_MS = 200;
+export const MOVE_EASE = "cubic-bezier(0.35, 0.1, 0.45, 0.85)";
 
 /**
  * A channel change, MEASURED at 60fps off the same capture (7:29.1): the row

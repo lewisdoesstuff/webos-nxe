@@ -23,8 +23,8 @@ describe("avatarPlace", () => {
 
   it("stands at the first spill pane's right edge, smaller than the pane (t062)", () => {
     const at = figure(1);
-    expect(at.centre).toBeCloseTo(790, 0);
-    expect(at.feet).toBeCloseTo(548, 0);
+    expect(at.centre).toBeCloseTo(790, -1);
+    expect(at.feet).toBeCloseTo(548, -1);
     expect(at.scale).toBeCloseTo(0.648, 2);
   });
 

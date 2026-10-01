@@ -36,10 +36,7 @@ function lineWidth(text: string): number {
 
 /** The pill hugs its longer line: the disc and a margin either side of the words. */
 const width = computed(() => {
-  const longest = Math.max(
-    lineWidth(props.toast?.title ?? ""),
-    lineWidth(props.toast?.body ?? ""),
-  );
+  const longest = Math.max(lineWidth(props.toast?.title ?? ""), lineWidth(props.toast?.body ?? ""));
   return Math.min(1000, Math.max(300, Math.round(160 + longest)));
 });
 </script>

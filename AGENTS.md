@@ -32,6 +32,9 @@ deploy — and `../weboshome-web/PLAN.md` before that.
 - [`docs/research/XUR.md`](./docs/research/XUR.md) — retail 7258 and
   9199 scenes decoded with `tools/xzp.mjs` and `tools/xur.sh`: Guide open and
   close, toast, pane and transition timings in frames of 1/60 s.
+- [`docs/research/HUB-ENGINE.md`](./docs/research/HUB-ENGINE.md) — the launch
+  hub's card engine from `dash.xex` 7357: the 3D card line, the move spring,
+  the deal and the page transitions. The model reproduces the measured spill.
 - [`docs/research/NXE-EXISTING.md`](./docs/research/NXE-EXISTING.md) — where
   those numbers came from, the corroborating recreations, and the licensing
   position.

@@ -4,7 +4,7 @@
  * handed to the Web Animations API by the shell, so a move runs on the
  * compositor along retail's 3D path rather than straight between two slots.
  */
-import { FIRST_OFFSET, HIDDEN, LAST_OFFSET, projectCard, type PaneSlot } from "./hub";
+import { GONE_OFFSET, HIDDEN, LAST_OFFSET, PAST_OFFSET, projectCard, type PaneSlot } from "./hub";
 
 const FRAME_S = 1 / 60;
 const FRAME_MS = 1000 / 60;
@@ -33,7 +33,7 @@ export function cardFrame(position: number, fold = 1): MotionFrame {
   const bottom = position < 0 ? projectCard(0).bottom : card.bottom;
   let opacity = fold < 0.25 ? fold * 4 : 1;
   if (position < 0) opacity *= 1 + Math.max(-1, position * LEFT_FADE);
-  if (position <= FIRST_OFFSET || position >= LAST_OFFSET) opacity = HIDDEN;
+  if (position <= GONE_OFFSET || position >= PAST_OFFSET) opacity = HIDDEN;
   return {
     x: card.left * 1.5,
     y: (bottom - 320 * scale) * 1.5,
@@ -48,51 +48,67 @@ export function slotFrame(slot: PaneSlot): MotionFrame {
 }
 
 /**
- * Retail's input spring for one step: acceleration 40, deceleration 30, max
- * velocity 20, all run 1.75 times fast while moving. Brakes once the distance
- * left is no more than the time to stop; snaps on arrival. Progress per frame,
- * from 0 to 1.
+ * Retail's input spring for the row (`MobyPanelInput*`: acceleration 40,
+ * deceleration 30, max velocity 20, in cards and seconds), run 1.75 times fast
+ * while moving. It brakes once the distance left is no more than the time to
+ * stop, and snaps on arrival. A new target takes over from wherever the row
+ * stands and however fast it is going, so a held stick runs the row smoothly
+ * up to speed instead of restarting a step each press.
  */
-function springTrack(acceleration: number, deceleration: number, maxVelocity: number): number[] {
-  const boost = 1.75;
-  const step = FRAME_S * boost;
-  const track = [0];
-  let position = 0;
-  let velocity = 0;
-  for (let frame = 0; frame < 120; frame++) {
-    const left = 1 - position;
-    if (velocity !== 0 && left / velocity <= velocity / deceleration) {
-      velocity = Math.max(0, velocity - deceleration * step);
+const ACCELERATION = 40;
+const DECELERATION = 30;
+const MAX_VELOCITY = 20;
+const BOOST = 1.75;
+
+/** The row's position and velocity on each frame of a run to `to`, from `from` at `velocity`. */
+export interface RowTrack {
+  readonly positions: readonly number[];
+  readonly velocities: readonly number[];
+}
+
+export function rowTrack(from: number, velocity: number, to: number): RowTrack {
+  const step = FRAME_S * BOOST;
+  const positions = [from];
+  const velocities = [velocity];
+  let position = from;
+  let speed = velocity;
+  for (let frame = 0; frame < 600 && position !== to; frame++) {
+    const direction = Math.sign(to - position);
+    const left = Math.abs(to - position);
+    let toward = speed * direction;
+    if (toward > 0 && left / toward <= toward / DECELERATION) {
+      toward = Math.max(0, toward - DECELERATION * step);
     } else {
-      velocity = Math.min(maxVelocity * boost, velocity + acceleration * step);
+      toward = Math.min(MAX_VELOCITY * BOOST, toward + ACCELERATION * step);
     }
-    const next = position + velocity * step;
-    if (next >= 1 || velocity === 0) break;
-    position = next;
-    track.push(position);
+    const next = position + toward * direction * step;
+    if (toward === 0 || Math.sign(to - next) !== direction) {
+      position = to;
+      speed = 0;
+    } else {
+      position = next;
+      speed = toward * direction;
+    }
+    positions.push(position);
+    velocities.push(speed);
   }
-  track.push(1);
-  return track;
+  return { positions, velocities };
 }
 
-export const MOVE_TRACK = springTrack(40, 30, 20);
-export const MOVE_FRAMES_MS = (MOVE_TRACK.length - 1) * FRAME_MS;
-
-/** Where a move from `from` to `to` stands `elapsed` ms in, as a fractional position. */
-export function moveAt(from: number, to: number, elapsed: number): number {
-  const index = Math.min(MOVE_TRACK.length - 1, Math.max(0, elapsed / FRAME_MS));
-  const low = Math.floor(index);
-  const high = Math.min(MOVE_TRACK.length - 1, low + 1);
-  const progress =
-    (MOVE_TRACK[low] ?? 1) + ((MOVE_TRACK[high] ?? 1) - (MOVE_TRACK[low] ?? 1)) * (index - low);
-  return from + (to - from) * progress;
+export function trackMs(track: RowTrack): number {
+  return (track.positions.length - 1) * FRAME_MS;
 }
 
-/** The frames of a move from `from` to `to`, ending on `rest`. */
-export function moveFrames(from: number, to: number, rest: PaneSlot): MotionFrame[] {
-  const frames = MOVE_TRACK.slice(0, -1).map((progress) =>
-    cardFrame(from + (to - from) * progress),
-  );
+/** Where a track stands `elapsed` ms in. */
+export function trackAt(track: RowTrack, elapsed: number): { position: number; velocity: number } {
+  const last = track.positions.length - 1;
+  const index = Math.min(last, Math.max(0, Math.floor(elapsed / FRAME_MS)));
+  return { position: track.positions[index] ?? 0, velocity: track.velocities[index] ?? 0 };
+}
+
+/** The frames of the card for `item` while the row runs `track`, ending on `rest`. */
+export function trackFrames(track: RowTrack, item: number, rest: PaneSlot): MotionFrame[] {
+  const frames = track.positions.slice(0, -1).map((position) => cardFrame(item - position));
   frames.push(slotFrame(rest));
   return frames;
 }

@@ -127,9 +127,17 @@ export function slotAt720(
   };
 }
 
-/** Offsets the pool covers: one pane gone left, the focused pane, the spill, one waiting. */
-export const FIRST_OFFSET = -1;
-export const LAST_OFFSET = SPILL_COUNT + 1;
+/** A card one place left of the focus has gone; one past the spill is out of view. */
+export const GONE_OFFSET = -1;
+export const PAST_OFFSET = SPILL_COUNT + 1;
+
+/**
+ * Offsets the pool covers: one more each side than the row shows at rest, so
+ * a held stick, where the row runs up to two cards behind its focus, never
+ * runs out of cards.
+ */
+export const FIRST_OFFSET = GONE_OFFSET - 1;
+export const LAST_OFFSET = PAST_OFFSET + 1;
 export const POOL_SIZE = LAST_OFFSET - FIRST_OFFSET + 1;
 
 /**
@@ -142,7 +150,7 @@ export function paneSlot(offset: number): PaneSlot {
   const card = projectCard(at);
   const scale = Math.min(card.scale, 1);
   const bottom = at < 0 ? projectCard(0).bottom : card.bottom;
-  const parked = at === FIRST_OFFSET || at === LAST_OFFSET;
+  const parked = at <= GONE_OFFSET || at >= PAST_OFFSET;
   return {
     x: Math.round(card.left * 1.5),
     y: Math.round((bottom - 320 * scale) * 1.5),
@@ -315,13 +323,17 @@ export const MOVE_MS = 200;
 export const MOVE_EASE = "cubic-bezier(0.35, 0.1, 0.45, 0.85)";
 
 /**
- * A channel change, MEASURED at 60fps off the 1080p capture (7:29.1): the row
- * fades out in about 70ms, the screen holds empty for two frames, and the new
- * focused pane fades in where the old one was over 150ms. The spill then deals
- * out on retail's own unfold (`hubMotion.ts`).
+ * A channel change. Retail fades the row by how far its channel spring is
+ * between two channels (`MobyChannelInput*`: 50, 40, 10), so the focused card
+ * dips to about 0.12 halfway, 70ms in, and is back by 167ms; it is never gone
+ * for long. Here the row has to be fully hidden for the two frames its content
+ * swaps, so it fades out on the spring's first half and back on its second.
+ * The spill then deals out on retail's own unfold (`hubMotion.ts`).
  */
-export const CHANNEL_OUT_MS = 70;
-export const CHANNEL_IN_MS = 150;
+export const CHANNEL_OUT_MS = 67;
+export const CHANNEL_OUT_EASE = "cubic-bezier(0.55, 0.06, 0.68, 0.19)";
+export const CHANNEL_IN_MS = 83;
+export const CHANNEL_IN_EASE = "cubic-bezier(0.25, 0.46, 0.45, 0.94)";
 
 /** Where hub navigation stands. */
 export interface HubState {

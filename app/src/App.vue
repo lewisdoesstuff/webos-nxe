@@ -25,7 +25,9 @@ import {
   CARD_PIC_X,
   CARD_PIC_Y,
   CARD_RIGHT,
+  CHANNEL_IN_EASE,
   CHANNEL_IN_MS,
+  CHANNEL_OUT_EASE,
   CHANNEL_OUT_MS,
   COUNTER_X,
   COUNTER_Y,
@@ -53,15 +55,18 @@ import {
   DEAL_FRAMES_MS,
   FOLD_FRAMES_MS,
   LEAVE,
-  MOVE_FRAMES_MS,
   RETURN,
   dealFrames,
   foldFrames,
   keyframe,
-  moveAt,
-  moveFrames,
+  rowTrack,
   slotFrame,
   swingFrames,
+  trackAt,
+  trackFrames,
+  trackMs,
+  type MotionFrame,
+  type RowTrack,
 } from "./hubMotion";
 import {
   type HubItem,
@@ -510,13 +515,13 @@ function paneMotion(pane: PooledPane): PaneMotion {
   let transition = driving.value ? "none" : moveTransition;
   if (hubAway.value || !loaded.value || phase.value === "out") {
     opacity = HIDDEN;
-    transition = swinging.value ? "none" : `opacity ${CHANNEL_OUT_MS}ms linear`;
+    transition = swinging.value ? "none" : `opacity ${CHANNEL_OUT_MS}ms ${CHANNEL_OUT_EASE}`;
   } else if (phase.value === "collapsed") {
     if (pane.offset > 0) x = PANE_X + PANE_W * (1 - scale);
     opacity = HIDDEN;
     transition = "none";
   } else if (phase.value === "in") {
-    transition = pane.offset > 0 ? "none" : `opacity ${CHANNEL_IN_MS}ms linear`;
+    transition = pane.offset > 0 ? "none" : `opacity ${CHANNEL_IN_MS}ms ${CHANNEL_IN_EASE}`;
   }
   return { x, y, scale, opacity, transition };
 }
@@ -723,7 +728,7 @@ const DEAL_SETTLE_MS = CHANNEL_IN_MS + DEAL_FRAMES_MS;
  * element's move so an interrupting one starts from where the pane stands.
  */
 const driving = ref(false);
-const moves = new Map<number, { from: number; to: number; start: number }>();
+let rowRun: { track: RowTrack; start: number } | null = null;
 let drivingTimer: ReturnType<typeof setTimeout> | undefined;
 
 function paneElements(): HTMLElement[] {
@@ -748,19 +753,22 @@ function cancelDriven(): void {
       .filter(scripted)
       .forEach((animation) => animation.cancel());
   }
-  moves.clear();
+  rowRun = null;
   clearTimeout(drivingTimer);
   driving.value = false;
 }
 
-function standingAt(pane: PooledPane, now: number): number {
-  const move = moves.get(pane.element);
-  return move ? moveAt(move.from, move.to, now - move.start) : pane.offset;
+/** How far a held stick may run the row ahead of where it stands, which the pool's spare cards cover. */
+const ROW_LAG = 2;
+
+/** Where the row stands, in items, and how fast it is going. */
+function rowAt(now: number, rest: number): { position: number; velocity: number } {
+  return rowRun ? trackAt(rowRun.track, now - rowRun.start) : { position: rest, velocity: 0 };
 }
 
 function animateAvatar(
-  frames: ReturnType<typeof moveFrames>,
-  positions: number[],
+  frames: readonly MotionFrame[],
+  offsets: readonly number[],
   options: KeyframeAnimationOptions,
 ): void {
   const avatar = avatarElement();
@@ -768,7 +776,7 @@ function animateAvatar(
   avatar.getAnimations().forEach((animation) => animation.cancel());
   avatar.animate(
     frames.map((frame, index) => {
-      const place = avatarPlace(frame, positions[index] ?? 0, AVATAR_CANVAS);
+      const place = avatarPlace(frame, offsets[index] ?? 0, AVATAR_CANVAS);
       return {
         transform: `translate3d(${place.x}px, ${place.y}px, 0) scale(${place.scale})`,
         opacity: `${frame.opacity}`,
@@ -778,49 +786,40 @@ function animateAvatar(
   );
 }
 
-async function driveMove(
-  before: ReadonlyMap<number, { at: number; item: number | null }>,
-): Promise<void> {
+/** Runs the row from where it stands to the new focus on retail's spring, every pane on the same track. */
+async function driveMove(from: { position: number; velocity: number }): Promise<void> {
   driving.value = true;
   clearTimeout(drivingTimer);
   await nextTick();
-  const now = performance.now();
+  const track = rowTrack(from.position, from.velocity, shown.value.item);
+  const duration = trackMs(track);
+  rowRun = { track, start: performance.now() };
   const elements = paneElements();
   const avatarOf = avatarPane.value?.element;
+  const options = { duration, easing: "linear" };
   for (const pane of pool.value) {
     const element = elements[pane.element];
-    const was = before.get(pane.element);
-    if (
-      !element ||
-      !was ||
-      pane.item === null ||
-      was.item !== pane.item ||
-      was.at === pane.offset
-    ) {
-      element
-        ?.getAnimations()
-        .filter(scripted)
-        .forEach((animation) => animation.cancel());
-      moves.delete(pane.element);
-      continue;
-    }
-    element.getAnimations().forEach((animation) => animation.cancel());
-    const frames = moveFrames(was.at, pane.offset, pane.slot);
-    const options = { duration: MOVE_FRAMES_MS, easing: "linear" };
+    if (!element) continue;
+    element
+      .getAnimations()
+      .filter(scripted)
+      .forEach((animation) => animation.cancel());
+    if (pane.item === null || duration === 0) continue;
+    const frames = trackFrames(track, pane.item, pane.slot);
     element.animate(frames.map(keyframe), options);
-    moves.set(pane.element, { from: was.at, to: pane.offset, start: now });
     if (pane.element === avatarOf) {
-      const step = frames.length - 1;
-      const positions = frames.map((_, index) =>
-        moveAt(was.at, pane.offset, (index / step) * MOVE_FRAMES_MS),
+      const item = pane.item;
+      animateAvatar(
+        frames,
+        track.positions.map((position) => item - position),
+        options,
       );
-      animateAvatar(frames, positions, options);
     }
   }
   drivingTimer = setTimeout(() => {
     driving.value = false;
-    moves.clear();
-  }, MOVE_FRAMES_MS);
+    rowRun = null;
+  }, duration);
 }
 
 async function driveDeal(mine: number): Promise<void> {
@@ -976,6 +975,14 @@ function navigate(move: HubMove): void {
   const next = stepHub(hub.value, move, counts.value);
   if (next === hub.value) return;
   const channelChanged = next.channel !== hub.value.channel;
+  const single = move === "left" || move === "right";
+  if (
+    !channelChanged &&
+    single &&
+    Math.abs(next.item - rowAt(performance.now(), next.item).position) > ROW_LAG
+  ) {
+    return;
+  }
   hub.value = next;
   playSound(navSound(move));
   if (channelChanged) {
@@ -989,11 +996,9 @@ function navigate(move: HubMove): void {
   held.value = null;
   phase.value = "rest";
   const now = performance.now();
-  const before = new Map(
-    pool.value.map((pane) => [pane.element, { at: standingAt(pane, now), item: pane.item }]),
-  );
+  const from = rowAt(now, shown.value.item);
   shown.value = next;
-  void driveMove(before);
+  void driveMove(from);
 }
 
 /** A launches the focused pane's item. A placeholder is drawn and nothing

@@ -31,6 +31,7 @@ import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 
 import { fetchBytes } from "../sound/engine";
 import { AVATAR_MIRROR, AVATAR_VIEW, frameAvatar } from "./framing";
+import { smoothClip } from "./smooth";
 import { firstIdle, nextIdle, planIdle, type IdlePlan, type IdleStep } from "./idle";
 import type { Look } from "./look";
 
@@ -218,7 +219,7 @@ export class AvatarRenderer {
 
     this.mixer = new AnimationMixer(model);
     for (const clip of gltf.animations) {
-      const action = this.mixer.clipAction(clip);
+      const action = this.mixer.clipAction(smoothClip(clip));
       action.setLoop(LoopOnce, 1);
       action.clampWhenFinished = true;
       this.actions.set(clip.name, action);

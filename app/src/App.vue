@@ -737,6 +737,21 @@ function avatarElement(): HTMLElement | null {
   return document.querySelector("canvas.avatar");
 }
 
+function scripted(animation: Animation): boolean {
+  return !(animation instanceof CSSTransition) && !(animation instanceof CSSAnimation);
+}
+
+/** Stops every scripted move and deal, so each pane falls back to its inline style. */
+function cancelDriven(): void {
+  const avatar = avatarElement();
+  for (const element of avatar ? [...paneElements(), avatar] : paneElements()) {
+    element.getAnimations().filter(scripted).forEach((animation) => animation.cancel());
+  }
+  moves.clear();
+  clearTimeout(drivingTimer);
+  driving.value = false;
+}
+
 function standingAt(pane: PooledPane, now: number): number {
   const move = moves.get(pane.element);
   return move ? moveAt(move.from, move.to, now - move.start) : pane.offset;
@@ -781,6 +796,7 @@ async function driveMove(
       was.item !== pane.item ||
       was.at === pane.offset
     ) {
+      element?.getAnimations().filter(scripted).forEach((animation) => animation.cancel());
       moves.delete(pane.element);
       continue;
     }
@@ -803,8 +819,9 @@ async function driveMove(
   }, MOVE_FRAMES_MS);
 }
 
-async function driveDeal(): Promise<void> {
+async function driveDeal(mine: number): Promise<void> {
   await nextTick();
+  if (mine !== generation) return;
   const elements = paneElements();
   const avatarOf = avatarPane.value?.element;
   const options: KeyframeAnimationOptions = {
@@ -840,6 +857,7 @@ async function releasePanes(mine: number): Promise<void> {
 
 async function changeChannel(): Promise<void> {
   const mine = ++generation;
+  cancelDriven();
   phase.value = "out";
   await wait(CHANNEL_OUT_MS);
   if (mine !== generation) return;
@@ -851,7 +869,7 @@ async function changeChannel(): Promise<void> {
   await nextFrame();
   if (mine !== generation) return;
   phase.value = "in";
-  void driveDeal();
+  void driveDeal(mine);
   void releasePanes(mine);
   await wait(DEAL_SETTLE_MS);
   if (mine === generation) phase.value = "rest";
@@ -989,7 +1007,10 @@ const rings = ripplePattern(deviceSeed()).map((group) => ({
   "--peak": String(group.peak),
 }));
 
-watch([hubAway, guide], settle);
+watch([hubAway, guide], ([away, open]) => {
+  if (away || open) cancelDriven();
+  settle();
+});
 
 watch(
   () => settings.settings.steam,

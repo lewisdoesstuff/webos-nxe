@@ -29,9 +29,9 @@ deploy — and `../weboshome-web/PLAN.md` before that.
   retail build 9199's scene graphs. **`GuideMain.xui` is the Guide overlay, not
   the hub**; the hub is measured off frames (REFERENCES.md). `DESIGN-HUB.md`
   predates that finding: its surface ideas hold, its geometry does not.
-- [`docs/research/XUR-9199.md`](./docs/research/XUR-9199.md) — the 601 retail
-  9199 scenes decoded with `tools/xur.sh`: Guide open and close, toast, pane
-  and transition timings in frames of 1/60 s.
+- [`docs/research/XUR.md`](./docs/research/XUR.md) — retail 7258 and
+  9199 scenes decoded with `tools/xzp.mjs` and `tools/xur.sh`: Guide open and
+  close, toast, pane and transition timings in frames of 1/60 s.
 - [`docs/research/NXE-EXISTING.md`](./docs/research/NXE-EXISTING.md) — where
   those numbers came from, the corroborating recreations, and the licensing
   position.
@@ -100,6 +100,7 @@ tools/
   capture.mjs          screenshot the TV with key presses
   compare.mjs          screenshot the dev build beside a reference frame
   refs.sh              rebuild docs/refs/ from the source videos
+  xzp.mjs              unpack the dashboard's .xzp resource packages
   xur.sh               decode retail XUR scenes to XUI XML (XUIHelper, built outside the repo)
   xui.mjs              read a decoded scene as a tree, its timelines, or JSON
   gen-default-theme.sh regenerate the default theme's sounds, cards, boot art, icons

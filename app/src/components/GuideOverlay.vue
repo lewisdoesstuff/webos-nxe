@@ -12,6 +12,8 @@ import {
   CLOCK_X,
   CLOCK_Y,
   DIM_ALPHA,
+  CONTENT_AT_MS,
+  CONTENT_IN_MS,
   DIM_IN_MS,
   DIM_OUT_MS,
   PANEL_IN_MS,
@@ -247,7 +249,7 @@ watch(
         state.value = "open";
         revealing.value = true;
         reveal = setTimeout(() => (revealing.value = false), SLABS_OUT_MS);
-      }, PANEL_IN_MS);
+      }, CONTENT_AT_MS);
       return;
     }
     if (state.value === "closed") return;
@@ -280,6 +282,7 @@ const rootStyle: Record<string, string> = {
   "--dim-in-ms": `${DIM_IN_MS}ms`,
   "--dim-out-ms": `${DIM_OUT_MS}ms`,
   "--panel-in-ms": `${PANEL_IN_MS}ms`,
+  "--content-in-ms": `${CONTENT_IN_MS}ms`,
   "--panel-out-ms": `${PANEL_OUT_MS}ms`,
   "--select-ms": `${SELECT_MS}ms`,
   "--blade-ms": `${BLADE_MS}ms`,
@@ -545,6 +548,7 @@ const CLOCK: Box = { x: CLOCK_X, y: CLOCK_Y, width: CLOCK_W, height: CLOCK_H };
 
 .chrome[data-shown] {
   opacity: 1;
+  transition: opacity var(--content-in-ms) linear;
 }
 
 /* The profile plate, centred above the panel at the gamerpic's own box. */
@@ -576,6 +580,7 @@ const CLOCK: Box = { x: CLOCK_X, y: CLOCK_Y, width: CLOCK_W, height: CLOCK_H };
 
 .slabs[data-shown] {
   opacity: 1;
+  transition: opacity var(--content-in-ms) linear;
 }
 
 /*
@@ -710,16 +715,13 @@ const CLOCK: Box = { x: CLOCK_X, y: CLOCK_Y, width: CLOCK_W, height: CLOCK_H };
 @keyframes panel-in {
   0% {
     opacity: 0.001;
-    transform: scale(0.72);
-    animation-timing-function: cubic-bezier(0.33, 0.6, 0.6, 1);
+    transform: scale(0.1);
+    animation-timing-function: cubic-bezier(0, 0, 0.2, 1);
   }
-  40% {
+  77.7% {
     opacity: 1;
-    transform: scale(0.95);
-  }
-  72% {
     transform: scale(1.05);
-    animation-timing-function: cubic-bezier(0.4, 0, 0.6, 1);
+    animation-timing-function: linear;
   }
   100% {
     opacity: 1;
@@ -731,15 +733,16 @@ const CLOCK: Box = { x: CLOCK_X, y: CLOCK_Y, width: CLOCK_W, height: CLOCK_H };
   0% {
     opacity: 1;
     transform: scale(1);
+    animation-timing-function: cubic-bezier(0.4, 0, 0.6, 1);
   }
-  30% {
+  17.7% {
     opacity: 1;
-    transform: scale(1.04);
-    animation-timing-function: cubic-bezier(0.4, 0, 1, 1);
+    transform: scale(1.05);
+    animation-timing-function: cubic-bezier(0, 0, 0.2, 1);
   }
   100% {
     opacity: 0.001;
-    transform: scale(0.75);
+    transform: scale(0.1);
   }
 }
 

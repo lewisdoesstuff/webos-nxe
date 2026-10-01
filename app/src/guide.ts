@@ -323,24 +323,31 @@ export const SLAB_LABEL_RUN = SLAB_H;
 export const DIM_ALPHA = 0.88;
 
 /**
- * The open and the close, MEASURED at 60fps off the 1080p retail capture
- * (`LeLocNfgexM`, 9:05.5 and 4:38.5).
+ * The open and the close, from retail 7258's `hudbkgnd` scene (frames are 1/60 s;
+ * docs/research/XUR.md). The 1080p capture is of a later dashboard that opens
+ * from a strip, so it is not the reference here. The dim timing is not in the
+ * scene and is still the capture's.
  *
- * Opening, the dim lands most of the way in the first frame and settles over
- * `DIM_IN_MS`. The empty panel grows out of its own centre from about 0.72,
- * overshoots to 1.05 and settles over `PANEL_IN_MS`; only then do the list and
- * the clock appear, and the blades slide out from behind the panel over
- * `SLABS_OUT_MS`. Retail spends the better part of a second loading between
- * the two; here the content is resident, so it follows at once.
+ * Opening, the empty panel grows uniformly from 0.1 at opacity 0 to 1.05 over
+ * frames 1 to 15 (`PANEL_GROW_MS`, decelerating), then settles to 1.0 linearly
+ * by frame 19 (`PANEL_IN_MS`). The content fades in over frames 15 to 22, from
+ * `CONTENT_AT_MS` for `CONTENT_IN_MS`, and the blades slide out over
+ * `SLABS_OUT_MS` from the same moment.
  *
- * Closing, the content goes in a frame, the panel pops to 1.04 and shrinks
- * away over `PANEL_OUT_MS`, and the dim lifts a quarter of the way over
- * `DIM_OUT_MS` before it drops.
+ * Closing, the content goes at once, the panel swells to 1.05 over
+ * `PANEL_POP_MS`, then shrinks to 0.1 and fades out over `PANEL_SHRINK_MS`
+ * (`PANEL_OUT_MS` in all). The dim lifts a quarter of the way over `DIM_OUT_MS`
+ * before it drops.
  */
 export const DIM_IN_MS = 230;
-export const PANEL_IN_MS = 250;
+export const PANEL_GROW_MS = 233;
+export const PANEL_IN_MS = 300;
+export const CONTENT_AT_MS = PANEL_GROW_MS;
+export const CONTENT_IN_MS = 133;
 export const SLABS_OUT_MS = 100;
-export const PANEL_OUT_MS = 170;
+export const PANEL_POP_MS = 50;
+export const PANEL_SHRINK_MS = 233;
+export const PANEL_OUT_MS = PANEL_POP_MS + PANEL_SHRINK_MS;
 export const DIM_OUT_MS = 250;
 
 /** An item change. UNVERIFIED. */

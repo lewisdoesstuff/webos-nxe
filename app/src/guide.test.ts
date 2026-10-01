@@ -40,6 +40,8 @@ import {
   ITEM_TOP,
   ITEM_X,
   ITEMS,
+  CONTENT_AT_MS,
+  CONTENT_IN_MS,
   DIM_IN_MS,
   DIM_OUT_MS,
   PANEL_IN_MS,
@@ -813,10 +815,12 @@ describe("the chrome", () => {
 });
 
 describe("the open and the close", () => {
-  it("takes the measured frames: the panel before the content, the close quicker than the open", () => {
+  it("takes the retail 7258 frames: the panel before the content, the close quicker than the open", () => {
     expect([DIM_IN_MS, PANEL_IN_MS, SLABS_OUT_MS, PANEL_OUT_MS, DIM_OUT_MS]).toEqual([
-      230, 250, 100, 170, 250,
+      230, 300, 100, 283, 250,
     ]);
+    expect(CONTENT_AT_MS).toBe(233);
+    expect(CONTENT_IN_MS).toBe(133);
     expect(PANEL_OUT_MS).toBeLessThan(PANEL_IN_MS);
     expect(SLABS_OUT_MS).toBeLessThan(PANEL_IN_MS);
   });

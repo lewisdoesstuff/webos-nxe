@@ -31,9 +31,9 @@ import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 
 import { fetchBytes } from "../sound/engine";
 import { AVATAR_MIRROR, AVATAR_VIEW, frameAvatar } from "./framing";
+import { smoothClip } from "./smooth";
 import { firstIdle, nextIdle, planIdle, type IdlePlan, type IdleStep } from "./idle";
 import type { Look } from "./look";
-import { smoothClip } from "./smooth";
 
 /**
  * The avatar: one glTF model, skinned and animated, in one small canvas.

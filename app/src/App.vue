@@ -315,11 +315,13 @@ const prompts = computed(() => {
   return shellPrompts(
     guide.value,
     pageOpen.value ? [{ page: page.value, focus: pageFocus.value }] : [],
-    isHideable(focused.value),
-    moving.value !== null,
-    pinLabel.value ?? (isChannel(hub.value.channel, "home") ? "Remove" : null),
-    canMove.value,
-    isFriendPane(focused.value) ? "View Details" : null,
+    {
+      canHide: isHideable(focused.value),
+      canMove: canMove.value,
+      moving: moving.value !== null,
+      pin: pinLabel.value ?? (isChannel(hub.value.channel, "home") ? "Remove" : null),
+      select: isFriendPane(focused.value) ? "View Details" : null,
+    },
   );
 });
 

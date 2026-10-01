@@ -25,7 +25,7 @@ const props = withDefaults(
     renderScale?: number;
     fps?: number;
   }>(),
-  { fallback: "", playing: true, look: null, renderScale: 1, fps: 30 },
+  { fallback: "", playing: true, look: null, renderScale: 1, fps: 60 },
 );
 
 const emit = defineEmits<{

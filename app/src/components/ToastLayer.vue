@@ -66,8 +66,10 @@ const width = computed(() => {
         />
       </svg>
       <svg class="alt console" viewBox="0 0 64 64" aria-hidden="true">
-        <rect x="23" y="5" width="18" height="38" rx="5" />
-        <circle cx="32" cy="55" r="5" />
+        <path
+          fill-rule="evenodd"
+          d="M28 7h8a3 3 0 0 1 3 3v43a3 3 0 0 1-3 3h-8a3 3 0 0 1-3-3V10a3 3 0 0 1 3-3zm0 25v8h8v-8z"
+        />
       </svg>
       <svg class="alt friends" viewBox="0 0 64 64" aria-hidden="true">
         <circle cx="24" cy="21" r="9" />

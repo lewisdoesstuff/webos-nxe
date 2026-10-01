@@ -5,8 +5,8 @@
  * and calls `advance` once the fade has finished.
  */
 
-/** The disc's picture: the Xbox ball alone, or the ball turning to a trophy or to a friends icon. */
-export type ToastIcon = "xbox" | "achievement" | "friend";
+/** The disc's picture: the Xbox ball alone, or the ball turning to a trophy, a friends icon or a console. */
+export type ToastIcon = "xbox" | "achievement" | "friend" | "signin";
 
 export interface Toast {
   readonly title: string;

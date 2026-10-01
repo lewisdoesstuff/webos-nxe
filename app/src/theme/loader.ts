@@ -75,15 +75,17 @@ async function inline(url: string): Promise<string> {
 async function inlineImages(theme: Theme): Promise<Theme> {
   const { orb, wordmark, flare } = theme.boot;
   const buttonKeys = BUTTON_KEYS.filter((key) => theme.icons.buttons[key] !== undefined);
-  const [orbUrl, markUrl, flareUrl, settingsUrl, coinUrl, cards, buttonUrls] = await Promise.all([
-    inline(orb.url),
-    inline(wordmark.url),
-    inline(flare.url),
-    inline(theme.art.settings),
-    inline(theme.art.orb),
-    Promise.all(theme.cards.map(inline)),
-    Promise.all(buttonKeys.map((key) => inline(theme.icons.buttons[key] as string))),
-  ]);
+  const [orbUrl, markUrl, flareUrl, settingsUrl, coinUrl, consoleUrl, cards, buttonUrls] =
+    await Promise.all([
+      inline(orb.url),
+      inline(wordmark.url),
+      inline(flare.url),
+      inline(theme.art.settings),
+      inline(theme.art.orb),
+      theme.art.console === undefined ? undefined : inline(theme.art.console),
+      Promise.all(theme.cards.map(inline)),
+      Promise.all(buttonKeys.map((key) => inline(theme.icons.buttons[key] as string))),
+    ]);
   const iconKeys = ICON_KEYS.filter((key) => theme.icons[key] !== undefined);
   const iconUrls = await Promise.all(iconKeys.map((key) => inline(theme.icons[key] as string)));
   const icons: Record<string, string> = {};
@@ -96,7 +98,11 @@ async function inlineImages(theme: Theme): Promise<Theme> {
   });
   return {
     ...theme,
-    art: { orb: coinUrl, settings: settingsUrl },
+    art: {
+      orb: coinUrl,
+      settings: settingsUrl,
+      ...(consoleUrl === undefined ? {} : { console: consoleUrl }),
+    },
     icons: { ...icons, buttons },
     cards,
     boot: {
@@ -141,6 +147,13 @@ function install(theme: Theme): void {
     }
   }
   if (Object.keys(theme.icons.buttons).length > 0) root.dataset.buttonArt = "";
+  if (theme.art.console === undefined) {
+    root.removeAttribute("data-console-art");
+    root.style.removeProperty("--theme-console");
+  } else {
+    root.setAttribute("data-console-art", "");
+    root.style.setProperty("--theme-console", `url("${theme.art.console}")`);
+  }
   for (const [name, value] of Object.entries(theme.cssVars)) root.style.setProperty(name, value);
 }
 

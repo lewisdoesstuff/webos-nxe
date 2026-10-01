@@ -23,10 +23,27 @@ const props = defineProps<{
   shown: boolean;
 }>();
 
-/** The pill hugs its longer line: about 19px a character plus the disc and a margin. */
+const FONT = '400 40px "Segoe UI", Inter, sans-serif';
+/** No pill is narrower than one that holds this on a line. */
+const FLOOR_TEXT = "Ana is online";
+let ruler: CanvasRenderingContext2D | null | undefined;
+
+/** A line's drawn width: measured in the toast's face, or about 19px a character where there is no canvas. */
+function lineWidth(text: string): number {
+  if (ruler === undefined) ruler = document.createElement("canvas").getContext("2d");
+  if (!ruler) return 19 * text.length;
+  ruler.font = FONT;
+  return ruler.measureText(text).width + 1.5 * text.length + 1;
+}
+
+/** The pill hugs its longer line: the disc and a margin either side of the words. */
 const width = computed(() => {
-  const longest = Math.max(props.toast?.title.length ?? 0, props.toast?.body.length ?? 0);
-  return Math.min(1000, Math.max(560, Math.round(197 + 19 * longest)));
+  const longest = Math.max(
+    lineWidth(FLOOR_TEXT),
+    lineWidth(props.toast?.title ?? ""),
+    lineWidth(props.toast?.body ?? ""),
+  );
+  return Math.min(1000, Math.round(190 + longest));
 });
 </script>
 
@@ -46,6 +63,13 @@ const width = computed(() => {
       <svg class="alt trophy" viewBox="0 0 64 64" aria-hidden="true">
         <path
           d="M18 8h28v4h10v8c0 8-6 14-14 15-2 4-5 7-9 8v7h8v6H23v-6h8v-7c-4-1-7-4-9-8-8-1-14-7-14-15v-8h10zM14 18v2c0 4 3 7 7 8-2-3-3-6-3-10zm36 0h-4c0 4-1 7-3 10 4-1 7-4 7-8z"
+        />
+      </svg>
+      <i class="alt console-art" />
+      <svg class="alt console" viewBox="0 0 64 64" aria-hidden="true">
+        <path
+          fill-rule="evenodd"
+          d="M28 7h8a3 3 0 0 1 3 3v10q-1.8 16.5 0 33a3 3 0 0 1-3 3h-8a3 3 0 0 1-3-3q1.8-16.5 0-33V10a3 3 0 0 1 3-3zm4 29.7a3.3 3.3 0 1 0 0 6.6 3.3 3.3 0 0 0 0-6.6z"
         />
       </svg>
       <svg class="alt friends" viewBox="0 0 64 64" aria-hidden="true">
@@ -189,26 +213,37 @@ const width = computed(() => {
   will-change: opacity;
 }
 
-.friends,
-.toast[data-icon="achievement"] .friends {
+.alt {
   display: none;
 }
 
-.toast[data-icon="friend"] .trophy {
+.toast[data-icon="achievement"] .trophy,
+.toast[data-icon="friend"] .friends,
+.toast[data-icon="signin"] .console {
+  display: block;
+}
+
+.console-art {
+  background: var(--theme-console) center / 80% 80% no-repeat;
+}
+
+:root[data-console-art] .toast[data-icon="signin"] .console {
   display: none;
 }
 
-.toast[data-icon="friend"] .friends {
+:root[data-console-art] .toast[data-icon="signin"] .console-art {
   display: block;
 }
 
 .toast[data-shown][data-icon="achievement"] .ball,
-.toast[data-shown][data-icon="friend"] .ball {
+.toast[data-shown][data-icon="friend"] .ball,
+.toast[data-shown][data-icon="signin"] .ball {
   animation: toast-ball 1500ms linear infinite;
 }
 
 .toast[data-shown][data-icon="achievement"] .alt,
-.toast[data-shown][data-icon="friend"] .alt {
+.toast[data-shown][data-icon="friend"] .alt,
+.toast[data-shown][data-icon="signin"] .alt {
   animation: toast-alt 1500ms linear infinite;
 }
 
@@ -245,7 +280,7 @@ const width = computed(() => {
 .words {
   position: absolute;
   left: 130px;
-  right: 30px;
+  right: 60px;
   top: 0;
   height: 116px;
   display: flex;

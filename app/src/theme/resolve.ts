@@ -88,6 +88,8 @@ export function applyManifest(under: Theme, manifest: ThemeManifest, base: strin
         ? under.art.settings
         : joinUrl(base, manifest.art.settings),
   };
+  const consoleArt =
+    manifest.art?.console === undefined ? under.art.console : joinUrl(base, manifest.art.console);
 
   const buttons: Partial<Record<ButtonKey, string>> = { ...under.icons.buttons };
   for (const key of BUTTON_KEYS) {
@@ -106,7 +108,7 @@ export function applyManifest(under: Theme, manifest: ThemeManifest, base: strin
     name: manifest.name,
     sounds,
     cards,
-    art,
+    art: consoleArt === undefined ? art : { ...art, console: consoleArt },
     icons,
     avatar: manifest.avatar === undefined ? under.avatar : joinUrl(base, manifest.avatar),
     strings: mergeDeep(under.strings, manifest.strings),

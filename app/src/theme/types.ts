@@ -61,7 +61,12 @@ export interface Theme {
   readonly name: string;
   readonly sounds: Readonly<Record<SoundKey, string>>;
   readonly cards: readonly string[];
-  readonly art: { readonly orb: string; readonly settings: string };
+  readonly art: {
+    readonly orb: string;
+    readonly settings: string;
+    /** A silhouette for the sign-in toast, drawn in place of the built-in console when set. */
+    readonly console?: string;
+  };
   /** Pictures for the UI's small glyphs. A button left out is drawn with CSS. */
   readonly icons: Readonly<Partial<Record<IconKey, string>>> & {
     readonly buttons: Readonly<Partial<Record<ButtonKey, string>>>;
@@ -94,7 +99,11 @@ export interface ThemeManifest {
   readonly sounds?: Partial<Record<SoundKey, string>>;
   readonly fonts?: readonly ThemeFont[];
   readonly cards?: readonly string[];
-  readonly art?: { readonly orb?: string; readonly settings?: string };
+  readonly art?: {
+    readonly orb?: string;
+    readonly settings?: string;
+    readonly console?: string;
+  };
   readonly icons?: Partial<Record<IconKey, string>> & {
     readonly buttons?: Partial<Record<ButtonKey, string>>;
   };

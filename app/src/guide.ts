@@ -18,6 +18,7 @@
 
 import { BUTTON_SIZE, promptsFor, type Prompt } from "./prompts";
 import type { Box } from "./ribbon";
+import { theme } from "./theme";
 
 export type { Box } from "./ribbon";
 
@@ -101,13 +102,7 @@ export const CLOCK_FONT = 17;
  *
  * A fixed list, so the count cannot change and the element count cannot either.
  */
-export const CHANNELS = [
-  "Inside Xbox",
-  "Friends",
-  "Video & Music Marketplace",
-  "Game Marketplace",
-  "My Xbox",
-] as const satisfies readonly [string, ...string[]];
+export const CHANNELS: readonly string[] = theme().strings.channels;
 
 export const CHANNEL_COUNT = CHANNELS.length;
 
@@ -208,7 +203,12 @@ export const CHANNEL_ALPHA = [1, 0.82, 0.64, 0.48, 0.34] as const;
  */
 export const ITEMS: Readonly<Record<string, readonly string[]>> = {
   games: [],
-  marketplace: ["Game Marketplace", "Video & Music Marketplace", "Active Downloads", "Redeem Code"],
+  marketplace: [
+    theme().strings.gameStore,
+    theme().strings.mediaStore,
+    "Active Downloads",
+    "Redeem Code",
+  ],
   player1: [],
   media: [],
   settings: [],
@@ -367,7 +367,7 @@ const GUIDE_PROMPTS: readonly Prompt[] = promptsFor({
   a: "Select",
   b: "Back",
   x: "Sign Out",
-  y: "Xbox Dashboard",
+  y: theme().strings.dashboard,
 });
 
 /**

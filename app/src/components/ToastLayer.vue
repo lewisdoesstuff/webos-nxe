@@ -179,7 +179,7 @@ const width = computed(() => {
 }
 
 .ball {
-  background: url("../assets/hub/orb.png") center / 100% 100% no-repeat;
+  background: var(--theme-orb) center / 100% 100% no-repeat;
   will-change: opacity;
 }
 

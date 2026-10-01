@@ -11,26 +11,9 @@
  * reason in `status()`, never in a broken menu.
  */
 
-import backUrl from "../assets/sounds/back.ogg";
-import blade1Url from "../assets/sounds/blade-1.ogg";
-import blade2Url from "../assets/sounds/blade-2.ogg";
-import blade3Url from "../assets/sounds/blade-3.ogg";
-import bootUrl from "../assets/sounds/boot.ogg";
-import channelDownUrl from "../assets/sounds/channel-down.ogg";
-import channelUpUrl from "../assets/sounds/channel-up.ogg";
-import focusUrl from "../assets/sounds/focus.ogg";
-import hudCloseUrl from "../assets/sounds/hud-close.ogg";
-import hudFocusUrl from "../assets/sounds/hud-focus.ogg";
-import hudOpenUrl from "../assets/sounds/hud-open.ogg";
-import hudSelectUrl from "../assets/sounds/hud-select.ogg";
-import optionUrl from "../assets/sounds/option.ogg";
-import panelLeftUrl from "../assets/sounds/panel-left.ogg";
-import panelRightUrl from "../assets/sounds/panel-right.ogg";
-import selectUrl from "../assets/sounds/select.ogg";
-import toastUrl from "../assets/sounds/toast.ogg";
-import transitionUrl from "../assets/sounds/transition.ogg";
 import { SETTINGS_DEFAULTS, type Settings } from "../settings";
 import { useSettingsStore } from "../stores/settings";
+import { theme } from "../theme";
 import { createBootSound } from "./bootSound";
 import { BLADE_CYCLE, type Sound } from "./cues";
 import { createSoundEngine } from "./engine";
@@ -42,29 +25,11 @@ export { MENU_SOUND_COUNT, SOUND_NAMES, type SoundName } from "./voices";
 export type { Sound } from "./cues";
 export { describeStatus, type MusicState, type SoundStatus } from "./status";
 
-const engine = createSoundEngine({
-  files: {
-    option: optionUrl,
-    panelLeft: panelLeftUrl,
-    panelRight: panelRightUrl,
-    channelUp: channelUpUrl,
-    channelDown: channelDownUrl,
-    select: selectUrl,
-    back: backUrl,
-    focus: focusUrl,
-    transition: transitionUrl,
-    hudOpen: hudOpenUrl,
-    hudClose: hudCloseUrl,
-    hudFocus: hudFocusUrl,
-    hudSelect: hudSelectUrl,
-    blade1: blade1Url,
-    blade2: blade2Url,
-    blade3: blade3Url,
-  },
-});
+const sounds = theme().sounds;
+const engine = createSoundEngine({ files: sounds });
 const music = createMusicPlayer();
-const boot = createBootSound(bootUrl);
-const toast = createToastSound(toastUrl);
+const boot = createBootSound(sounds.boot);
+const toast = createToastSound(sounds.toast);
 
 /**
  * The boot's audio, as one handle. Every call is a no-op with `navSound` off, so

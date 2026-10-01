@@ -71,9 +71,23 @@ describe("the settings root", () => {
 describe("the general page", () => {
   it("lists one row per live setting", () => {
     const page = settingsCategoryPage("general", SETTINGS_DEFAULTS, APPS);
-    expect(page?.groups[0]?.items.map((item) => item.id)).toEqual(
-      GENERAL_DEFS.map((def) => def.key),
-    );
+    expect(page?.groups[0]?.items.map((item) => item.id)).toEqual([
+      ...GENERAL_DEFS.map((def) => def.key),
+      "theme",
+    ]);
+  });
+
+  it("opens the installed themes from the Theme row", () => {
+    const page = settingsCategoryPage("general", SETTINGS_DEFAULTS, APPS);
+    if (page === null) throw new Error("no general page");
+    const action = settingsAction(page, focus(0, GENERAL_DEFS.length), SETTINGS_DEFAULTS, APPS);
+    expect(action?.kind).toBe("push");
+    if (action?.kind !== "push") return;
+    expect(action.page.groups[0]?.items[0]).toEqual({ id: "theme:default", label: "Default" });
+    expect(settingsAction(action.page, focus(0, 0), SETTINGS_DEFAULTS, APPS)).toEqual({
+      kind: "theme",
+      id: "default",
+    });
   });
 
   it("flips a flag on A", () => {
@@ -111,8 +125,8 @@ describe("the general page", () => {
     expect(settingsPageFor("nope", SETTINGS_DEFAULTS, APPS)).toBeNull();
     const page = settingsCategoryPage("general", SETTINGS_DEFAULTS, APPS);
     if (page === null) throw new Error("no general page");
-    expect(settingsAction(page, focus(0, 9), SETTINGS_DEFAULTS, APPS)).toBeNull();
-    expect(settingsDetail(page, focus(0, 9), SETTINGS_DEFAULTS, APPS)).toEqual({
+    expect(settingsAction(page, focus(0, 99), SETTINGS_DEFAULTS, APPS)).toBeNull();
+    expect(settingsDetail(page, focus(0, 99), SETTINGS_DEFAULTS, APPS)).toEqual({
       values: [],
       description: "",
     });

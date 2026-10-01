@@ -1,5 +1,5 @@
-import { cpSync, existsSync, readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { cpSync, existsSync, readdirSync, readFileSync } from "node:fs";
+import { extname, resolve } from "node:path";
 
 import vue from "@vitejs/plugin-vue";
 import { defineConfig, type Plugin } from "vitest/config";
@@ -37,18 +37,48 @@ function copyPackageFiles(): Plugin {
   };
 }
 
+const MIME: Record<string, string> = {
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".json": "application/json",
+  ".ogg": "audio/ogg",
+  ".ttf": "font/ttf",
+  ".woff2": "font/woff2",
+  ".glb": "model/gltf-binary",
+};
+
+const THEMES_PATH = "/media/internal/nxe-themes";
+
 /**
  * In dev, `hack/<absolute path>` is served from `mock-tv/`, a mirror of the
  * TV's icon files, so the mock's real paths resolve the way they do on the TV.
+ * The add-on themes folder is served from `themes/` in the repo, with an
+ * `index.json` made from its folders.
  */
 function serveMockTv(): Plugin {
   const mirror = resolve(root, "mock-tv");
+  const themes = resolve(root, "themes");
   return {
     name: "nxe:mock-tv",
     apply: "serve",
     configureServer(server) {
       server.middlewares.use("/hack", (request, response, next) => {
-        const file = resolve(mirror, `.${decodeURIComponent(request.url ?? "").split("?")[0]}`);
+        const path = decodeURIComponent(request.url ?? "").split("?")[0] ?? "";
+        if (path.startsWith(THEMES_PATH)) {
+          const rest = path.slice(THEMES_PATH.length);
+          if (rest === "/index.json") {
+            const ids = existsSync(themes)
+              ? readdirSync(themes).filter((id) => existsSync(resolve(themes, id, "theme.json")))
+              : [];
+            response.setHeader("Content-Type", MIME[".json"] ?? "");
+            return response.end(JSON.stringify(ids));
+          }
+          const file = resolve(themes, `.${rest}`);
+          if (!file.startsWith(themes) || !existsSync(file)) return next();
+          response.setHeader("Content-Type", MIME[extname(file)] ?? "application/octet-stream");
+          return response.end(readFileSync(file));
+        }
+        const file = resolve(mirror, `.${path}`);
         if (!file.startsWith(mirror) || !existsSync(file)) return next();
         response.setHeader("Content-Type", "image/png");
         response.end(readFileSync(file));
@@ -113,6 +143,7 @@ export default defineConfig({
   test: {
     environment: "jsdom",
     include: ["src/**/*.test.ts"],
+    setupFiles: ["src/testSetup.ts"],
     restoreMocks: true,
     // Node's export condition routes `vue` and the `@vue/*` runtimes through
     // their CJS builds, which do not carry the Vapor runtime that

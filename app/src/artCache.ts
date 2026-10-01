@@ -247,7 +247,7 @@ function drawCard(): Promise<HTMLCanvasElement | null> {
     context.beginPath();
     context.roundRect(0, 0, CARD_W, CARD_H, CARD_RADIUS);
     context.clip();
-    const background = await decoded(CARDS[0]);
+    const background = await decoded(CARDS[0] ?? "");
     if (background) context.drawImage(background, 0, 0, CARD_W, CARD_H);
     const gradient = context.createLinearGradient(0, 0, 0, CARD_H);
     for (const [at, alpha] of FOOT_STOPS) gradient.addColorStop(at, `rgba(15, 29, 0, ${alpha})`);

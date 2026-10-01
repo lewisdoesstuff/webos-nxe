@@ -28,6 +28,8 @@ import {
   type SteamOp,
   type SteamView,
 } from "./steam/pages";
+import { theme } from "./theme";
+import { installedThemes, selectedTheme } from "./theme/loader";
 import {
   choicesFor,
   detailControl,
@@ -168,6 +170,28 @@ export const GENERAL_DEFS: readonly SettingDef[] = [
 ];
 
 const PICK = "settings:pick:";
+const THEME_ROW = "theme";
+const THEME_PAGE = "settings:theme";
+const THEME_ITEM = "theme:";
+
+/** The installed themes, opened by A on General's Theme row. */
+function themePage(): ListPage {
+  return {
+    kind: "list",
+    id: THEME_PAGE,
+    title: "Theme",
+    groups: [
+      {
+        id: "theme",
+        title: "Theme",
+        items: installedThemes().map((info) => ({
+          id: `${THEME_ITEM}${info.id}`,
+          label: info.name,
+        })),
+      },
+    ],
+  };
+}
 
 /** The page that lists a choice's options, opened by A on the choice's row. */
 function pickPage(def: TvDef, tv: TvSnapshot): ListPage {
@@ -266,11 +290,15 @@ export function settingsCategoryPage(
         {
           id: "general",
           title: "General",
-          items: GENERAL_DEFS.map((def) => ({ id: def.key, label: def.title })),
+          items: [
+            ...GENERAL_DEFS.map((def) => ({ id: def.key, label: def.title })),
+            { id: THEME_ROW, label: "Theme" },
+          ],
         },
       ],
     };
   }
+  if (category === "theme") return themePage();
   if (category === "descriptions") {
     return {
       kind: "list",
@@ -348,8 +376,8 @@ export function profilePage(): ListPage {
         id: "profile",
         title: "Profile",
         items: [
-          { id: "gamertag", label: "Gamertag" },
-          { id: "gamerscore", label: "Gamerscore" },
+          { id: "gamertag", label: theme().strings.gamertag },
+          { id: "gamerscore", label: theme().strings.gamerscore },
           { id: "avatar", label: "Customize Avatar" },
         ],
       },
@@ -497,7 +525,19 @@ export function settingsDetail(
       description: "Press A and type a description. Leave it empty to restore the default.",
     };
   }
+  if (page.id === THEME_PAGE) {
+    return {
+      values: [],
+      description: "Press A to use this theme. It takes effect when the dashboard next starts.",
+    };
+  }
   if (page.id === "settings:general") {
+    if (item.id === THEME_ROW) {
+      return {
+        values: [selectedTheme().name],
+        description: "The look and sounds of the dashboard. Themes are added in the themes folder.",
+      };
+    }
     const def = GENERAL_DEFS.find((entry) => entry.key === item.id);
     if (def === undefined) return { values: [], description: "" };
     return { values: [settingValue(def, settings)], description: def.description };
@@ -533,6 +573,7 @@ export type SettingsAction =
   | { readonly kind: "push"; readonly page: ListPage; readonly focusItem?: number }
   | { readonly kind: "change"; readonly change: SettingChange }
   | { readonly kind: "edit"; readonly key: string }
+  | { readonly kind: "theme"; readonly id: string }
   | {
       readonly kind: "tv";
       readonly def: TvDef;
@@ -604,7 +645,16 @@ export function settingsAction(
     const next = settingsPageFor(`settings:${item.id}`, settings, apps, tv);
     return next === null ? null : { kind: "push", page: next };
   }
+  if (page.id === THEME_PAGE) {
+    return item.id.startsWith(THEME_ITEM)
+      ? { kind: "theme", id: item.id.slice(THEME_ITEM.length) }
+      : null;
+  }
   if (page.id === "settings:general") {
+    if (item.id === THEME_ROW) {
+      const at = installedThemes().findIndex((info) => info.id === selectedTheme().id);
+      return { kind: "push", page: themePage(), focusItem: Math.max(0, at) };
+    }
     const def = GENERAL_DEFS.find((entry) => entry.key === item.id);
     if (def === undefined) return null;
     if (def.kind === "flag") {

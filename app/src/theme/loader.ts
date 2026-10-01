@@ -112,12 +112,16 @@ function install(theme: Theme): void {
   for (const [name, value] of Object.entries(theme.cssVars)) root.style.setProperty(name, value);
 }
 
-/** The id to start with: the address's `?theme=`, else the stored choice, else the default. */
+/** The theme used when nothing has been picked and it is installed. */
+const PREFERRED_THEME = "nxe";
+
+/** The id to start with: the address's `?theme=`, else the stored choice, else NXE if installed, else the default. */
 export function chosenThemeId(): string {
   const asked = new URLSearchParams(window.location.search).get("theme");
   if (asked !== null && asked !== "") return asked;
   const stored = readJson(THEME_KEY);
-  return typeof stored === "string" && stored !== "" ? stored : DEFAULT_THEME.id;
+  if (typeof stored === "string" && stored !== "") return stored;
+  return installed.some((info) => info.id === PREFERRED_THEME) ? PREFERRED_THEME : DEFAULT_THEME.id;
 }
 
 let selected = DEFAULT_THEME.id;

@@ -120,13 +120,11 @@ export function selectedTheme(): ThemeInfo {
   return installed.find((info) => info.id === selected) ?? (installed[0] as ThemeInfo);
 }
 
-/** Pick the next installed theme, wrapping round, and remember it for the next start. */
-export function cycleTheme(): ThemeInfo {
-  const at = installed.findIndex((info) => info.id === selected);
-  const next = installed[(at + 1) % installed.length] as ThemeInfo;
-  selected = next.id;
-  writeJson(THEME_KEY, next.id);
-  return next;
+/** Remember a theme for the next start. */
+export function chooseTheme(id: string): void {
+  if (!installed.some((info) => info.id === id)) return;
+  selected = id;
+  writeJson(THEME_KEY, id);
 }
 
 async function listInstalled(): Promise<void> {

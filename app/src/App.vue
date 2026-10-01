@@ -123,7 +123,7 @@ import { useStorageStore } from "./stores/storage";
 import { useSystemToastsStore } from "./stores/systemToasts";
 import { useTvStore } from "./stores/tv";
 import { theme } from "./theme";
-import { cycleTheme } from "./theme/loader";
+import { chooseTheme } from "./theme/loader";
 import { advance, enqueue, EMPTY_TOASTS, TOAST_FADE_MS, TOAST_MS, type Toast } from "./toasts";
 
 /**
@@ -682,7 +682,8 @@ function activateSettings(): void {
     return;
   }
   if (action.kind === "theme") {
-    cycleTheme();
+    chooseTheme(action.id);
+    settingsStack.value = pop(settingsStack.value);
     refreshSettingsTop();
     return;
   }

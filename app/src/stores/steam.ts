@@ -17,6 +17,8 @@ function friendsPollMs(): number {
   return seconds > 0 ? seconds * 1000 : FRIENDS_POLL_MS;
 }
 
+function ignoreToast(): void {}
+
 /** Steam sign-in and the friends list. The token never reaches the page. */
 export const useSteamStore = defineStore("steam", () => {
   const api = shallowRef<SteamApi | null>(null);
@@ -25,7 +27,7 @@ export const useSteamStore = defineStore("steam", () => {
   const qr = ref<QrPoll | null>(null);
   const error = ref("");
   const games = ref<Readonly<Record<string, GamesState>>>({});
-  let toast: (toast: Toast) => void = () => undefined;
+  let toast: (toast: Toast) => void = ignoreToast;
   let last: readonly SteamFriend[] | null = null;
   let friendsTimer: ReturnType<typeof setInterval> | null = null;
   let qrTimer: ReturnType<typeof setTimeout> | null = null;

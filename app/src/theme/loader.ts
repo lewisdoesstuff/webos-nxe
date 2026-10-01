@@ -36,14 +36,14 @@ function request<T>(url: string, type: XMLHttpRequestResponseType): Promise<T> {
     http.open("GET", url);
     http.responseType = type;
     http.timeout = READ_MS;
-    http.onload = () => {
+    http.addEventListener("load", () => {
       // file:// reports status 0 on success
       if (http.status === 0 || (http.status >= 200 && http.status < 300)) {
         resolve(http.response as T);
       } else reject(new Error(`${url}: ${http.status}`));
-    };
-    http.onerror = () => reject(new Error(`${url}: unreadable`));
-    http.ontimeout = () => reject(new Error(`${url}: timed out`));
+    });
+    http.addEventListener("error", () => reject(new Error(`${url}: unreadable`)));
+    http.addEventListener("timeout", () => reject(new Error(`${url}: timed out`)));
     http.send();
   });
 }

@@ -17,9 +17,12 @@ export function onlineToasts(
     .map((friend) => ({ title: friend.name, body: "is online", icon: "friend" as const }));
 }
 
+function rank(friend: SteamFriend): number {
+  return friend.state === "offline" ? 1 : 0;
+}
+
 /** Online friends first, then by name, as the friends list reads. */
 export function sortFriends(friends: readonly SteamFriend[]): SteamFriend[] {
-  const rank = (friend: SteamFriend): number => (friend.state === "offline" ? 1 : 0);
   return [...friends].sort(
     (a, b) => rank(a) - rank(b) || a.name.localeCompare(b.name, undefined, { sensitivity: "base" }),
   );

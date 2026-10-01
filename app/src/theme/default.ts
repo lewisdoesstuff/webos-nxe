@@ -6,7 +6,7 @@
 
 import fixtureUrl from "../avatar/fixture.glb?url";
 import { hex } from "../bootTheme";
-import orbUrl from "./default/art/orb.png";
+import orbUrl from "./default/art/orb.png?inline";
 import settingsUrl from "./default/art/settings.png?inline";
 import bootFlare from "./default/boot/flare.png?inline";
 import bootMark from "./default/boot/mark.png?inline";

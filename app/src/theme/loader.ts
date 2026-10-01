@@ -67,16 +67,17 @@ async function inline(url: string): Promise<string> {
 /** The boot textures, and the settings pane's icon, which the hub treats as a path unless it is a data URI. */
 async function inlineImages(theme: Theme): Promise<Theme> {
   const { orb, wordmark, flare } = theme.boot;
-  const [orbUrl, markUrl, flareUrl, settingsUrl, cards] = await Promise.all([
+  const [orbUrl, markUrl, flareUrl, settingsUrl, coinUrl, cards] = await Promise.all([
     inline(orb.url),
     inline(wordmark.url),
     inline(flare.url),
     inline(theme.art.settings),
+    inline(theme.art.orb),
     Promise.all(theme.cards.map(inline)),
   ]);
   return {
     ...theme,
-    art: { ...theme.art, settings: settingsUrl },
+    art: { orb: coinUrl, settings: settingsUrl },
     cards,
     boot: {
       ...theme.boot,

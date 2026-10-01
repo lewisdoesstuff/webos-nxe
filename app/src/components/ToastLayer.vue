@@ -65,6 +65,10 @@ const width = computed(() => {
           d="M18 8h28v4h10v8c0 8-6 14-14 15-2 4-5 7-9 8v7h8v6H23v-6h8v-7c-4-1-7-4-9-8-8-1-14-7-14-15v-8h10zM14 18v2c0 4 3 7 7 8-2-3-3-6-3-10zm36 0h-4c0 4-1 7-3 10 4-1 7-4 7-8z"
         />
       </svg>
+      <svg class="alt console" viewBox="0 0 64 64" aria-hidden="true">
+        <rect x="23" y="5" width="18" height="38" rx="5" />
+        <circle cx="32" cy="55" r="5" />
+      </svg>
       <svg class="alt friends" viewBox="0 0 64 64" aria-hidden="true">
         <circle cx="24" cy="21" r="9" />
         <path d="M6 50c0-10 8-16 18-16s18 6 18 16z" />
@@ -206,26 +210,25 @@ const width = computed(() => {
   will-change: opacity;
 }
 
-.friends,
-.toast[data-icon="achievement"] .friends {
+.alt {
   display: none;
 }
 
-.toast[data-icon="friend"] .trophy {
-  display: none;
-}
-
-.toast[data-icon="friend"] .friends {
+.toast[data-icon="achievement"] .trophy,
+.toast[data-icon="friend"] .friends,
+.toast[data-icon="signin"] .console {
   display: block;
 }
 
 .toast[data-shown][data-icon="achievement"] .ball,
-.toast[data-shown][data-icon="friend"] .ball {
+.toast[data-shown][data-icon="friend"] .ball,
+.toast[data-shown][data-icon="signin"] .ball {
   animation: toast-ball 1500ms linear infinite;
 }
 
 .toast[data-shown][data-icon="achievement"] .alt,
-.toast[data-shown][data-icon="friend"] .alt {
+.toast[data-shown][data-icon="friend"] .alt,
+.toast[data-shown][data-icon="signin"] .alt {
   animation: toast-alt 1500ms linear infinite;
 }
 

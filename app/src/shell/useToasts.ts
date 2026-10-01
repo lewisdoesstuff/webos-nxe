@@ -7,6 +7,7 @@ import { advance, enqueue, EMPTY_TOASTS, TOAST_FADE_MS, TOAST_MS, type Toast } f
 /** `?toast=friend|achievement` previews those toasts in development. */
 const DEMO_TOASTS: Record<string, Toast> = {
   short: { title: "Ana", body: "is online", icon: "friend" },
+  signin: { title: "NobelTech signed", body: "in to Xbox LIVE", icon: "signin" },
   friend: { title: "Halo Fan 42", body: "is online", icon: "friend" },
   achievement: {
     title: "Achievement unlocked",
@@ -69,7 +70,7 @@ export function useToasts() {
     }
     const waited = new Promise<void>((resolve) => setTimeout(resolve, STEAM_WAIT_MS));
     void Promise.race([steam, waited]).then(() =>
-      notify({ title: name(), body: "Signed in", icon: "xbox" }),
+      notify({ title: `${name()} signed`, body: "in to Xbox LIVE", icon: "signin" }),
     );
   }
 

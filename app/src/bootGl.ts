@@ -10,6 +10,8 @@
  * settled lockup if neither exists.
  */
 
+import { dropsScene } from "./bootDrops";
+import { DROPS } from "./bootDropsShader";
 import { bootScene, SETTLE_FRAME, type BootSceneFrame, type Vec4 } from "./bootScene";
 import { FRAGMENT_100, FRAGMENT_300, VERTEX_100, VERTEX_300 } from "./bootShader";
 import type { BootTheme, Rgb } from "./bootTheme";
@@ -29,6 +31,7 @@ type Gl = WebGLRenderingContext | WebGL2RenderingContext;
 const COLOURS = {
   cGreyTop: (t: BootTheme) => t.field.greyTop,
   cGreyEdge: (t: BootTheme) => t.field.greyEdge,
+  cNight: (t: BootTheme) => t.field.night,
   cPale: (t: BootTheme) => t.field.pale,
   cSetEdge: (t: BootTheme) => t.field.settledEdge,
   cSetMid: (t: BootTheme) => t.field.settledMid,
@@ -90,7 +93,7 @@ const SETTLE_BASIS = poleBasis(SETTLE_POLE[0], SETTLE_POLE[1], SETTLE_POLE[2]);
 /** Where the settled orb and the wordmark are drawn on a frame, in frame pixels. */
 export function lockupPlacement(
   theme: BootTheme,
-  scene: BootSceneFrame,
+  scene: { readonly orb: Vec4; readonly wordmark: Vec4 },
 ): { orb: Vec4; orbDisc: Vec4; markT: Vec4; markB: Vec4 } {
   const { orb, wordmark, lockup } = theme;
   const [dx, dy, orbScale, orbAlpha] = scene.orb;
@@ -137,10 +140,13 @@ export class BootRenderer {
       preserveDrawingBuffer: false,
       powerPreference: "high-performance",
     };
+    const drops = theme.animation === "drops";
     const gl2 = canvas.getContext("webgl2", attributes);
-    if (gl2 === null || !this.build(gl2, VERTEX_300, FRAGMENT_300)) {
+    if (gl2 === null || !this.build(gl2, VERTEX_300, drops ? DROPS.gl2 : FRAGMENT_300)) {
       const gl1 = gl2 === null ? canvas.getContext("webgl", attributes) : null;
-      if (gl1 === null || !this.build(gl1, VERTEX_100, FRAGMENT_100)) this.flat = gl2 === null;
+      if (gl1 === null || !this.build(gl1, VERTEX_100, drops ? DROPS.gl1 : FRAGMENT_100)) {
+        this.flat = gl2 === null;
+      }
     }
     this.images.forEach((image, unit) => {
       image.addEventListener("load", () => this.upload(unit, image), { once: true });
@@ -275,6 +281,8 @@ export class BootRenderer {
       0,
       this.theme.sphere.grain,
     );
+    const lockup = this.theme.lockup;
+    gl.uniform4f(this.location(gl, "uCentre"), lockup.orbX, lockup.orbY, lockup.orbRy, 0);
     gl.uniform2f(this.location(gl, "uRes"), this.canvas.width, this.canvas.height);
     gl.uniform1i(this.location(gl, "tOrb"), 0);
     gl.uniform1i(this.location(gl, "tMark"), 1);
@@ -300,14 +308,33 @@ export class BootRenderer {
       if (this.program === null) gl.clear(gl.COLOR_BUFFER_BIT);
       return;
     }
-    const scene: BootSceneFrame = bootScene(frame);
-    for (const name of VEC4S) gl.uniform4fv(this.location(gl, name), scene[name]);
-    const placed = lockupPlacement(this.theme, scene);
     gl.uniform1f(this.location(gl, "uRelease"), release);
+    if (this.theme.animation === "drops") this.drawDrops(gl, frame);
+    else this.drawSphere(gl, frame);
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+  }
+
+  private placeLockup(gl: Gl, scene: { readonly orb: Vec4; readonly wordmark: Vec4 }): void {
+    const placed = lockupPlacement(this.theme, scene);
     gl.uniform4fv(this.location(gl, "uOrb"), placed.orb);
     gl.uniform4fv(this.location(gl, "uOrbDisc"), placed.orbDisc);
     gl.uniform4fv(this.location(gl, "uMarkT"), placed.markT);
     gl.uniform4fv(this.location(gl, "uMarkB"), placed.markB);
+  }
+
+  private drawDrops(gl: Gl, frame: number): void {
+    const scene = dropsScene(frame, this.theme.lockup);
+    gl.uniform4fv(this.location(gl, "uDrops"), scene.drops);
+    gl.uniform4fv(this.location(gl, "uLight"), scene.light);
+    gl.uniform4fv(this.location(gl, "uRing"), scene.ring);
+    gl.uniform4fv(this.location(gl, "uSheen"), scene.sheen);
+    this.placeLockup(gl, scene);
+  }
+
+  private drawSphere(gl: Gl, frame: number): void {
+    const scene: BootSceneFrame = bootScene(frame);
+    for (const name of VEC4S) gl.uniform4fv(this.location(gl, name), scene[name]);
+    this.placeLockup(gl, scene);
     gl.uniformMatrix3fv(
       this.location(gl, "uBasis"),
       false,
@@ -319,7 +346,6 @@ export class BootRenderer {
       poleBasis(scene.starPole[0], scene.starPole[1], scene.starPole[2]),
     );
     gl.uniformMatrix3fv(this.location(gl, "uSettle"), false, SETTLE_BASIS);
-    gl.drawArrays(gl.TRIANGLES, 0, 3);
   }
 
   /** The settled lockup on its field, for a device with no GL at all. */

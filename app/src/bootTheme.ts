@@ -1,11 +1,13 @@
 /**
  * Everything brand-specific about the boot, in one object.
  *
- * The shader draws a sphere, a mark cut into its face, the light that comes
- * out of the mark, a field behind it and a settled lockup of two textures. It
- * knows nothing about any brand: the colours, the sphere's material, the mark's
- * geometry and the two textures all come from the active theme, so a re-theme
- * is a second object of this shape and no GLSL.
+ * There are two animations, picked by `animation`. `sphere` draws a sphere, a
+ * mark cut into its face, the light that comes out of the mark and a field
+ * behind it. `drops` draws glass droplets that merge into one sphere over a
+ * dark field. Both settle on the same lockup of two textures, and neither
+ * knows anything about a brand: the colours, the materials, the mark's geometry
+ * and the textures all come from the active theme, so a re-theme is a second
+ * object of this shape and no GLSL.
  *
  * Colours are 0..1 RGB triples.
  */
@@ -41,12 +43,18 @@ export interface BootLockup {
   readonly markWidth: number;
 }
 
+/** `sphere` is the cut sphere and its starburst; `drops` is droplets merging into the orb. */
+export type BootAnimation = "sphere" | "drops";
+
 export interface BootTheme {
+  readonly animation: BootAnimation;
   /** The backdrop through each phase of the run. */
   readonly field: {
     /** The grey studio the sphere is lit in, bright at the top and dark below. */
     readonly greyTop: Rgb;
     readonly greyEdge: Rgb;
+    /** The dark field the droplets gather in, `drops` only. */
+    readonly night: Rgb;
     /** The pale wash the camera pulls back into. */
     readonly pale: Rgb;
     /** The settled field: the corners and the glow behind the lockup. */

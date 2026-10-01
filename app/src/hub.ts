@@ -110,9 +110,6 @@ const SPILL_COUNT = 5;
  */
 export const HIDDEN = 0.001;
 
-/** Where a pane that has left the front goes: off the left edge, faded. CHOSEN from `row-048`. */
-const GONE_X = -330;
-
 export function slotAt720(
   x: number,
   centreY: number,
@@ -141,11 +138,18 @@ export const POOL_SIZE = LAST_OFFSET - FIRST_OFFSET + 1;
  * slides in from where it would have been.
  */
 export function paneSlot(offset: number): PaneSlot {
-  if (offset <= FIRST_OFFSET) return slotAt720(GONE_X, 408, 1, HIDDEN, 10);
-  const card = projectCard(Math.min(offset, LAST_OFFSET));
-  const centre = card.bottom - (320 * card.scale) / 2;
-  const opacity = offset >= LAST_OFFSET ? HIDDEN : 1;
-  return slotAt720(card.left, centre, card.scale, opacity, 10 - Math.min(offset, LAST_OFFSET));
+  const at = Math.max(FIRST_OFFSET, Math.min(offset, LAST_OFFSET));
+  const card = projectCard(at);
+  const scale = Math.min(card.scale, 1);
+  const bottom = at < 0 ? projectCard(0).bottom : card.bottom;
+  const parked = at === FIRST_OFFSET || at === LAST_OFFSET;
+  return {
+    x: Math.round(card.left * 1.5),
+    y: Math.round((bottom - 320 * scale) * 1.5),
+    scale,
+    opacity: parked ? HIDDEN : 1,
+    z: 10 - Math.max(0, at),
+  };
 }
 
 /** A pooled pane element and the row item it currently shows, or null. */
@@ -311,18 +315,13 @@ export const MOVE_MS = 200;
 export const MOVE_EASE = "cubic-bezier(0.35, 0.1, 0.45, 0.85)";
 
 /**
- * A channel change, MEASURED at 60fps off the same capture (7:29.1): the row
- * fades out in about 70ms, the screen holds empty for two frames, the new
- * focused pane fades in where the old one was over 150ms, and then the spill
- * deals out to the right from behind it on a 370ms ease-out. The stagger
- * between spill panes is CHOSEN: they fade in as they clear the pane before
- * them, so the capture does not show when each one starts.
+ * A channel change, MEASURED at 60fps off the 1080p capture (7:29.1): the row
+ * fades out in about 70ms, the screen holds empty for two frames, and the new
+ * focused pane fades in where the old one was over 150ms. The spill then deals
+ * out on retail's own unfold (`hubMotion.ts`).
  */
 export const CHANNEL_OUT_MS = 70;
 export const CHANNEL_IN_MS = 150;
-export const DEAL_MS = 370;
-export const DEAL_EASE = "cubic-bezier(0.215, 0.61, 0.355, 1)";
-export const DEAL_STAGGER_MS = 45;
 
 /** Where hub navigation stands. */
 export interface HubState {
@@ -373,7 +372,8 @@ export function counterText(item: number, count: number): string {
  * than art on it, so it does not scale rigidly with the pane: focused (`t122`)
  * it stands full size in front of the pane's right half with its feet on the
  * floor below it; in the spill (`t062`) it stands at the pane's right edge,
- * smaller against the pane than the pane is against the focused one. Each
+ * smaller against the pane than the pane is against the focused one. Between
+ * the two, mid-move, the anchor blends with the pane's place along the line. Each
  * anchor is the figure's centre and feet in the pane's own 1080p box, and its
  * size over the pane's. MEASURED to a few pixels off those two frames.
  */
@@ -395,11 +395,14 @@ export function avatarPlace(
   canvas: AvatarCanvas,
   friend = false,
 ): { x: number; y: number; scale: number } {
-  const anchor = friend ? AVATAR_FRIEND : offset === 0 ? AVATAR_FOCUSED : AVATAR_SPILL;
-  const scale = pane.scale * anchor.size;
+  const mix = friend ? 0 : Math.max(0, Math.min(1, offset));
+  const near = friend ? AVATAR_FRIEND : AVATAR_FOCUSED;
+  const centre = near.centre + (AVATAR_SPILL.centre - near.centre) * mix;
+  const feet = near.feet + (AVATAR_SPILL.feet - near.feet) * mix;
+  const scale = pane.scale * (near.size + (AVATAR_SPILL.size - near.size) * mix);
   return {
-    x: pane.x + pane.scale * anchor.centre - scale * canvas.centre,
-    y: pane.y + pane.scale * anchor.feet - scale * canvas.feet,
+    x: pane.x + pane.scale * centre - scale * canvas.centre,
+    y: pane.y + pane.scale * feet - scale * canvas.feet,
     scale,
   };
 }

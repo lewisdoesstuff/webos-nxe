@@ -25,13 +25,19 @@ export interface MotionFrame {
   readonly opacity: number;
 }
 
+/**
+ * How fast a card fades in as it unfolds. Retail's is 4, opaque a quarter of the
+ * way out; 2 takes it half the way, which reads less abruptly at 60fps on a TV.
+ */
+const DEAL_FADE = 2;
+
 /** How far a step along the line moves right, over the spacing: 371.8 of 505. */
 const LEFT_FADE = 0.736;
 
 /**
  * Where a card stands at a fractional `position` along the line, and how far
- * it has unfolded. Retail fades a card in over the first quarter of its
- * unfold, and fades one left of the front over a spacing. Past the front it
+ * it has unfolded. A card fades in as it unfolds (`DEAL_FADE`), and one left
+ * of the front fades over a spacing. Past the front it
  * would also grow and sink; it is held at full size on the front card's
  * line, so no layer rasters larger.
  */
@@ -39,7 +45,7 @@ export function cardFrame(position: number, fold = 1): MotionFrame {
   const card = projectCard(position);
   const scale = Math.min(card.scale, 1);
   const bottom = position < 0 ? projectCard(0).bottom : card.bottom;
-  let opacity = fold < 0.25 ? fold * 4 : 1;
+  let opacity = Math.min(1, fold * DEAL_FADE);
   if (position < 0) opacity *= 1 + Math.max(-1, position * LEFT_FADE);
   if (position <= GONE_OFFSET || position >= PAST_OFFSET) opacity = HIDDEN;
   return {
@@ -279,7 +285,7 @@ function slotBetween(
   const a = slotOf(low);
   const b = slotOf(low + 1);
   const t = position - low;
-  const opacity = fold < 0.25 ? fold * 4 : 1;
+  const opacity = Math.min(1, fold * DEAL_FADE);
   return {
     x: a.x + (b.x - a.x) * t,
     y: a.y + (b.y - a.y) * t,

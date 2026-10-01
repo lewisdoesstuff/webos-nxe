@@ -331,12 +331,14 @@ export const MOVE_EASE = "cubic-bezier(0.35, 0.1, 0.45, 0.85)";
 /**
  * A channel change. Retail fades the row by how far its channel spring is
  * between two channels (`MobyChannelInput*`: 50, 40, 10), so the focused card
- * dips to about 0.12 halfway, 70ms in, and is back by 167ms; it is never gone
- * for long. Here the row has to be fully hidden for the two frames its content
- * swaps, so it fades out on the spring's first half and back on its second.
+ * dips to about 0.12 halfway, 70ms in, and is back by 167ms; it is never gone.
+ * Here the focused card dips to `CHANNEL_DIP` on the spring's first half, swaps
+ * to the new channel's card at the bottom of the dip, and comes back on the
+ * second; the spill hides, since it deals out again.
  * The spill then deals out on retail's own unfold (`hubMotion.ts`).
  */
 export const CHANNEL_OUT_MS = 67;
+export const CHANNEL_DIP = 0.12;
 export const CHANNEL_OUT_EASE = "cubic-bezier(0.55, 0.06, 0.68, 0.19)";
 export const CHANNEL_IN_MS = 83;
 export const CHANNEL_IN_EASE = "cubic-bezier(0.25, 0.46, 0.45, 0.94)";

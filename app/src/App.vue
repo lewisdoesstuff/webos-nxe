@@ -25,6 +25,7 @@ import {
   CARD_PIC_X,
   CARD_PIC_Y,
   CARD_RIGHT,
+  CHANNEL_DIP,
   CHANNEL_IN_EASE,
   CHANNEL_IN_MS,
   CHANNEL_OUT_EASE,
@@ -513,12 +514,16 @@ interface PaneMotion {
 function paneMotion(pane: PooledPane): PaneMotion {
   let { x, y, scale, opacity } = pane.slot;
   let transition = driving.value ? "none" : moveTransition;
-  if (hubAway.value || !loaded.value || phase.value === "out") {
+  const dips = pane.offset === 0 && pane.item !== null;
+  if (hubAway.value || !loaded.value) {
     opacity = HIDDEN;
     transition = swinging.value ? "none" : `opacity ${CHANNEL_OUT_MS}ms ${CHANNEL_OUT_EASE}`;
+  } else if (phase.value === "out") {
+    opacity = dips ? CHANNEL_DIP : HIDDEN;
+    transition = `opacity ${CHANNEL_OUT_MS}ms ${CHANNEL_OUT_EASE}`;
   } else if (phase.value === "collapsed") {
     if (pane.offset > 0) x = PANE_X + PANE_W * (1 - scale);
-    opacity = HIDDEN;
+    opacity = dips ? CHANNEL_DIP : HIDDEN;
     transition = "none";
   } else if (phase.value === "in") {
     transition = pane.offset > 0 ? "none" : `opacity ${CHANNEL_IN_MS}ms ${CHANNEL_IN_EASE}`;

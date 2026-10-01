@@ -74,9 +74,11 @@ export const DEFAULT_THEME: Theme = {
     gamerscore: "Score",
   },
   boot: {
+    animation: "drops",
     field: {
       greyTop: hex(0xa4a4a4),
       greyEdge: hex(0x3a3a3a),
+      night: hex(0x0b2a1e),
       pale: hex(0xe2e6e1),
       settledEdge: hex(0x7f9a8c),
       settledMid: hex(0x93b3a2),

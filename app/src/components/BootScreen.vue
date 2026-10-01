@@ -23,11 +23,12 @@ import { bootSound } from "../sound";
 import { theme } from "../theme";
 
 /**
- * The boot screen: the 2005 pre-Kinect Xbox 360 bumper, drawn by one fragment
- * shader on one full-screen canvas.
+ * The boot screen, drawn by one fragment shader on one full-screen canvas: the
+ * theme's `animation`, the default theme's droplets or the NXE theme's 2005
+ * pre-Kinect bumper, both on the bumper's measured timeline.
  *
- * `boot.ts` holds the clock, `bootScene.ts` turns a master frame into the
- * shader's uniforms, `bootGl.ts` owns the context and `bootTheme.ts` every
+ * `boot.ts` holds the clock, `bootScene.ts` and `bootDrops.ts` turn a master
+ * frame into the shader's uniforms, `bootGl.ts` owns the context and `bootTheme.ts` every
  * brand-specific colour and texture. This component only runs the clock, draws
  * the frame it lands on and fades the canvas out at the end.
  *

@@ -324,10 +324,20 @@ void main() {
 }
 `;
 
-export const FRAGMENT_300 = `#version 300 es\nprecision highp float;\n#define TEX texture\n${BODY}${MAIN_300}`;
+/** A body that defines `scene(p)` and `field(p)` wrapped into both GLSL versions. */
+export function fragments(body: string): { readonly gl2: string; readonly gl1: string } {
+  return {
+    gl2: `#version 300 es\nprecision highp float;\n#define TEX texture\n${body}${MAIN_300}`,
+    gl1: `precision highp float;\n#define TEX texture2D\n${body}${MAIN_100}`,
+  };
+}
+
+const SPHERE = fragments(BODY);
+
+export const FRAGMENT_300 = SPHERE.gl2;
 
 export const VERTEX_100 = `attribute vec2 aPos;
 void main() { gl_Position = vec4(aPos, 0.0, 1.0); }
 `;
 
-export const FRAGMENT_100 = `precision highp float;\n#define TEX texture2D\n${BODY}${MAIN_100}`;
+export const FRAGMENT_100 = SPHERE.gl1;

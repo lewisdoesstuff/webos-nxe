@@ -85,13 +85,15 @@ export function applyManifest(under: Theme, manifest: ThemeManifest, base: strin
         ? under.art.settings
         : joinUrl(base, manifest.art.settings),
   };
+  const consoleArt =
+    manifest.art?.console === undefined ? under.art.console : joinUrl(base, manifest.art.console);
 
   return {
     id: manifest.id,
     name: manifest.name,
     sounds,
     cards,
-    art,
+    art: consoleArt === undefined ? art : { ...art, console: consoleArt },
     avatar: manifest.avatar === undefined ? under.avatar : joinUrl(base, manifest.avatar),
     strings: mergeDeep(under.strings, manifest.strings),
     boot: mergeDeep(under.boot, reviveBoot(manifest.boot, base)),

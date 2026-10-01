@@ -65,6 +65,7 @@ const width = computed(() => {
           d="M18 8h28v4h10v8c0 8-6 14-14 15-2 4-5 7-9 8v7h8v6H23v-6h8v-7c-4-1-7-4-9-8-8-1-14-7-14-15v-8h10zM14 18v2c0 4 3 7 7 8-2-3-3-6-3-10zm36 0h-4c0 4-1 7-3 10 4-1 7-4 7-8z"
         />
       </svg>
+      <i class="alt console-art" />
       <svg class="alt console" viewBox="0 0 64 64" aria-hidden="true">
         <path
           fill-rule="evenodd"
@@ -219,6 +220,18 @@ const width = computed(() => {
 .toast[data-icon="achievement"] .trophy,
 .toast[data-icon="friend"] .friends,
 .toast[data-icon="signin"] .console {
+  display: block;
+}
+
+.console-art {
+  background: var(--theme-console) center / 80% 80% no-repeat;
+}
+
+:root[data-console-art] .toast[data-icon="signin"] .console {
+  display: none;
+}
+
+:root[data-console-art] .toast[data-icon="signin"] .console-art {
   display: block;
 }
 

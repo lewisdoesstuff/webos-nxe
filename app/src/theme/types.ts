@@ -51,7 +51,12 @@ export interface Theme {
   readonly name: string;
   readonly sounds: Readonly<Record<SoundKey, string>>;
   readonly cards: readonly string[];
-  readonly art: { readonly orb: string; readonly settings: string };
+  readonly art: {
+    readonly orb: string;
+    readonly settings: string;
+    /** A silhouette for the sign-in toast, drawn in place of the built-in console when set. */
+    readonly console?: string;
+  };
   readonly avatar: string;
   readonly strings: ThemeStrings;
   readonly boot: BootTheme;
@@ -80,7 +85,11 @@ export interface ThemeManifest {
   readonly sounds?: Partial<Record<SoundKey, string>>;
   readonly fonts?: readonly ThemeFont[];
   readonly cards?: readonly string[];
-  readonly art?: { readonly orb?: string; readonly settings?: string };
+  readonly art?: {
+    readonly orb?: string;
+    readonly settings?: string;
+    readonly console?: string;
+  };
   readonly avatar?: string;
   readonly strings?: Partial<ThemeStrings>;
   /** The boot's numbers and textures; a texture's `url` is a relative path. */

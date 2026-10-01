@@ -67,17 +67,22 @@ async function inline(url: string): Promise<string> {
 /** The boot textures, and the settings pane's icon, which the hub treats as a path unless it is a data URI. */
 async function inlineImages(theme: Theme): Promise<Theme> {
   const { orb, wordmark, flare } = theme.boot;
-  const [orbUrl, markUrl, flareUrl, settingsUrl, coinUrl, cards] = await Promise.all([
+  const [orbUrl, markUrl, flareUrl, settingsUrl, coinUrl, consoleUrl, cards] = await Promise.all([
     inline(orb.url),
     inline(wordmark.url),
     inline(flare.url),
     inline(theme.art.settings),
     inline(theme.art.orb),
+    theme.art.console === undefined ? undefined : inline(theme.art.console),
     Promise.all(theme.cards.map(inline)),
   ]);
   return {
     ...theme,
-    art: { orb: coinUrl, settings: settingsUrl },
+    art: {
+      orb: coinUrl,
+      settings: settingsUrl,
+      ...(consoleUrl === undefined ? {} : { console: consoleUrl }),
+    },
     cards,
     boot: {
       ...theme.boot,
@@ -109,6 +114,13 @@ function install(theme: Theme): void {
   setTheme(theme);
   const root = document.documentElement;
   root.style.setProperty("--theme-orb", `url("${theme.art.orb}")`);
+  if (theme.art.console === undefined) {
+    root.removeAttribute("data-console-art");
+    root.style.removeProperty("--theme-console");
+  } else {
+    root.setAttribute("data-console-art", "");
+    root.style.setProperty("--theme-console", `url("${theme.art.console}")`);
+  }
   for (const [name, value] of Object.entries(theme.cssVars)) root.style.setProperty(name, value);
 }
 

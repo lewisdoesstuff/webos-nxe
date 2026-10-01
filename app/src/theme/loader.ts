@@ -63,15 +63,18 @@ async function inline(url: string): Promise<string> {
   return `data:image/png;base64,${btoa(binary)}`;
 }
 
-async function inlineBoot(theme: Theme): Promise<Theme> {
+/** The boot textures, and the settings pane's icon, which the hub treats as a path unless it is a data URI. */
+async function inlineImages(theme: Theme): Promise<Theme> {
   const { orb, wordmark, flare } = theme.boot;
-  const [orbUrl, markUrl, flareUrl] = await Promise.all([
+  const [orbUrl, markUrl, flareUrl, settingsUrl] = await Promise.all([
     inline(orb.url),
     inline(wordmark.url),
     inline(flare.url),
+    inline(theme.art.settings),
   ]);
   return {
     ...theme,
+    art: { ...theme.art, settings: settingsUrl },
     boot: {
       ...theme.boot,
       orb: { ...orb, url: orbUrl },
@@ -158,7 +161,7 @@ export async function loadTheme(): Promise<void> {
   selected = id;
   let theme = DEFAULT_THEME;
   try {
-    if (id !== DEFAULT_THEME.id) theme = await inlineBoot(await build(id, 0));
+    if (id !== DEFAULT_THEME.id) theme = await inlineImages(await build(id, 0));
     await loadFonts(theme);
   } catch (cause) {
     console.error(`[nxe] theme "${id}" failed, using the default`, cause);

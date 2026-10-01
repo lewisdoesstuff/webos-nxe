@@ -24,6 +24,8 @@ const props = defineProps<{
 }>();
 
 const FONT = '400 40px "Segoe UI", Inter, sans-serif';
+/** No pill is narrower than one that holds this on a line. */
+const FLOOR_TEXT = "Ana is online";
 let ruler: CanvasRenderingContext2D | null | undefined;
 
 /** A line's drawn width: measured in the toast's face, or about 19px a character where there is no canvas. */
@@ -36,8 +38,12 @@ function lineWidth(text: string): number {
 
 /** The pill hugs its longer line: the disc and a margin either side of the words. */
 const width = computed(() => {
-  const longest = Math.max(lineWidth(props.toast?.title ?? ""), lineWidth(props.toast?.body ?? ""));
-  return Math.min(1000, Math.max(330, Math.round(190 + longest)));
+  const longest = Math.max(
+    lineWidth(FLOOR_TEXT),
+    lineWidth(props.toast?.title ?? ""),
+    lineWidth(props.toast?.body ?? ""),
+  );
+  return Math.min(1000, Math.round(190 + longest));
 });
 </script>
 

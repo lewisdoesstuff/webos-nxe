@@ -3,6 +3,10 @@ import { describe, expect, it } from "vitest";
 import { HIDDEN, paneSlot } from "./hub";
 import {
   DEAL_FRAMES_MS,
+  FOLD_FRAMES_MS,
+  LEAVE,
+  foldFrames,
+  swingFrames,
   MOVE_FRAMES_MS,
   MOVE_TRACK,
   cardFrame,
@@ -72,5 +76,27 @@ describe("the deal", () => {
     const frames = dealFrames(2, paneSlot(2));
     expect(frames.at(-1)).toMatchObject({ x: paneSlot(2).x, scale: paneSlot(2).scale });
     expect(DEAL_FRAMES_MS).toBeGreaterThan(600);
+  });
+});
+
+function gone(frames: ReturnType<typeof foldFrames>): number {
+  return frames.findIndex((frame) => frame.opacity === HIDDEN);
+}
+
+describe("leaving for settings", () => {
+  it("folds the spill behind the focus, far card first", () => {
+    const far = foldFrames(4);
+    const near = foldFrames(1);
+    expect(far.at(-1)!.opacity).toBe(HIDDEN);
+    expect(near.at(-1)!.x).toBeCloseTo(cardFrame(0).x, 5);
+    expect(gone(far)).toBeLessThan(gone(near));
+    expect(FOLD_FRAMES_MS).toBeLessThan(LEAVE.panel[0]);
+  });
+
+  it("swings the focused card edge-on and fades it as it turns", () => {
+    const frames = swingFrames(cardFrame(0), 0, 90, LEAVE.panel, LEAVE.panel[1], false);
+    expect(frames[0]!.transform).toContain("rotateY(0deg)");
+    expect(frames.at(-1)!.transform).toContain("rotateY(90deg)");
+    expect(Number(frames.at(-1)!.opacity)).toBe(HIDDEN);
   });
 });

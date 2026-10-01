@@ -147,3 +147,109 @@ export function keyframe(frame: MotionFrame): Keyframe {
     opacity: `${frame.opacity}`,
   };
 }
+
+/**
+ * Leaving the hub for a page, and coming back, from `SceneTransitions` in
+ * `Variables.xur` (HUB-ENGINE.md), in ms from the button press. Going in, the
+ * channel list goes over `channel`, then the focused card swings away about its
+ * left edge over `panel`; the page's panel swings in over `arrive`. Coming back
+ * the page's panel swings out over `depart`, the focused card swings back over
+ * `panel` and the list returns over `channel`.
+ */
+export const LEAVE = {
+  channel: [150, 650],
+  panel: [483, 817],
+  arrive: [817, 1150],
+  title: [400, 567],
+} as const;
+export const RETURN = {
+  depart: [317, 567],
+  panel: [483, 817],
+  channel: [650, 1150],
+  title: [733, 900],
+} as const;
+
+/** The swing's camera, retail's 982 at 720p. */
+const SWING_PERSPECTIVE = 1473;
+const SWING_PIVOT_Y = 240;
+
+/** A card turned `angle` degrees about its left edge, fading as it turns edge-on. */
+export function swungKeyframe(frame: MotionFrame, angle: number): Keyframe {
+  const opacity = Math.max(HIDDEN, frame.opacity * (1 - Math.abs(angle) / 90));
+  return {
+    transform:
+      `translate3d(${frame.x}px, ${frame.y}px, 0) scale(${frame.scale}) ` +
+      `translateY(${SWING_PIVOT_Y}px) perspective(${SWING_PERSPECTIVE}px) rotateY(${angle}deg) ` +
+      `translateY(${-SWING_PIVOT_Y}px)`,
+    opacity: `${opacity}`,
+  };
+}
+
+/** Retail's ease(0, 100): a decelerating curve. */
+function easeOut(t: number): number {
+  return 1 - (1 - t) ** 3;
+}
+
+/**
+ * A swing from `from` to `to` degrees over `window` ms, on a timeline of
+ * `total` ms, held at either end, sampled every frame.
+ */
+export function swingFrames(
+  frame: MotionFrame,
+  from: number,
+  to: number,
+  window: readonly [number, number],
+  total: number,
+  eased: boolean,
+): Keyframe[] {
+  const frames: Keyframe[] = [];
+  const count = Math.max(1, Math.round(total / FRAME_MS));
+  for (let index = 0; index <= count; index++) {
+    const at = (index / count) * total;
+    const t = Math.min(1, Math.max(0, (at - window[0]) / (window[1] - window[0])));
+    frames.push({
+      ...swungKeyframe(frame, from + (to - from) * (eased ? easeOut(t) : t)),
+      offset: index / count,
+    });
+  }
+  return frames;
+}
+
+/**
+ * The spill folding away behind the focused card as the hub is left: the far
+ * card first, each next one once the card beyond it is under
+ * `MobyFoldNextRange` (0.3), at `MobyFoldSpeed` (30 a second) scaled by the
+ * cards in view over its integer, 7.
+ */
+function foldTracks(cards: number): number[][] {
+  const speed = (30 * (cards + 2)) / 7;
+  const folds: number[] = Array.from({ length: cards + 1 }, () => 1);
+  const tracks: number[][] = Array.from({ length: cards + 1 }, () => []);
+  for (let frame = 0; frame < 240; frame++) {
+    folds.forEach((fold, index) => tracks[index]!.push(fold));
+    if (folds.slice(1).every((fold) => fold <= 0)) break;
+    for (let index = cards; index >= 1; index--) {
+      const beyond = index === cards ? 0 : folds[index + 1]!;
+      if (beyond < 0.3 && folds[index]! > 0) {
+        folds[index] = Math.max(0, folds[index]! - speed * FRAME_S);
+      }
+    }
+  }
+  return tracks;
+}
+
+const FOLD_TRACKS = foldTracks(LAST_OFFSET - 1);
+
+export const FOLD_FRAMES_MS = ((FOLD_TRACKS[0]?.length ?? 1) - 1) * FRAME_MS;
+
+/** The frames of the spill card `offset` places right of the focus folding away. */
+export function foldFrames(offset: number): MotionFrame[] {
+  const length = FOLD_TRACKS[0]?.length ?? 1;
+  const frames: MotionFrame[] = [];
+  for (let frame = 0; frame < length; frame++) {
+    let position = 0;
+    for (let index = 1; index <= offset; index++) position += FOLD_TRACKS[index]?.[frame] ?? 0;
+    frames.push(cardFrame(position, FOLD_TRACKS[offset]?.[frame] ?? 0));
+  }
+  return frames;
+}

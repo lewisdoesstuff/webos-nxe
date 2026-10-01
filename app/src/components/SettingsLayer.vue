@@ -1,15 +1,8 @@
 <script setup lang="ts" vapor>
 import { computed, nextTick, ref, watch } from "vue";
 
-import {
-  DRILL_EASE_IN,
-  DRILL_EASE_OUT,
-  DRILL_MS,
-  HUB_PANEL_BOX,
-  pageRest,
-  type Page,
-  type PageFocus,
-} from "../pages";
+import { LEAVE, RETURN } from "../hubMotion";
+import { type Page, type PageFocus } from "../pages";
 import { PARKED, useParked } from "../parked";
 import type { Box } from "../ribbon";
 import { SETTINGS_ROWS, settingsWindow, type SettingDetail } from "../settingsScreen";
@@ -21,11 +14,12 @@ import { qrMatrix, qrPath } from "../steam/qr";
  * option list down its left and the focused row's detail down its right.
  *
  * Two surfaces, both mounted before the screen is opened and both resting at
- * `opacity: 0.001`. The panel is authored at its open box and transformed onto
- * the pane it grows from, so opening changes one transform and one opacity on a
- * layer that already exists; its texture is the panel and nothing else. The
- * title is a small layer of its own that only fades. Every box inside the panel
- * is static paint on that one surface.
+ * `opacity: 0.001`. The panel swings in about its right edge once the hub's
+ * focused card has swung away, and back out before it returns, on retail's
+ * scene transition (`hubMotion.ts`), so opening changes one transform and one
+ * opacity on a layer that already exists; its texture is the panel and nothing
+ * else. The title is a small layer of its own that only fades. Every box
+ * inside the panel is static paint on that one surface.
  */
 
 const props = defineProps<{
@@ -33,8 +27,6 @@ const props = defineProps<{
   focus: PageFocus;
   open: boolean;
   detail: SettingDetail;
-  /** The box a closed panel rests on, in the frame's 720p pixels. */
-  rest?: Box;
   /** A value being typed in the detail column, with the TV's keyboard, or null. */
   draft?: string | null;
   /** The draft is a number, so the keyboard offers digits. */
@@ -74,7 +66,7 @@ function onEntryKey(event: KeyboardEvent): void {
 /** The retail panel, measured off the 1280x720 settings frames. */
 const PANEL: Box = { x: 196, y: 111, width: 889, height: 481 };
 
-const parked = useParked(() => props.open, DRILL_MS);
+const parked = useParked(() => props.open, RETURN.title[1]);
 
 /** The focused row's drawn control, split so the template reads each shape plainly. */
 const toggle = computed(() => {
@@ -92,28 +84,24 @@ const code = computed(() => {
   return { size: matrix.length, path: qrPath(matrix) };
 });
 
-const rest = computed(() => pageRest(props.rest ?? HUB_PANEL_BOX, PANEL));
+const span = (window: readonly [number, number]): string => `${window[1] - window[0]}ms`;
 
-const panelStyle = computed((): Record<string, string> => {
-  const at = rest.value;
-  return {
-    "--drill-ms": `${DRILL_MS}ms`,
-    "--drill-in": DRILL_EASE_IN,
-    "--drill-out": DRILL_EASE_OUT,
-    left: `${PANEL.x}px`,
-    top: `${PANEL.y}px`,
-    width: `${PANEL.width}px`,
-    height: `${PANEL.height}px`,
-    transformOrigin: `${at.originX}px ${at.originY}px`,
-    transform: props.open
-      ? "translate3d(0, 0, 0) scale(1, 1)"
-      : `translate3d(${at.dx}px, ${at.dy}px, 0) scale(${at.scaleX}, ${at.scaleY})`,
-  };
-});
+const panelStyle = computed((): Record<string, string> => ({
+  "--in-ms": span(LEAVE.arrive),
+  "--in-at": `${LEAVE.arrive[0]}ms`,
+  "--out-ms": span(RETURN.depart),
+  "--out-at": `${RETURN.depart[0]}ms`,
+  left: `${PANEL.x}px`,
+  top: `${PANEL.y}px`,
+  width: `${PANEL.width}px`,
+  height: `${PANEL.height}px`,
+}));
 
 const titleStyle = {
-  "--drill-ms": `${DRILL_MS}ms`,
-  "--drill-out": DRILL_EASE_OUT,
+  "--in-ms": span(LEAVE.title),
+  "--in-at": `${LEAVE.title[0]}ms`,
+  "--out-ms": span(RETURN.title),
+  "--out-at": `${RETURN.title[0]}ms`,
 };
 
 interface Slot {
@@ -253,11 +241,12 @@ const withIcons = computed(() => items.value.some((item) => item.icon !== undefi
   text-shadow: 0 2px 3px rgba(0, 0, 0, 0.5);
   opacity: 0.001;
   will-change: transform, opacity;
-  transition: opacity var(--drill-ms) var(--drill-out);
+  transition: opacity var(--out-ms) linear var(--out-at);
 }
 
 .settings[data-open] .title {
   opacity: 1;
+  transition: opacity var(--in-ms) linear var(--in-at);
 }
 
 .panel {
@@ -278,15 +267,20 @@ const withIcons = computed(() => items.value.some((item) => item.icon !== undefi
     #001421 100%
   );
   opacity: 0.001;
+  transform: perspective(982px) rotateY(-90deg);
+  transform-origin: 100% 50%;
   will-change: transform, opacity;
   transition:
-    transform var(--drill-ms) var(--drill-out),
-    opacity var(--drill-ms) var(--drill-out);
+    transform var(--out-ms) linear var(--out-at),
+    opacity var(--out-ms) linear var(--out-at);
 }
 
 .settings[data-open] .panel {
   opacity: 1;
-  transition-timing-function: var(--drill-in);
+  transform: perspective(982px) rotateY(0deg);
+  transition:
+    transform var(--in-ms) cubic-bezier(0.215, 0.61, 0.355, 1) var(--in-at),
+    opacity var(--in-ms) cubic-bezier(0.215, 0.61, 0.355, 1) var(--in-at);
 }
 
 .list {

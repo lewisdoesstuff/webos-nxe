@@ -40,10 +40,8 @@ import {
   MOVE_EASE,
   MOVE_MS,
   PAGE_STEP,
-  PANE_H,
   PANE_W,
   PANE_X,
-  PANE_Y,
   advancePins,
   paneSlot,
   placePool,
@@ -53,11 +51,17 @@ import {
 } from "./hub";
 import {
   DEAL_FRAMES_MS,
+  FOLD_FRAMES_MS,
+  LEAVE,
   MOVE_FRAMES_MS,
+  RETURN,
   dealFrames,
+  foldFrames,
   keyframe,
   moveAt,
   moveFrames,
+  slotFrame,
+  swingFrames,
 } from "./hubMotion";
 import {
   type HubItem,
@@ -506,7 +510,7 @@ function paneMotion(pane: PooledPane): PaneMotion {
   let transition = driving.value ? "none" : moveTransition;
   if (hubAway.value || !loaded.value || phase.value === "out") {
     opacity = HIDDEN;
-    transition = `opacity ${CHANNEL_OUT_MS}ms linear`;
+    transition = swinging.value ? "none" : `opacity ${CHANNEL_OUT_MS}ms linear`;
   } else if (phase.value === "collapsed") {
     if (pane.offset > 0) x = PANE_X + PANE_W * (1 - scale);
     opacity = HIDDEN;
@@ -632,6 +636,7 @@ function labelStyle(index: number): Record<string, string> {
     "line-height": `${LABEL_H}px`,
     transform: `translate3d(${slot.x}px, ${slot.y}px, 0) scale(${slot.scale})`,
     opacity: `${hubAway.value ? HIDDEN : slot.opacity}`,
+    ...(swinging.value ? { transition: labelSwing.value } : {}),
   };
 }
 
@@ -702,13 +707,6 @@ const guideParked = computed(() => guideAway.value && !warming.value);
 const friendParked = computed(() => friendAway.value && !warming.value);
 const parkedFrame = { transform: `${PARKED} scale(1.5)` };
 
-const settingsRestBox = {
-  x: PANE_X / 1.5,
-  y: PANE_Y / 1.5,
-  width: PANE_W / 1.5,
-  height: PANE_H / 1.5,
-};
-
 const motion = {
   "--move-ms": `${MOVE_MS}ms`,
   "--move-ease": MOVE_EASE,
@@ -745,7 +743,10 @@ function scripted(animation: Animation): boolean {
 function cancelDriven(): void {
   const avatar = avatarElement();
   for (const element of avatar ? [...paneElements(), avatar] : paneElements()) {
-    element.getAnimations().filter(scripted).forEach((animation) => animation.cancel());
+    element
+      .getAnimations()
+      .filter(scripted)
+      .forEach((animation) => animation.cancel());
   }
   moves.clear();
   clearTimeout(drivingTimer);
@@ -796,7 +797,10 @@ async function driveMove(
       was.item !== pane.item ||
       was.at === pane.offset
     ) {
-      element?.getAnimations().filter(scripted).forEach((animation) => animation.cancel());
+      element
+        ?.getAnimations()
+        .filter(scripted)
+        .forEach((animation) => animation.cancel());
       moves.delete(pane.element);
       continue;
     }
@@ -853,6 +857,82 @@ async function releasePanes(mine: number): Promise<void> {
     released.value = rank;
   }
   held.value = null;
+}
+
+/**
+ * Settings opening and closing on retail's scene transition: the spill folds
+ * away behind the focused card, the channel list goes, and the focused card
+ * swings away about its left edge; closing, it swings back and the spill deals
+ * out again. `swinging` holds the CSS transitions off while it runs.
+ */
+const swinging = ref(false);
+const labelSwing = ref("none");
+let swingTimer: ReturnType<typeof setTimeout> | undefined;
+
+function swingFor(ms: number): void {
+  swinging.value = true;
+  clearTimeout(swingTimer);
+  swingTimer = setTimeout(() => (swinging.value = false), ms);
+}
+
+function fadeOnly(frame: Keyframe): Keyframe {
+  return frame.offset === undefined
+    ? { opacity: frame.opacity ?? "1" }
+    : { opacity: frame.opacity ?? "1", offset: frame.offset };
+}
+
+async function driveLeave(): Promise<void> {
+  const total = LEAVE.panel[1];
+  labelSwing.value = `opacity ${LEAVE.channel[1] - LEAVE.channel[0]}ms linear ${LEAVE.channel[0]}ms`;
+  swingFor(total);
+  await nextTick();
+  const elements = paneElements();
+  const avatarOf = avatarPane.value?.element;
+  for (const pane of pool.value) {
+    const element = elements[pane.element];
+    if (!element || pane.item === null || pane.offset < 0) continue;
+    let options: KeyframeAnimationOptions;
+    let frames: Keyframe[];
+    if (pane.offset === 0) {
+      frames = swingFrames(slotFrame(pane.slot), 0, 90, LEAVE.panel, total, false);
+      options = { duration: total, easing: "linear" };
+    } else {
+      frames = foldFrames(pane.offset).map(keyframe);
+      options = { duration: FOLD_FRAMES_MS, easing: "linear" };
+    }
+    element.animate(frames, options);
+    if (pane.element === avatarOf) {
+      avatarElement()?.animate(frames.map(fadeOnly), options);
+    }
+  }
+}
+
+async function driveReturn(): Promise<void> {
+  const total = RETURN.channel[1];
+  labelSwing.value = `opacity ${RETURN.channel[1] - RETURN.channel[0]}ms ease-out ${RETURN.channel[0]}ms`;
+  swingFor(total);
+  await nextTick();
+  const elements = paneElements();
+  const avatarOf = avatarPane.value?.element;
+  const options: KeyframeAnimationOptions = { duration: RETURN.panel[1], easing: "linear" };
+  const dealing: KeyframeAnimationOptions = {
+    duration: DEAL_FRAMES_MS,
+    delay: RETURN.panel[1],
+    easing: "linear",
+    fill: "backwards",
+  };
+  for (const pane of pool.value) {
+    const element = elements[pane.element];
+    if (!element || pane.item === null || pane.offset < 0) continue;
+    const frames =
+      pane.offset === 0
+        ? swingFrames(slotFrame(pane.slot), 90, 0, RETURN.panel, RETURN.panel[1], true)
+        : dealFrames(pane.offset, pane.slot).map(keyframe);
+    element.animate(frames, pane.offset === 0 ? options : dealing);
+    if (pane.element === avatarOf) {
+      avatarElement()?.animate(frames.map(fadeOnly), pane.offset === 0 ? options : dealing);
+    }
+  }
 }
 
 async function changeChannel(): Promise<void> {
@@ -1012,6 +1092,11 @@ watch([hubAway, guide], ([away, open]) => {
   settle();
 });
 
+watch(settingsOpen, (open) => {
+  cancelDriven();
+  void (open ? driveLeave() : driveReturn());
+});
+
 watch(
   () => settings.settings.steam,
   (on) => void steam.setEnabled(on),
@@ -1126,7 +1211,6 @@ function expose(): void {
         :focus="settingsFocus"
         :open="settingsOpen && !friendCard"
         :detail="settingsDetailShown"
-        :rest="settingsRestBox"
         :draft="draft"
         :numeric="draftKey === 'gamerscore'"
         @commit="commitDraft"

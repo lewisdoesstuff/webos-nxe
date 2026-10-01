@@ -28,6 +28,8 @@ export interface Settings {
   remoteHints: boolean;
   /** Toasts over the hub, such as the sign-in. */
   toasts: boolean;
+  /** Whether anything talks to Steam: the sign-in, the friends poll and the Friends channel. */
+  steam: boolean;
   /** A live picture in the focused HDMI pane, where the TV has a signal. */
   livePreviews: boolean;
   reduceMotion: boolean;
@@ -69,6 +71,7 @@ export const SETTINGS_DEFAULTS: Settings = {
   hintBar: true,
   remoteHints: false,
   toasts: true,
+  steam: true,
   livePreviews: false,
   reduceMotion: false,
   appOrder: [],
@@ -156,6 +159,7 @@ export function mergeSettings(stored: unknown): { settings: Settings; migrated: 
     hintBar: booleanOr(source["hintBar"], SETTINGS_DEFAULTS.hintBar),
     remoteHints: booleanOr(source["remoteHints"], SETTINGS_DEFAULTS.remoteHints),
     toasts: booleanOr(source["toasts"], SETTINGS_DEFAULTS.toasts),
+    steam: booleanOr(source["steam"], SETTINGS_DEFAULTS.steam),
     livePreviews: booleanOr(source["livePreviews"], SETTINGS_DEFAULTS.livePreviews),
     reduceMotion: booleanOr(source["reduceMotion"], SETTINGS_DEFAULTS.reduceMotion),
     appOrder: stringArrayOr(source["appOrder"], SETTINGS_DEFAULTS.appOrder),

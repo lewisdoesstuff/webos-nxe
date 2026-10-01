@@ -40,8 +40,12 @@ export function httpSteam(mock: boolean): SteamApi {
   });
 }
 
-/** Whichever backend this page has: Luna on the TV, the dev server elsewhere. `?steam=mock` picks the mock. */
+/**
+ * Whichever backend this page has: Luna on the TV, the dev server elsewhere. The dev
+ * server answers from its mock unless the page asks for `?steam=live`, so a desktop
+ * session never holds a second Steam login by accident.
+ */
 export function pickSteam(): SteamApi {
   if (typeof window.PalmServiceBridge === "function") return lunaSteam();
-  return httpSteam(new URLSearchParams(window.location.search).get("steam") === "mock");
+  return httpSteam(new URLSearchParams(window.location.search).get("steam") !== "live");
 }

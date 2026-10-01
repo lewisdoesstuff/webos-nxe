@@ -10,14 +10,14 @@ import type {
 /** The part of steam-session's `LoginSession` this backend uses, so a test can stand in for it. */
 export interface QrSession {
   readonly steamID: { getSteamID64(): string };
-  accessToken: string;
   refreshToken: string;
   on(
     event: "remoteInteraction" | "authenticated" | "timeout" | "error",
     listener: (error?: Error) => void,
   ): unknown;
   startWithQR(): Promise<{ qrChallengeUrl?: string }>;
-  refreshAccessToken(): Promise<void>;
+  /** Web cookies for the session's refresh token; one of them, `steamLoginSecure`, carries the access token. */
+  getWebCookies(): Promise<string[]>;
   cancelLoginAttempt(): boolean;
 }
 
@@ -96,10 +96,34 @@ export function toFriend(summary: Summary): SteamFriend {
     : { ...base, ...extra };
 }
 
+/**
+ * The access token out of a session's `steamLoginSecure` cookie, which is
+ * `<steamid>||<jwt>` URL-encoded. A WebBrowser session cannot refresh an access
+ * token directly, so getting the cookies is how it obtains one.
+ */
+export async function webAccess(session: Pick<QrSession, "getWebCookies">): Promise<string> {
+  const cookies = await session.getWebCookies();
+  const cookie = cookies.find((entry) => entry.startsWith("steamLoginSecure="));
+  const token = cookie
+    ? decodeURIComponent(cookie.slice("steamLoginSecure=".length).split(";")[0] ?? "").split(
+        "||",
+      )[1]
+    : undefined;
+  if (!token) throw new Error("Steam gave no web session.");
+  return token;
+}
+
+/** What a token with no readable expiry is trusted for, and the least time between two renewals. */
+const UNKNOWN_LIFETIME_MS = 30 * 60_000;
+const RENEW_EARLY_MS = 5 * 60_000;
+const RENEW_GAP_MS = 5 * 60_000;
+
 interface Session {
   steamId: string;
   access: string;
   expires: number;
+  /** When the access token was last obtained, so a renewal is never sooner than `RENEW_GAP_MS`. */
+  renewedAt: number;
   name: string;
   avatar: string;
 }
@@ -116,18 +140,25 @@ export function createSteamBackend(deps: SteamDeps): SteamApi {
   let refresh: string | null = null;
   let restored: Promise<void> | null = null;
 
-  async function openSession(refreshToken: string): Promise<void> {
-    const fresh = deps.newSession();
-    fresh.refreshToken = refreshToken;
-    await fresh.refreshAccessToken();
+  /** Gets an access token for a session whose refresh token is set, and keeps the result. */
+  async function adopt(held: QrSession): Promise<void> {
+    const access = await webAccess(held);
+    const expires = tokenExpiry(access);
     session = {
-      steamId: fresh.steamID.getSteamID64(),
-      access: fresh.accessToken,
-      expires: tokenExpiry(fresh.accessToken),
+      steamId: held.steamID.getSteamID64(),
+      access,
+      expires: expires > 0 ? expires : now() + UNKNOWN_LIFETIME_MS,
+      renewedAt: now(),
       name: session?.name ?? "",
       avatar: session?.avatar ?? "",
     };
-    refresh = refreshToken;
+    refresh = held.refreshToken;
+  }
+
+  async function openSession(refreshToken: string): Promise<void> {
+    const fresh = deps.newSession();
+    fresh.refreshToken = refreshToken;
+    await adopt(fresh);
   }
 
   function restore(): Promise<void> {
@@ -147,7 +178,9 @@ export function createSteamBackend(deps: SteamDeps): SteamApi {
   async function accessToken(): Promise<Session> {
     await restore();
     if (session === null || refresh === null) throw new Error("Not signed in.");
-    if (session.expires - now() < 60_000) await openSession(refresh);
+    if (session.expires - now() < RENEW_EARLY_MS && now() - session.renewedAt > RENEW_GAP_MS) {
+      await openSession(refresh);
+    }
     return session ?? Promise.reject(new Error("Not signed in."));
   }
 
@@ -206,18 +239,24 @@ export function createSteamBackend(deps: SteamDeps): SteamApi {
       next.on("authenticated", () => {
         if (login !== next) return;
         const token = next.refreshToken;
-        session = {
-          steamId: next.steamID.getSteamID64(),
-          access: next.accessToken,
-          expires: tokenExpiry(next.accessToken),
-          name: "",
-          avatar: "",
-        };
-        refresh = token;
-        restored = Promise.resolve();
-        qr = { state: "signedIn" };
-        login = null;
-        void deps.store.write(token);
+        session = null;
+        void adopt(next).then(
+          () => {
+            if (login !== next) return;
+            restored = Promise.resolve();
+            qr = { state: "signedIn" };
+            login = null;
+            return deps.store.write(token);
+          },
+          (error: unknown) => {
+            if (login === next) {
+              qr = {
+                state: "error",
+                message: error instanceof Error ? error.message : String(error),
+              };
+            }
+          },
+        );
       });
       try {
         const started = await next.startWithQR();

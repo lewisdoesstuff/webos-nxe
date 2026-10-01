@@ -53,6 +53,7 @@ export function useSettingsDrill(leaveHub: () => void) {
     qr: steam.qr,
     error: steam.error,
     games: steam.games,
+    enabled: steam.enabled,
   }));
 
   function openOn(page: Page): void {

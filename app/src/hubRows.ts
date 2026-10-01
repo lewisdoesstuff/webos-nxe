@@ -91,9 +91,17 @@ export function friendIdOf(item: HubItem | null | undefined): string | null {
 export const FRIEND_PANES = 48;
 
 /** The Friends channel's row: each friend as a pane, or one placeholder saying why there are none. */
-export function friendsRow(friends: readonly SteamFriend[], signedIn: boolean): HubItem[] {
+export function friendsRow(
+  friends: readonly SteamFriend[],
+  signedIn: boolean,
+  enabled = true,
+): HubItem[] {
   if (friends.length === 0) {
-    const title = signedIn ? "No friends to show" : "Sign in to Steam in System Settings";
+    const title = !enabled
+      ? "Steam is off in General settings"
+      : signedIn
+        ? "No friends to show"
+        : "Sign in to Steam in System Settings";
     return [{ id: "empty:friends", title, kind: "empty" }];
   }
   return friends.slice(0, FRIEND_PANES).map((friend) => ({

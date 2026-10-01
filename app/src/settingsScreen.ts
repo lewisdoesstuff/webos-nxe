@@ -139,6 +139,13 @@ export const GENERAL_DEFS: readonly SettingDef[] = [
   },
   {
     kind: "flag",
+    key: "steam",
+    title: "Steam",
+    description:
+      "Off stops every call to Steam: the sign-in, the friends list and its notifications.",
+  },
+  {
+    kind: "flag",
     key: "toasts",
     title: "Notifications",
     description: "The pop-up over the hub when you sign in.",

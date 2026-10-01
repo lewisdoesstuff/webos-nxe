@@ -27,17 +27,21 @@ export const useSteamStore = defineStore("steam", () => {
   const qr = ref<QrPoll | null>(null);
   const error = ref("");
   const games = ref<Readonly<Record<string, GamesState>>>({});
+  const enabled = ref(true);
   let toast: (toast: Toast) => void = ignoreToast;
   let last: readonly SteamFriend[] | null = null;
   let friendsTimer: ReturnType<typeof setInterval> | null = null;
   let qrTimer: ReturnType<typeof setTimeout> | null = null;
 
   function backend(): SteamApi {
+    if (!enabled.value) throw new Error("Steam is off.");
     api.value ??= pickSteam();
     return api.value;
   }
 
   async function refreshFriends(): Promise<void> {
+    // A page that is not showing has nothing to refresh, and a backgrounded one has no timers anyway.
+    if (!enabled.value || document.hidden) return;
     try {
       const next = sortFriends(await backend().friends());
       for (const item of onlineToasts(last, next)) toast(item);
@@ -73,6 +77,23 @@ export const useSteamStore = defineStore("steam", () => {
       return;
     }
     if (status.value.state === "signedIn") startFriends();
+  }
+
+  /**
+   * The Steam setting. Off stops the poll and the sign-in and clears what the page
+   * holds, so nothing calls Steam; on asks who is signed in again.
+   */
+  async function setEnabled(on: boolean): Promise<void> {
+    if (enabled.value === on) return;
+    enabled.value = on;
+    if (on) {
+      await start(toast);
+      return;
+    }
+    stopQr();
+    stopFriends();
+    qr.value = null;
+    status.value = { state: "signedOut" };
   }
 
   function stopQr(): void {
@@ -154,7 +175,9 @@ export const useSteamStore = defineStore("steam", () => {
     qr,
     error,
     games,
+    enabled,
     loadGames,
+    setEnabled,
     start,
     beginQr,
     cancelQr,

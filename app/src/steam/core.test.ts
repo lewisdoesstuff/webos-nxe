@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   createSteamBackend,
   tokenExpiry,
+  webAccess,
   toFriend,
   type QrSession,
 } from "../../../service/steam/core";
@@ -11,7 +12,6 @@ type Listener = (error?: Error) => void;
 
 class FakeSession implements QrSession {
   steamID = { getSteamID64: () => "76561198000000001" };
-  accessToken = "";
   refreshToken = "";
   listeners = new Map<string, Listener>();
   cancelled = false;
@@ -22,8 +22,11 @@ class FakeSession implements QrSession {
   async startWithQR() {
     return { qrChallengeUrl: "https://s.team/q/1/abc" };
   }
-  async refreshAccessToken() {
-    this.accessToken = jwt(Date.now() + 3_600_000);
+  async getWebCookies() {
+    const value = encodeURIComponent(
+      `${this.steamID.getSteamID64()}||${jwt(Date.now() + 3_600_000)}`,
+    );
+    return [`steamLoginSecure=${value}; Path=/`, "sessionid=abc"];
   }
   cancelLoginAttempt() {
     this.cancelled = true;
@@ -97,8 +100,8 @@ describe("steam backend", () => {
     session.emit("remoteInteraction");
     expect((await backend.pollQr()).state).toBe("scanned");
     session.refreshToken = "REFRESH";
-    session.accessToken = jwt(Date.now() + 3_600_000);
     session.emit("authenticated");
+    await new Promise((resolve) => setTimeout(resolve));
     expect(await backend.pollQr()).toEqual({ state: "signedIn" });
     const status = await backend.status();
     expect(status).toEqual({ state: "signedIn", steamId: "76561198000000001", name: "Me" });
@@ -131,6 +134,38 @@ describe("steam backend", () => {
     const { backend } = setup("REFRESH");
     // The fake answers every path with one body, so only the private case is shaped here.
     await expect(backend.games("not-an-id")).rejects.toThrow("Not a Steam ID");
+  });
+
+  it("reads the access token out of the steamLoginSecure cookie", async () => {
+    const token = jwt(5_000_000);
+    const cookie = `steamLoginSecure=${encodeURIComponent(`7656119800||${token}`)}; Path=/; Secure`;
+    expect(await webAccess({ getWebCookies: async () => [cookie] })).toBe(token);
+    await expect(webAccess({ getWebCookies: async () => ["sessionid=x"] })).rejects.toThrow();
+  });
+
+  it("renews through the web cookies and not more than once in five minutes", async () => {
+    let clock = Date.now();
+    const sessions: FakeSession[] = [];
+    const backend = createSteamBackend({
+      newSession: () => {
+        const session = new FakeSession();
+        sessions.push(session);
+        return session;
+      },
+      store: { read: async () => "REFRESH", write: async () => undefined },
+      fetch: (async () =>
+        new Response(
+          JSON.stringify({ response: { friendslist: { friends: [] } } }),
+        )) as typeof fetch,
+      now: () => clock,
+    });
+    await backend.friends();
+    const first = sessions.length;
+    clock += 56 * 60_000;
+    await backend.friends();
+    expect(sessions.length).toBe(first + 1);
+    await backend.friends();
+    expect(sessions.length).toBe(first + 1);
   });
 
   it("signs out and forgets the token", async () => {

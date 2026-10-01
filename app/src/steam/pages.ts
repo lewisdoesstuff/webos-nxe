@@ -17,6 +17,8 @@ export interface SteamView {
   readonly qr: QrPoll | null;
   readonly error: string;
   readonly games: Readonly<Record<string, GamesState>>;
+  /** The Steam setting. Off, every Steam screen says so and offers nothing. */
+  readonly enabled: boolean;
 }
 
 export const EMPTY_STEAM: SteamView = {
@@ -25,6 +27,7 @@ export const EMPTY_STEAM: SteamView = {
   qr: null,
   error: "",
   games: {},
+  enabled: true,
 };
 
 export const STEAM_ROOT = "settings:steam";
@@ -74,6 +77,7 @@ function list(id: string, title: string, items: ListPage["groups"][number]["item
 
 export function steamPage(id: string, view: SteamView): ListPage | null {
   if (id === STEAM_ROOT) {
+    if (!view.enabled) return list(id, "Steam", [{ id: "steam:off", label: "Steam is off" }]);
     return view.status.state === "signedIn"
       ? list(id, "Steam", [
           { id: "steam:account", label: view.status.name },

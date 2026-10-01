@@ -225,7 +225,7 @@ const rowSettings = computed((previous?: Settings) => {
 const rows = computed(() =>
   channels.map((channel) => {
     if (channel.id === "friends") {
-      return friendsRow(steam.friends, steam.status.state === "signedIn");
+      return friendsRow(steam.friends, steam.status.state === "signedIn", steam.enabled);
     }
     const row = withDescriptions(
       hubRow(channel.id, apps.launchPoints, rowSettings.value),
@@ -871,6 +871,11 @@ const rings = ripplePattern(deviceSeed()).map((group) => ({
 
 watch([hubAway, guide], settle);
 
+watch(
+  () => settings.settings.steam,
+  (on) => void steam.setEnabled(on),
+);
+
 onMounted(() => {
   chooseBootMode();
   settleBoot();
@@ -878,7 +883,8 @@ onMounted(() => {
   void apps.load();
   void loadFont();
   useSystemToastsStore().start(notify);
-  steamStarted = steam.start(notify);
+  steam.enabled = settings.settings.steam;
+  steamStarted = settings.settings.steam ? steam.start(notify) : Promise.resolve();
   expose();
 });
 

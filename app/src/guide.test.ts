@@ -459,9 +459,11 @@ describe("channel rows of any length", () => {
   });
 });
 
-describe("the blade stack", () => {
-  const sides = (focus: number) => placeBlades(focus, BLADE_IDS).map((slab) => slab.side);
+function sides(focus: number) {
+  return placeBlades(focus, BLADE_IDS).map((slab) => slab.side);
+}
 
+describe("the blade stack", () => {
   it("has one slab per blade, the focused one parked under the panel", () => {
     for (let focus = 0; focus < BLADE_COUNT; focus += 1) {
       const slabs = placeBlades(focus, BLADE_IDS);
@@ -482,14 +484,14 @@ describe("the blade stack", () => {
   it("puts the nearest slab of each side against the panel and steps outward", () => {
     const slabs = placeBlades(2, BLADE_IDS);
     const left = slabs.filter((slab) => slab.side === "left").sort((a, b) => a.slot - b.slot);
-    const right = slabs.filter((slab) => slab.side === "right").sort((a, b) => a.slot - b.slot);
+    const rights = slabs.filter((slab) => slab.side === "right").sort((a, b) => a.slot - b.slot);
     expect(at(left, 0).x + SLAB_W).toBe(PANEL_X + SLAB_TUCK);
-    expect(at(right, 0).x).toBe(PANEL_X + PANEL_W - SLAB_TUCK);
+    expect(at(rights, 0).x).toBe(PANEL_X + PANEL_W - SLAB_TUCK);
     const shown = SLAB_W * at(SLAB_SCALE, 0) - SLAB_OVERLAP;
     expect(at(left, 0).x - at(left, 1).x).toBeCloseTo(shown, 10);
-    expect(at(right, 1).x - at(right, 0).x).toBeCloseTo(shown, 10);
+    expect(at(rights, 1).x - at(rights, 0).x).toBeCloseTo(shown, 10);
     expect(at(left, 0).id).toBe("games");
-    expect(at(right, 0).id).toBe("media");
+    expect(at(rights, 0).id).toBe("media");
   });
 
   it("overlaps each slab by more than the nearer one's bowed edge, so no gap opens", () => {

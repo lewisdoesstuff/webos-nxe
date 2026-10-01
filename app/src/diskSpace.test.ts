@@ -5,6 +5,10 @@ import { formatFree, parseDevices, parseSpace, pickSpace } from "./diskSpace";
 const internal = { id: "INTERNAL_STORAGE_CAMERA", kind: "internal camera" };
 const usb = { id: "usb:1", kind: "usb" };
 
+function space(freeMb: number) {
+  return { internal: false, totalMb: 1e6, freeMb };
+}
+
 describe("storage", () => {
   it("leaves the bundled samples out of the devices", () => {
     const devices = parseDevices({
@@ -39,10 +43,9 @@ describe("storage", () => {
   });
 
   it("writes the free space as retail did", () => {
-    const at = (freeMb: number) => ({ internal: false, totalMb: 1e6, freeMb });
-    expect(formatFree(at(109568))).toBe("107 GB free");
-    expect(formatFree(at(2882))).toBe("2.8 GB free");
-    expect(formatFree(at(640))).toBe("640 MB free");
+    expect(formatFree(space(109568))).toBe("107 GB free");
+    expect(formatFree(space(2882))).toBe("2.8 GB free");
+    expect(formatFree(space(640))).toBe("640 MB free");
     expect(formatFree(null)).toBe("");
   });
 });

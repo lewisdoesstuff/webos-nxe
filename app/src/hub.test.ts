@@ -90,9 +90,16 @@ describe("placePool", () => {
   });
 });
 
+function at(channel: number, item: number): HubState {
+  return { channel, item };
+}
+
+function elementOf(pool: ReturnType<typeof placePool>, item: number): number | undefined {
+  return pool.find((pane) => pane.item === item)?.element;
+}
+
 describe("stepHub", () => {
   const counts = [4, 0, 8, 2, 12];
-  const at = (channel: number, item: number): HubState => ({ channel, item });
 
   it("moves along the row and clamps at both ends", () => {
     expect(stepHub(at(4, 0), "right", counts)).toEqual(at(4, 1));
@@ -141,8 +148,6 @@ describe("counterText", () => {
 
 describe("pinned pool", () => {
   it("keeps a moved item on its element and slides like the modulo rule otherwise", () => {
-    const elementOf = (pool: ReturnType<typeof placePool>, item: number) =>
-      pool.find((pane) => pane.item === item)?.element;
     const base = placePool(3, 20);
     const pins = new Map<number, number>();
     for (const pane of base) if (pane.item !== null) pins.set(pane.item, pane.element);

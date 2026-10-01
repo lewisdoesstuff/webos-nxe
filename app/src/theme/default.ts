@@ -64,6 +64,7 @@ export const DEFAULT_THEME: Theme = {
   },
   cards: [card1, card2, card3, card4, card5, card6, card7, card8],
   art: { orb: orbUrl, settings: settingsUrl },
+  icons: { buttons: {} },
   avatar: fixtureUrl,
   strings: {
     channels: ["Spotlight", "Friends", "Media Store", "Game Store", "My Console"],

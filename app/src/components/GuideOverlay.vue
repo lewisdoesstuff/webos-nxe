@@ -377,7 +377,12 @@ function barStyle(): Record<string, string> {
 
 function discStyle(prompt: Prompt): Record<string, string> {
   const face = faceFor(prompt, props.remote);
-  return { "--fill": face.fill, "--ring": face.ring, "--letter": face.glyph };
+  return {
+    "--fill": face.fill,
+    "--ring": face.ring,
+    "--letter": face.glyph,
+    "--art": `var(--theme-btn-${prompt.button}, none)`,
+  };
 }
 
 const PANEL: Box = { x: PANEL_X, y: PANEL_Y, width: PANEL_W, height: PANEL_H };
@@ -871,6 +876,18 @@ const CLOCK: Box = { x: CLOCK_X, y: CLOCK_Y, width: CLOCK_W, height: CLOCK_H };
   color: var(--letter, #fff);
 }
 
+:global(:root[data-button-art]) .disc {
+  background: none;
+  box-shadow: none;
+}
+
+:global(:root[data-button-art]) .disc::before {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  background: var(--art) center / 100% 100% no-repeat;
+}
+
 .letter[data-remote] {
   font-size: 9px;
   letter-spacing: 0;
@@ -880,6 +897,7 @@ const CLOCK: Box = { x: CLOCK_X, y: CLOCK_Y, width: CLOCK_W, height: CLOCK_H };
 
 .letter {
   position: relative;
+  z-index: 1;
   font-size: 12px;
   font-weight: 800;
   line-height: 1;

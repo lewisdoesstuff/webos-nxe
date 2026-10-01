@@ -52,7 +52,12 @@ function bare(prompt: Prompt): boolean {
 function promptStyle(prompt: Prompt): Record<string, string> {
   if (bare(prompt)) return { "--fill": PALE_FILL, "--letter": PALE_LETTER };
   const face = faceFor(prompt, props.remote);
-  return { "--fill": face.fill, "--ring": face.ring, "--letter": face.glyph };
+  return {
+    "--fill": face.fill,
+    "--ring": face.ring,
+    "--letter": face.glyph,
+    "--art": `var(--theme-btn-${prompt.button}, none)`,
+  };
 }
 </script>
 
@@ -118,9 +123,23 @@ function promptStyle(prompt: Prompt): Record<string, string> {
   color: var(--letter, #fff);
 }
 
+/* A theme's disc picture replaces the drawn one and its halo spills past the box. */
+:global(:root[data-button-art]) .prompt:not([data-bare]) .disc {
+  background: none;
+  box-shadow: none;
+}
+
+:global(:root[data-button-art]) .prompt:not([data-bare]) .disc::before {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  background: var(--art) center / 100% 100% no-repeat;
+}
+
 /* Positioned so the letter paints over the rim, and the rim is its only backdrop. */
 .letter {
   position: relative;
+  z-index: 1;
   font-size: 15px;
   font-weight: 800;
   line-height: 1;

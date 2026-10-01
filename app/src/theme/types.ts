@@ -26,6 +26,11 @@ export type SoundKey = (typeof SOUND_KEYS)[number];
 
 export const CARD_COUNT = 8;
 
+/** The face buttons a theme can draw as pictures. */
+export const BUTTON_KEYS = ["a", "b", "x", "y"] as const;
+
+export type ButtonKey = (typeof BUTTON_KEYS)[number];
+
 /** Names and captions, the part of a theme that is wording rather than art. */
 export interface ThemeStrings {
   /** The Guide's five channels, top to bottom. */
@@ -52,6 +57,8 @@ export interface Theme {
   readonly sounds: Readonly<Record<SoundKey, string>>;
   readonly cards: readonly string[];
   readonly art: { readonly orb: string; readonly settings: string };
+  /** Pictures for the UI's small glyphs. A button left out is drawn with CSS. */
+  readonly icons: { readonly buttons: Readonly<Partial<Record<ButtonKey, string>>> };
   readonly avatar: string;
   readonly strings: ThemeStrings;
   readonly boot: BootTheme;
@@ -81,6 +88,7 @@ export interface ThemeManifest {
   readonly fonts?: readonly ThemeFont[];
   readonly cards?: readonly string[];
   readonly art?: { readonly orb?: string; readonly settings?: string };
+  readonly icons?: { readonly buttons?: Partial<Record<ButtonKey, string>> };
   readonly avatar?: string;
   readonly strings?: Partial<ThemeStrings>;
   /** The boot's numbers and textures; a texture's `url` is a relative path. */

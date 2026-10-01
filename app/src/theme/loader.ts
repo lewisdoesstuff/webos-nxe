@@ -12,7 +12,13 @@ import { HACK_PREFIX } from "../paths";
 import { readJson, writeJson } from "../storage";
 import { DEFAULT_THEME, setTheme } from "./index";
 import { applyManifest, joinUrl } from "./resolve";
-import type { Theme, ThemeInfo, ThemeManifest } from "./types";
+import {
+  BUTTON_KEYS,
+  type ButtonKey,
+  type Theme,
+  type ThemeInfo,
+  type ThemeManifest,
+} from "./types";
 
 export const THEMES_DIR = "/media/internal/nxe-themes";
 export const THEME_KEY = "nxe.theme";
@@ -67,17 +73,24 @@ async function inline(url: string): Promise<string> {
 /** The boot textures, and the settings pane's icon, which the hub treats as a path unless it is a data URI. */
 async function inlineImages(theme: Theme): Promise<Theme> {
   const { orb, wordmark, flare } = theme.boot;
-  const [orbUrl, markUrl, flareUrl, settingsUrl, coinUrl, cards] = await Promise.all([
+  const buttonKeys = BUTTON_KEYS.filter((key) => theme.icons.buttons[key] !== undefined);
+  const [orbUrl, markUrl, flareUrl, settingsUrl, coinUrl, cards, buttonUrls] = await Promise.all([
     inline(orb.url),
     inline(wordmark.url),
     inline(flare.url),
     inline(theme.art.settings),
     inline(theme.art.orb),
     Promise.all(theme.cards.map(inline)),
+    Promise.all(buttonKeys.map((key) => inline(theme.icons.buttons[key] as string))),
   ]);
+  const buttons: Partial<Record<ButtonKey, string>> = {};
+  buttonKeys.forEach((key, index) => {
+    buttons[key] = buttonUrls[index] ?? "";
+  });
   return {
     ...theme,
     art: { orb: coinUrl, settings: settingsUrl },
+    icons: { buttons },
     cards,
     boot: {
       ...theme.boot,
@@ -109,6 +122,11 @@ function install(theme: Theme): void {
   setTheme(theme);
   const root = document.documentElement;
   root.style.setProperty("--theme-orb", `url("${theme.art.orb}")`);
+  for (const key of BUTTON_KEYS) {
+    const url = theme.icons.buttons[key];
+    if (url !== undefined) root.style.setProperty(`--theme-btn-${key}`, `url("${url}")`);
+  }
+  if (Object.keys(theme.icons.buttons).length > 0) root.dataset.buttonArt = "";
   for (const [name, value] of Object.entries(theme.cssVars)) root.style.setProperty(name, value);
 }
 

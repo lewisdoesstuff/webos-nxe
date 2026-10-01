@@ -39,6 +39,15 @@ describe("applyManifest", () => {
     }
   });
 
+  it("lays button pictures under the theme folder and keeps the rest", () => {
+    const out = applyManifest(
+      DEFAULT_THEME,
+      { id: "a", name: "A", icons: { buttons: { a: "i/a.png" } } },
+      "base",
+    );
+    expect(out.icons.buttons).toEqual({ a: "base/i/a.png" });
+  });
+
   it("replaces cards by position and keeps the rest", () => {
     const out = applyManifest(DEFAULT_THEME, { id: "a", name: "A", cards: ["c/1.jpg"] }, "base");
     expect(out.cards[0]).toBe("base/c/1.jpg");

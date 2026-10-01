@@ -127,6 +127,12 @@ export function slotAt720(
   };
 }
 
+/**
+ * How far left a card may go: a sliver of it stays on the frame, so the
+ * compositor keeps its texture and bringing it back allocates nothing.
+ */
+export const KEEP_ON_FRAME = -PANE_W + 8;
+
 /** A card one place left of the focus has gone; one past the spill is out of view. */
 export const GONE_OFFSET = -1;
 export const PAST_OFFSET = SPILL_COUNT + 1;
@@ -152,7 +158,7 @@ export function paneSlot(offset: number): PaneSlot {
   const bottom = at < 0 ? projectCard(0).bottom : card.bottom;
   const parked = at <= GONE_OFFSET || at >= PAST_OFFSET;
   return {
-    x: Math.round(card.left * 1.5),
+    x: Math.round(Math.max(card.left * 1.5, KEEP_ON_FRAME)),
     y: Math.round((bottom - 320 * scale) * 1.5),
     scale,
     opacity: parked ? HIDDEN : 1,

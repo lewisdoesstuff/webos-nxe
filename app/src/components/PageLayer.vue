@@ -1,8 +1,19 @@
 <script setup lang="ts" vapor>
-import { computed } from "vue";
+import { computed, nextTick, ref, watch } from "vue";
 
 import { shownArt, shownColor } from "../artCache";
 import { HIDDEN, LABEL_H, LABEL_W, MOVE_EASE, MOVE_MS, placePool, type PooledPane } from "../hub";
+import {
+  DEAL_FRAMES_MS,
+  FOLD_FRAMES_MS,
+  LEAVE,
+  RETURN,
+  dealSlotFrames,
+  foldSlotFrames,
+  keyframe,
+  slotFrame,
+  swingFrames,
+} from "../hubMotion";
 import {
   PAGE_POOL_SIZE,
   pageSlot,
@@ -20,8 +31,11 @@ import { PARKED, useParked } from "../parked";
  * The panes are a fixed pool, mounted before the page is opened and recycled
  * as the focus moves, so opening, closing and moving change transforms and
  * opacities on textures that already exist. A closed page rests every pane at
- * `HIDDEN` on its own slot, so opening is an opacity change alone. The shell
- * latches `items` when it opens, so a channel change repaints nothing here.
+ * `HIDDEN` on its own slot. Opening and closing run retail's scene transition
+ * (`hubMotion.ts`): the focused pane swings in about its right edge once the
+ * hub's card has swung away and the rest deal out after it; closing, the rest
+ * fold away and it swings back out. The shell latches `items` when it opens,
+ * so a channel change repaints nothing here.
  */
 const props = defineProps<{
   title: string;
@@ -30,7 +44,55 @@ const props = defineProps<{
   open: boolean;
 }>();
 
-const parked = useParked(() => props.open, 150);
+const parked = useParked(() => props.open, RETURN.title[1]);
+
+/** While the scene transition runs, the panes' CSS transitions stand aside for it. */
+const scripted = ref(false);
+let scriptTimer: ReturnType<typeof setTimeout> | undefined;
+
+const paneBoxPx = { width: PAGE_PANE_W, height: PAGE_PANE_H };
+
+function paneElements(): HTMLElement[] {
+  return Array.from(document.querySelectorAll<HTMLElement>("[data-page-layer] > .pane"));
+}
+
+watch(
+  () => props.open,
+  async (open) => {
+    const total = open ? LEAVE.arrive[1] + DEAL_FRAMES_MS : RETURN.depart[1];
+    scripted.value = true;
+    clearTimeout(scriptTimer);
+    scriptTimer = setTimeout(() => (scripted.value = false), total);
+    await nextTick();
+    const elements = paneElements();
+    for (const pane of pool.value) {
+      const element = elements[pane.element];
+      if (!element) continue;
+      element.getAnimations().forEach((animation) => animation.cancel());
+      if (pane.item === null || pane.offset < 0 || pane.slot.opacity <= HIDDEN) continue;
+      const rest = slotFrame(pane.slot);
+      if (pane.offset === 0) {
+        const window = open ? LEAVE.arrive : RETURN.depart;
+        const frames = open
+          ? swingFrames(rest, -90, 0, window, window[1], true, paneBoxPx, "right")
+          : swingFrames(rest, 0, -90, window, window[1], false, paneBoxPx, "right");
+        element.animate(frames, { duration: window[1], easing: "linear" });
+      } else if (open) {
+        element.animate(dealSlotFrames(pane.offset, pageSlot).map(keyframe), {
+          duration: DEAL_FRAMES_MS,
+          delay: LEAVE.arrive[1],
+          easing: "linear",
+          fill: "backwards",
+        });
+      } else {
+        element.animate(foldSlotFrames(pane.offset, pageSlot).map(keyframe), {
+          duration: FOLD_FRAMES_MS,
+          easing: "linear",
+        });
+      }
+    }
+  },
+);
 
 const pool = computed(() => placePool(props.focus, props.items.length, pageSlot, PAGE_POOL_SIZE));
 
@@ -46,7 +108,7 @@ function paneStyle(pane: PooledPane): Record<string, string> {
     transform: `translate3d(${x}px, ${y}px, 0) scale(${scale})`,
     opacity: `${shown}`,
     "z-index": `${z}`,
-    transition: props.open ? move : `opacity 150ms linear`,
+    transition: scripted.value ? "none" : props.open ? move : `opacity 150ms linear`,
   };
 }
 
@@ -79,11 +141,19 @@ const titleStyle = computed((): Record<string, string> => ({
   height: `${LABEL_H}px`,
   "line-height": `${LABEL_H}px`,
   opacity: props.open ? "1" : `${HIDDEN}`,
+  transition: props.open
+    ? `opacity ${LEAVE.title[1] - LEAVE.title[0]}ms linear ${LEAVE.title[0]}ms`
+    : `opacity ${RETURN.title[1] - RETURN.title[0]}ms linear ${RETURN.title[0]}ms`,
 }));
 </script>
 
 <template>
-  <div class="page" :data-open="open || undefined" :style="{ transform: parked ? PARKED : 'none' }">
+  <div
+    class="page"
+    data-page-layer
+    :data-open="open || undefined"
+    :style="{ transform: parked ? PARKED : 'none' }"
+  >
     <span class="title" :style="titleStyle">{{ title }}</span>
     <div class="pane" v-for="pane in pool" :key="pane.element" :style="[paneBox, paneStyle(pane)]">
       <div class="clip">
@@ -131,7 +201,6 @@ const titleStyle = computed((): Record<string, string> => ({
   text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.5);
   background: rgba(0, 0, 0, 0.004);
   will-change: transform, opacity;
-  transition: opacity 150ms linear;
 }
 
 .pane {

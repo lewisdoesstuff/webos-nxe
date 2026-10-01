@@ -1097,9 +1097,9 @@ watch([hubAway, guide], ([away, open]) => {
   settle();
 });
 
-watch(settingsOpen, (open) => {
+watch(hubAway, (away) => {
   cancelDriven();
-  void (open ? driveLeave() : driveReturn());
+  void (away ? driveLeave() : driveReturn());
 });
 
 watch(

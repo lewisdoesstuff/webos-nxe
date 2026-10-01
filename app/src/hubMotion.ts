@@ -4,7 +4,15 @@
  * handed to the Web Animations API by the shell, so a move runs on the
  * compositor along retail's 3D path rather than straight between two slots.
  */
-import { GONE_OFFSET, HIDDEN, LAST_OFFSET, PAST_OFFSET, projectCard, type PaneSlot } from "./hub";
+import {
+  GONE_OFFSET,
+  HIDDEN,
+  KEEP_ON_FRAME,
+  LAST_OFFSET,
+  PAST_OFFSET,
+  projectCard,
+  type PaneSlot,
+} from "./hub";
 
 const FRAME_S = 1 / 60;
 const FRAME_MS = 1000 / 60;
@@ -35,7 +43,7 @@ export function cardFrame(position: number, fold = 1): MotionFrame {
   if (position < 0) opacity *= 1 + Math.max(-1, position * LEFT_FADE);
   if (position <= GONE_OFFSET || position >= PAST_OFFSET) opacity = HIDDEN;
   return {
-    x: card.left * 1.5,
+    x: Math.max(card.left * 1.5, KEEP_ON_FRAME),
     y: (bottom - 320 * scale) * 1.5,
     scale,
     opacity: Math.max(opacity, HIDDEN),
@@ -156,6 +164,22 @@ export function dealFrames(offset: number, rest: PaneSlot): MotionFrame[] {
   return frames;
 }
 
+/** The deal for a row laid out by `slotOf` rather than the hub's line, as a page's is. */
+export function dealSlotFrames(
+  offset: number,
+  slotOf: (offset: number) => PaneSlot,
+): MotionFrame[] {
+  const length = DEAL_TRACKS[0]?.length ?? 1;
+  const frames: MotionFrame[] = [];
+  for (let frame = 0; frame < length - 1; frame++) {
+    let position = 0;
+    for (let index = 1; index <= offset; index++) position += DEAL_TRACKS[index]?.[frame] ?? 1;
+    frames.push(slotBetween(slotOf, position, DEAL_TRACKS[offset]?.[frame] ?? 1));
+  }
+  frames.push(slotFrame(slotOf(offset)));
+  return frames;
+}
+
 /** A frame as the keyframe the shell animates. */
 export function keyframe(frame: MotionFrame): Keyframe {
   return {
@@ -187,16 +211,30 @@ export const RETURN = {
 
 /** The swing's camera, retail's 982 at 720p. */
 const SWING_PERSPECTIVE = 1473;
-const SWING_PIVOT_Y = 240;
 
-/** A card turned `angle` degrees about its left edge, fading as it turns edge-on. */
-export function swungKeyframe(frame: MotionFrame, angle: number): Keyframe {
+/** A card's own box, in 1080p pixels, which its swing hinges on. */
+export interface CardBox {
+  readonly width: number;
+  readonly height: number;
+}
+
+const HUB_CARD: CardBox = { width: 630, height: 480 };
+
+/** A card turned `angle` degrees about its left or right edge, fading as it turns edge-on. */
+export function swungKeyframe(
+  frame: MotionFrame,
+  angle: number,
+  box: CardBox = HUB_CARD,
+  hinge: "left" | "right" = "left",
+): Keyframe {
   const opacity = Math.max(HIDDEN, frame.opacity * (1 - Math.abs(angle) / 90));
+  const pivotX = hinge === "left" ? 0 : box.width;
+  const pivotY = box.height / 2;
   return {
     transform:
       `translate3d(${frame.x}px, ${frame.y}px, 0) scale(${frame.scale}) ` +
-      `translateY(${SWING_PIVOT_Y}px) perspective(${SWING_PERSPECTIVE}px) rotateY(${angle}deg) ` +
-      `translateY(${-SWING_PIVOT_Y}px)`,
+      `translate(${pivotX}px, ${pivotY}px) perspective(${SWING_PERSPECTIVE}px) rotateY(${angle}deg) ` +
+      `translate(${-pivotX}px, ${-pivotY}px)`,
     opacity: `${opacity}`,
   };
 }
@@ -217,18 +255,37 @@ export function swingFrames(
   window: readonly [number, number],
   total: number,
   eased: boolean,
+  box: CardBox = HUB_CARD,
+  hinge: "left" | "right" = "left",
 ): Keyframe[] {
   const frames: Keyframe[] = [];
   const count = Math.max(1, Math.round(total / FRAME_MS));
   for (let index = 0; index <= count; index++) {
     const at = (index / count) * total;
     const t = Math.min(1, Math.max(0, (at - window[0]) / (window[1] - window[0])));
-    frames.push({
-      ...swungKeyframe(frame, from + (to - from) * (eased ? easeOut(t) : t)),
-      offset: index / count,
-    });
+    const angle = from + (to - from) * (eased ? easeOut(t) : t);
+    frames.push({ ...swungKeyframe(frame, angle, box, hinge), offset: index / count });
   }
   return frames;
+}
+
+/** A row's slot at a fractional `position`, between its two neighbouring rest slots. */
+function slotBetween(
+  slotOf: (offset: number) => PaneSlot,
+  position: number,
+  fold: number,
+): MotionFrame {
+  const low = Math.floor(position);
+  const a = slotOf(low);
+  const b = slotOf(low + 1);
+  const t = position - low;
+  const opacity = fold < 0.25 ? fold * 4 : 1;
+  return {
+    x: a.x + (b.x - a.x) * t,
+    y: a.y + (b.y - a.y) * t,
+    scale: a.scale + (b.scale - a.scale) * t,
+    opacity: Math.max(HIDDEN, opacity),
+  };
 }
 
 /**
@@ -257,6 +314,21 @@ function foldTracks(cards: number): number[][] {
 const FOLD_TRACKS = foldTracks(LAST_OFFSET - 1);
 
 export const FOLD_FRAMES_MS = ((FOLD_TRACKS[0]?.length ?? 1) - 1) * FRAME_MS;
+
+/** The fold for a row laid out by `slotOf`, as a page's is. */
+export function foldSlotFrames(
+  offset: number,
+  slotOf: (offset: number) => PaneSlot,
+): MotionFrame[] {
+  const length = FOLD_TRACKS[0]?.length ?? 1;
+  const frames: MotionFrame[] = [];
+  for (let frame = 0; frame < length; frame++) {
+    let position = 0;
+    for (let index = 1; index <= offset; index++) position += FOLD_TRACKS[index]?.[frame] ?? 0;
+    frames.push(slotBetween(slotOf, position, FOLD_TRACKS[offset]?.[frame] ?? 0));
+  }
+  return frames;
+}
 
 /** The frames of the spill card `offset` places right of the focus folding away. */
 export function foldFrames(offset: number): MotionFrame[] {

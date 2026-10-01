@@ -9,5 +9,6 @@ host=${2:-root@192.168.1.37}
 dir=/media/internal/nxe-themes
 [ -f "themes/$id/theme.json" ] || { echo "themes/$id/theme.json not found" >&2; exit 1; }
 ssh "$host" "mkdir -p $dir/$id"
-rsync -a --delete --exclude .DS_Store "themes/$id/" "$host:$dir/$id/"
+ssh "$host" "rm -rf $dir/$id && mkdir -p $dir/$id"
+COPYFILE_DISABLE=1 tar -C "themes/$id" --exclude .DS_Store -cf - . | ssh "$host" "tar -C $dir/$id -xf -"
 ssh "$host" "cd $dir && ls -d */ | tr -d / | sed 's/.*/\"&\"/' | paste -sd, - | sed 's/.*/[&]/' > index.json && cat index.json"

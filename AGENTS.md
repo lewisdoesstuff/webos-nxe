@@ -83,10 +83,9 @@ app/src/
   avatar/              the 3D avatar: renderer, idle clips, framing; /avatar.html in dev
   luna.ts, mock/       the typed Luna wrapper and its desktop mock
   stores/              apps (launch points) and persisted settings
-  focus/               the generic focus layer
+  focus/row.ts         focus stepping along a row, pure
   sound/               menu blips and background music
   preview/             HDMI input stills
-  screensaver/         idle tracking
   styles/main.css      the dashboard's stylesheet
 tools/
   gate.mjs             the transition gate: allocates nothing, or fails

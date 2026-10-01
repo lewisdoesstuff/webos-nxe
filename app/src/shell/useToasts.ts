@@ -6,6 +6,7 @@ import { advance, enqueue, EMPTY_TOASTS, TOAST_FADE_MS, TOAST_MS, type Toast } f
 
 /** `?toast=friend|achievement` previews those toasts in development. */
 const DEMO_TOASTS: Record<string, Toast> = {
+  short: { title: "Ana", body: "is online", icon: "friend" },
   friend: { title: "Halo Fan 42", body: "is online", icon: "friend" },
   achievement: {
     title: "Achievement unlocked",

@@ -23,10 +23,24 @@ const props = defineProps<{
   shown: boolean;
 }>();
 
-/** The pill hugs its longer line: about 19px a character plus the disc and a margin. */
+const FONT = '400 40px "Segoe UI", Inter, sans-serif';
+let ruler: CanvasRenderingContext2D | null | undefined;
+
+/** A line's drawn width: measured in the toast's face, or about 19px a character where there is no canvas. */
+function lineWidth(text: string): number {
+  if (ruler === undefined) ruler = document.createElement("canvas").getContext("2d");
+  if (!ruler) return 19 * text.length;
+  ruler.font = FONT;
+  return ruler.measureText(text).width + 1.5 * text.length + 1;
+}
+
+/** The pill hugs its longer line: the disc and a margin either side of the words. */
 const width = computed(() => {
-  const longest = Math.max(props.toast?.title.length ?? 0, props.toast?.body.length ?? 0);
-  return Math.min(1000, Math.max(560, Math.round(197 + 19 * longest)));
+  const longest = Math.max(
+    lineWidth(props.toast?.title ?? ""),
+    lineWidth(props.toast?.body ?? ""),
+  );
+  return Math.min(1000, Math.max(300, Math.round(160 + longest)));
 });
 </script>
 

@@ -14,6 +14,7 @@ import { DEFAULT_THEME, setTheme } from "./index";
 import { applyManifest, joinUrl } from "./resolve";
 import {
   BUTTON_KEYS,
+  ICON_KEYS,
   type ButtonKey,
   type Theme,
   type ThemeInfo,
@@ -83,6 +84,12 @@ async function inlineImages(theme: Theme): Promise<Theme> {
     Promise.all(theme.cards.map(inline)),
     Promise.all(buttonKeys.map((key) => inline(theme.icons.buttons[key] as string))),
   ]);
+  const iconKeys = ICON_KEYS.filter((key) => theme.icons[key] !== undefined);
+  const iconUrls = await Promise.all(iconKeys.map((key) => inline(theme.icons[key] as string)));
+  const icons: Record<string, string> = {};
+  iconKeys.forEach((key, index) => {
+    icons[key] = iconUrls[index] ?? "";
+  });
   const buttons: Partial<Record<ButtonKey, string>> = {};
   buttonKeys.forEach((key, index) => {
     buttons[key] = buttonUrls[index] ?? "";
@@ -90,7 +97,7 @@ async function inlineImages(theme: Theme): Promise<Theme> {
   return {
     ...theme,
     art: { orb: coinUrl, settings: settingsUrl },
-    icons: { buttons },
+    icons: { ...icons, buttons },
     cards,
     boot: {
       ...theme.boot,
@@ -125,6 +132,13 @@ function install(theme: Theme): void {
   for (const key of BUTTON_KEYS) {
     const url = theme.icons.buttons[key];
     if (url !== undefined) root.style.setProperty(`--theme-btn-${key}`, `url("${url}")`);
+  }
+  for (const key of ICON_KEYS) {
+    const url = theme.icons[key];
+    if (url !== undefined) {
+      root.style.setProperty(`--theme-${key}`, `url("${url}")`);
+      root.dataset[`${key}Art`] = "";
+    }
   }
   if (Object.keys(theme.icons.buttons).length > 0) root.dataset.buttonArt = "";
   for (const [name, value] of Object.entries(theme.cssVars)) root.style.setProperty(name, value);

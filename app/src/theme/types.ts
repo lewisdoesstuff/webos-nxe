@@ -29,6 +29,11 @@ export const CARD_COUNT = 8;
 /** The face buttons a theme can draw as pictures. */
 export const BUTTON_KEYS = ["a", "b", "x", "y"] as const;
 
+/** The single-picture icon slots: the gamercard's G, the default gamerpic, the hub's "All" pane. */
+export const ICON_KEYS = ["gamerscore", "gamerpic", "all"] as const;
+
+export type IconKey = (typeof ICON_KEYS)[number];
+
 export type ButtonKey = (typeof BUTTON_KEYS)[number];
 
 /** Names and captions, the part of a theme that is wording rather than art. */
@@ -58,7 +63,9 @@ export interface Theme {
   readonly cards: readonly string[];
   readonly art: { readonly orb: string; readonly settings: string };
   /** Pictures for the UI's small glyphs. A button left out is drawn with CSS. */
-  readonly icons: { readonly buttons: Readonly<Partial<Record<ButtonKey, string>>> };
+  readonly icons: Readonly<Partial<Record<IconKey, string>>> & {
+    readonly buttons: Readonly<Partial<Record<ButtonKey, string>>>;
+  };
   readonly avatar: string;
   readonly strings: ThemeStrings;
   readonly boot: BootTheme;
@@ -88,7 +95,9 @@ export interface ThemeManifest {
   readonly fonts?: readonly ThemeFont[];
   readonly cards?: readonly string[];
   readonly art?: { readonly orb?: string; readonly settings?: string };
-  readonly icons?: { readonly buttons?: Partial<Record<ButtonKey, string>> };
+  readonly icons?: Partial<Record<IconKey, string>> & {
+    readonly buttons?: Partial<Record<ButtonKey, string>>;
+  };
   readonly avatar?: string;
   readonly strings?: Partial<ThemeStrings>;
   /** The boot's numbers and textures; a texture's `url` is a relative path. */

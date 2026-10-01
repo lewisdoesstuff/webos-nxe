@@ -7,6 +7,7 @@
 import { hex, type Rgb } from "../bootTheme";
 import {
   BUTTON_KEYS,
+  ICON_KEYS,
   CARD_COUNT,
   type ButtonKey,
   SOUND_KEYS,
@@ -94,13 +95,19 @@ export function applyManifest(under: Theme, manifest: ThemeManifest, base: strin
     if (typeof path === "string") buttons[key] = joinUrl(base, path);
   }
 
+  const icons: Theme["icons"] = { ...under.icons, buttons };
+  for (const key of ICON_KEYS) {
+    const path = manifest.icons?.[key];
+    if (typeof path === "string") (icons as Record<string, unknown>)[key] = joinUrl(base, path);
+  }
+
   return {
     id: manifest.id,
     name: manifest.name,
     sounds,
     cards,
     art,
-    icons: { buttons },
+    icons,
     avatar: manifest.avatar === undefined ? under.avatar : joinUrl(base, manifest.avatar),
     strings: mergeDeep(under.strings, manifest.strings),
     boot: mergeDeep(under.boot, reviveBoot(manifest.boot, base)),

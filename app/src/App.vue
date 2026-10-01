@@ -1264,7 +1264,11 @@ function expose(): void {
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  background: radial-gradient(circle at 50% 30%, #fff 0%, #f0f3f4 60%, #cfd6da 100%);
+  background: var(
+      --theme-gamerscore,
+      radial-gradient(circle at 50% 30%, #fff 0%, #f0f3f4 60%, #cfd6da 100%)
+    )
+    center / 100% 100% no-repeat;
   color: #4a5258;
   font-size: 24px;
   font-style: normal;
@@ -1274,9 +1278,13 @@ function expose(): void {
   text-shadow: none;
 }
 
+:global(:root[data-gamerscore-art]) .coin {
+  color: transparent;
+}
+
 .pic {
   position: absolute;
-  background: url("./assets/hub/gamerpic.svg") center / 100% 100% no-repeat;
+  background: var(--theme-gamerpic, url("./assets/hub/gamerpic.svg")) center / 100% 100% no-repeat;
   box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.8);
 }
 

@@ -230,7 +230,12 @@ export function withAllPane(channel: SectionId, items: readonly HubItem[]): HubI
   if (channel === "home") return [...items];
   return [
     ...items,
-    { id: `all:${channel}`, title: `All ${labelOf(channel)}`, icon: allIcon, kind: "all" },
+    {
+      id: `all:${channel}`,
+      title: `All ${labelOf(channel)}`,
+      icon: theme().icons.all ?? allIcon,
+      kind: "all",
+    },
   ];
 }
 

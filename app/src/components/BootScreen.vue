@@ -8,6 +8,7 @@ import {
   bootMasterFrame,
   bootSkip,
   bootSkipMs,
+  keySkipsBoot,
   bootStart,
   bootTiming,
   type BootDone,
@@ -235,7 +236,7 @@ function onKeyDown(event: KeyboardEvent): void {
   if (MODIFIER_KEYS.has(event.key)) return;
   event.preventDefault();
   event.stopImmediatePropagation();
-  skip();
+  if (keySkipsBoot(event.repeat, origin === 0 ? null : performance.now() - origin)) skip();
 }
 
 onMounted(() => {

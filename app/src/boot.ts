@@ -507,6 +507,18 @@ export function bootSkip(state: BootState, timing: BootTiming): BootState {
   return { ms: target, entered };
 }
 
+/**
+ * How long the boot ignores keys after it starts drawing. The press that
+ * launched or woke the TV is still arriving then, as held-key repeats, and
+ * must not read as a request to skip.
+ */
+export const SKIP_GRACE_MS = 1000;
+
+/** Whether a key press should skip the boot, given when it started drawing (null before that). */
+export function keySkipsBoot(repeat: boolean, playedMs: number | null): boolean {
+  return !repeat && playedMs !== null && playedMs >= SKIP_GRACE_MS;
+}
+
 function contains(stage: { fromMs: number; durationMs: number }, ms: number): boolean {
   return ms >= stage.fromMs && ms < stage.fromMs + stage.durationMs;
 }

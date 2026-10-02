@@ -7,6 +7,8 @@ import {
   bootFrameAt,
   bootSkip,
   bootSkipMs,
+  keySkipsBoot,
+  SKIP_GRACE_MS,
   bootStages,
   bootStart,
   bootTiming,
@@ -416,5 +418,20 @@ describe("warm and cold", () => {
     for (const mode of ["full", "short"] as BootSpeed[]) {
       expect(bootTotalMs(bootTiming(mode))).toBeGreaterThan(0);
     }
+  });
+});
+
+describe("keySkipsBoot", () => {
+  it("ignores keys before the clock starts and inside the grace", () => {
+    expect(keySkipsBoot(false, null)).toBe(false);
+    expect(keySkipsBoot(false, SKIP_GRACE_MS - 1)).toBe(false);
+  });
+
+  it("ignores held-key repeats", () => {
+    expect(keySkipsBoot(true, 3000)).toBe(false);
+  });
+
+  it("skips on a fresh press after the grace", () => {
+    expect(keySkipsBoot(false, SKIP_GRACE_MS)).toBe(true);
   });
 });

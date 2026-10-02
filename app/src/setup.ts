@@ -5,11 +5,14 @@ export const SETUP_KEY = "nxe.setup";
 export const SETUP_PREFIX = "setup:";
 export const SETUP_ROOT = `${SETUP_PREFIX}home`;
 
-export type SetupStep = "home" | "theme" | "avatar" | "steam";
+export type SetupStep = "home" | "home-confirm" | "theme" | "avatar" | "steam";
 
+/** The pages in order. `home-confirm` is only reached from `home`. */
 export const SETUP_STEPS: readonly SetupStep[] = ["home", "theme", "avatar", "steam"];
 
 export interface SetupState {
+  /** Whether the Home key already opens this app, or null when that cannot be read. */
+  readonly homeArmed: boolean | null;
   /** Whether the NXE theme add-on is installed on this device. */
   readonly nxeInstalled: boolean;
   /** Whether the theme chosen for the next start is NXE. */
@@ -19,6 +22,8 @@ export interface SetupState {
 
 export type SetupAction =
   | { readonly kind: "next" }
+  | { readonly kind: "confirm" }
+  | { readonly kind: "arm" }
   | { readonly kind: "theme"; readonly id: string }
   | { readonly kind: "avatar" }
   | { readonly kind: "steam" }
@@ -38,12 +43,16 @@ export function isSetupPage(id: string): boolean {
 
 export function setupStepOf(id: string): SetupStep | null {
   const step = id.slice(SETUP_PREFIX.length);
+  if (step === "home-confirm") return step;
   return SETUP_STEPS.find((entry) => entry === step) ?? null;
 }
 
 /** The page after this one, or null past the last step. */
 export function nextSetupId(id: string): string | null {
-  const at = SETUP_STEPS.findIndex((step) => step === setupStepOf(id));
+  const current = setupStepOf(id);
+  const at = SETUP_STEPS.findIndex(
+    (step) => step === (current === "home-confirm" ? "home" : current),
+  );
   const next = SETUP_STEPS[at + 1];
   return at < 0 || next === undefined ? null : `${SETUP_PREFIX}${next}`;
 }
@@ -58,8 +67,22 @@ export function setupPage(step: SetupStep, state: SetupState): DialogPage {
         kind: "dialog",
         id,
         title: "Home Button",
-        options: [{ id: "next", label: "Continue" }],
-        back: "next",
+        options:
+          state.homeArmed === true
+            ? [{ id: "next", label: "Continue" }]
+            : [{ id: "confirm", label: "Set Up Home Button" }, SKIP],
+        back: state.homeArmed === true ? "next" : "skip",
+      };
+    case "home-confirm":
+      return {
+        kind: "dialog",
+        id,
+        title: "Home Button",
+        options: [
+          { id: "arm", label: "Set Up Now" },
+          { id: "skip", label: "Cancel" },
+        ],
+        back: "skip",
       };
     case "theme":
       if (state.nxeChosen) {
@@ -107,7 +130,11 @@ export function setupPage(step: SetupStep, state: SetupState): DialogPage {
 export function setupBody(step: SetupStep, state: SetupState): string {
   switch (step) {
     case "home":
-      return "To make the Home button open this dashboard, run tools/homectl.sh arm from a computer. The screen goes dark for about 90 seconds, and restarting the TV undoes it.";
+      return state.homeArmed === true
+        ? "The Home button opens this dashboard."
+        : "Make the Home button open this dashboard instead of the TV's home screen.";
+    case "home-confirm":
+      return "The screen goes dark for about 90 seconds while the TV restarts its system UI, and this app closes. Restarting the TV undoes it.";
     case "theme":
       if (state.nxeChosen) return "The NXE theme is chosen and takes effect at the next start.";
       return state.nxeInstalled
@@ -127,8 +154,13 @@ export function setupAction(pageId: string, optionId: string): SetupAction | nul
   const step = setupStepOf(pageId);
   if (step === null) return null;
   switch (optionId) {
+    case "confirm":
+      return step === "home" ? { kind: "confirm" } : null;
+    case "arm":
+      return step === "home-confirm" ? { kind: "arm" } : null;
     case "next":
     case "skip":
+      if (step === "home-confirm") return { kind: "next" };
       return step === "steam" ? { kind: "done" } : { kind: "next" };
     case "use":
       return step === "theme" ? { kind: "theme", id: "nxe" } : null;

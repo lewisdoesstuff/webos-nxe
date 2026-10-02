@@ -1,6 +1,7 @@
 import { computed, ref, watch } from "vue";
 
 import { describeApp } from "../appDescriptions";
+import { armHome, homeArmed } from "../homeTakeover";
 import { type Button, horizontal, vertical } from "../keys";
 import {
   type Page,
@@ -105,8 +106,11 @@ export function useSettingsDrill(leaveHub: () => void) {
     if (card) openOn(card);
   }
 
+  const homeIsArmed = ref<boolean | null>(null);
+
   function setupState(): SetupState {
     return {
+      homeArmed: homeIsArmed.value,
       nxeInstalled: installedThemes().some((info) => info.id === "nxe"),
       nxeChosen: selectedTheme().id === "nxe",
       steamSignedIn: steam.status.state === "signedIn",
@@ -122,6 +126,10 @@ export function useSettingsDrill(leaveHub: () => void) {
   function openSetup(): void {
     const page = setupPageFor(SETUP_ROOT);
     if (page) openOn(page);
+    void homeArmed().then((armed) => {
+      homeIsArmed.value = armed;
+      if (top(stack.value)?.page.id === SETUP_ROOT) refreshTop();
+    });
   }
 
   function finishSetup(): void {
@@ -153,6 +161,18 @@ export function useSettingsDrill(leaveHub: () => void) {
         return;
       case "done":
         finishSetup();
+        return;
+      case "confirm": {
+        const page = setupPageFor("setup:home-confirm");
+        if (page) stack.value = push(stack.value, page);
+        return;
+      }
+      case "arm":
+        void armHome().then((ran) => {
+          if (ran) return;
+          playSound("back");
+          advanceSetup(frame.page.id);
+        });
         return;
       case "theme":
         chooseTheme(action.id);

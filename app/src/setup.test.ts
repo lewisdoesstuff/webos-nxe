@@ -12,7 +12,12 @@ import {
 
 const labels = (state: SetupState) => setupPage("theme", state).options.map((option) => option.id);
 
-const none: SetupState = { nxeInstalled: false, nxeChosen: false, steamSignedIn: false };
+const none: SetupState = {
+  homeArmed: null,
+  nxeInstalled: false,
+  nxeChosen: false,
+  steamSignedIn: false,
+};
 
 describe("setup", () => {
   it("walks the steps in order and ends after the last", () => {
@@ -40,9 +45,28 @@ describe("setup", () => {
     expect(setupAction("setup:home", "use")).toBeNull();
   });
 
+  it("arms only after the confirm, and cancelling moves on", () => {
+    expect(setupAction("setup:home", "confirm")).toEqual({ kind: "confirm" });
+    expect(setupAction("setup:home", "arm")).toBeNull();
+    expect(setupAction("setup:home-confirm", "arm")).toEqual({ kind: "arm" });
+    expect(setupAction("setup:home-confirm", "skip")).toEqual({ kind: "next" });
+    expect(nextSetupId("setup:home-confirm")).toBe("setup:theme");
+  });
+
+  it("skips the offer when the Home key is already ours", () => {
+    const ids = (homeArmed: boolean | null) =>
+      setupPage("home", { ...none, homeArmed }).options.map((option) => option.id);
+    expect(ids(true)).toEqual(["next"]);
+    expect(ids(false)).toEqual(["confirm", "skip"]);
+    expect(ids(null)).toEqual(["confirm", "skip"]);
+  });
+
   it("gives every page a back option it has and a body", () => {
-    for (const step of SETUP_STEPS) {
-      for (const state of [none, { nxeInstalled: true, nxeChosen: true, steamSignedIn: true }]) {
+    for (const step of [...SETUP_STEPS, "home-confirm" as const]) {
+      for (const state of [
+        none,
+        { homeArmed: true, nxeInstalled: true, nxeChosen: true, steamSignedIn: true },
+      ]) {
         const page = setupPage(step, state);
         expect(page.options.some((option) => option.id === page.back)).toBe(true);
         expect(setupBody(step, state)).not.toBe("");

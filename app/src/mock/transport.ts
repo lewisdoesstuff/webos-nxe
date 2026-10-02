@@ -143,6 +143,10 @@ const handlers: Record<string, (params: LunaParams) => unknown> = {
     wifi: { state: "connected", ssid: "Mock Wi-Fi", ipAddress: "192.168.1.37" },
     wired: { state: "disconnected" },
   }),
+  "org.webosbrew.hbchannel.service/exec": (_params) => ({
+    returnValue: true,
+    stdoutString: "0\n",
+  }),
   "com.webos.applicationManager/launch": (params) => ({
     returnValue: true,
     appId: params["id"],

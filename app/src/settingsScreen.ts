@@ -226,7 +226,9 @@ export function pickFocus(def: TvDef, tv: TvSnapshot): number {
   return Math.max(0, at);
 }
 
-/** The root's own page, listing the categories. */
+const SETUP_ROW = "setup";
+
+/** The root's own page, listing the categories and the first-run setup. */
 export function settingsRoot(): ListPage {
   return {
     kind: "list",
@@ -236,7 +238,10 @@ export function settingsRoot(): ListPage {
       {
         id: "settings",
         title: "Settings",
-        items: SETTINGS_CATEGORIES.map((category) => ({ id: category.id, label: category.title })),
+        items: [
+          ...SETTINGS_CATEGORIES.map((category) => ({ id: category.id, label: category.title })),
+          { id: SETUP_ROW, label: "Setup" },
+        ],
       },
     ],
   };
@@ -386,7 +391,6 @@ export function profilePage(): ListPage {
           { id: "gamertag", label: theme().strings.gamertag },
           { id: "gamerscore", label: theme().strings.gamerscore },
           { id: "avatar", label: "Customize Avatar" },
-          { id: "setup", label: "Run Setup" },
         ],
       },
     ],
@@ -523,6 +527,9 @@ export function settingsDetail(
       : { values: [row.value], description: row.description };
   }
   if (page.id === "profile") return profileDetail(item?.id ?? "", settings);
+  if (page.id === "settings" && item?.id === SETUP_ROW) {
+    return { values: [], description: "Run the first-time setup again." };
+  }
   if (page.id === "settings" || item === undefined) {
     return categoryDetail(item?.id ?? "");
   }
@@ -648,10 +655,10 @@ export function settingsAction(
     if (item.id === "avatar") {
       return { kind: "launch", id: BROWSER_APP, params: { target: AVATAR_EDITOR_URL } };
     }
-    if (item.id === "setup") return { kind: "setup" };
     return null;
   }
   if (page.id === "settings") {
+    if (item.id === SETUP_ROW) return { kind: "setup" };
     const next = settingsPageFor(`settings:${item.id}`, settings, apps, tv);
     return next === null ? null : { kind: "push", page: next };
   }

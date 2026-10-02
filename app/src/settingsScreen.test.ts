@@ -38,9 +38,16 @@ describe("the settings root", () => {
   it("lists the categories", () => {
     const root = settingsRoot();
     expect(root.title).toBe("System Settings");
-    expect(root.groups[0]?.items.map((item) => item.label)).toEqual(
-      SETTINGS_CATEGORIES.map((category) => category.title),
-    );
+    expect(root.groups[0]?.items.map((item) => item.label)).toEqual([
+      ...SETTINGS_CATEGORIES.map((category) => category.title),
+      "Setup",
+    ]);
+  });
+
+  it("opens the setup from its row", () => {
+    const last = (settingsRoot().groups[0]?.items.length ?? 1) - 1;
+    const action = settingsAction(settingsRoot(), focus(0, last), SETTINGS_DEFAULTS, APPS);
+    expect(action?.kind).toBe("setup");
   });
 
   it("pushes the focused category", () => {
@@ -255,7 +262,6 @@ describe("profile menu", () => {
       "Gamertag",
       "Gamerscore",
       "Customize Avatar",
-      "Run Setup",
     ]);
     expect(settingsPageFor("profile", SETTINGS_DEFAULTS, [])).toEqual(page);
   });

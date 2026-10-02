@@ -27,6 +27,13 @@ const props = defineProps<{
   item: PaneItem | null;
 }>();
 
+/**
+ * What an image shows while it has nothing, so every image element stays in
+ * the pane and a new item only changes sources: creating and inserting nodes
+ * for each item was most of a channel change's main-thread time on the TV.
+ */
+const BLANK = "data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==";
+
 const source = computed(() => (props.item ? paneArt(props.item) : null));
 const art = computed(() => shownArt(source.value));
 const echo = computed(() => shownEcho(source.value));
@@ -54,8 +61,8 @@ const faceStyle = computed(() => ({ "--card": `url(${cardFor(props.item?.id ?? "
   <div class="pane" :data-item="props.item?.id ?? ''" :style="rootStyle">
     <div class="clip">
       <div class="face" :style="faceStyle" />
-      <template v-if="profile">
-        <span class="tag">{{ props.item?.title ?? "" }}</span>
+      <div v-show="profile">
+        <span class="tag">{{ profile ? (props.item?.title ?? "") : "" }}</span>
         <span class="score">{{ score }}<i class="coin">G</i></span>
         <span class="recent">Recent Apps</span>
         <div class="recents">
@@ -64,23 +71,29 @@ const faceStyle = computed(() => ({ "--card": `url(${cardFor(props.item?.id ?? "
             <span v-else>{{ app.initial }}</span>
           </span>
         </div>
-      </template>
-      <template v-else>
-        <img v-if="face" class="cface" :src="face" alt="" />
-        <img v-if="face && art" class="flat" :src="art" alt="" />
-        <div v-else class="tile" :class="{ bare: props.item?.bare }">
-          <img v-if="art" class="art" :src="art" alt="" />
-          <span v-else class="initial">{{ initial }}</span>
+      </div>
+      <div v-show="!profile">
+        <img v-show="face" class="cface" :src="face ?? BLANK" alt="" />
+        <img v-show="face && art" class="flat" :src="(face && art) || BLANK" alt="" />
+        <div v-show="!(face && art)" class="tile" :class="{ bare: props.item?.bare }">
+          <img v-show="art" class="art" :src="art ?? BLANK" alt="" />
+          <span v-show="!art" class="initial">{{ art ? "" : initial }}</span>
         </div>
-        <img v-if="echo" class="echo" :src="echo" alt="" />
-        <span class="name" :class="{ two: props.item?.detail }">{{ props.item?.title ?? "" }}</span>
-        <span v-if="props.item?.detail" class="detail">{{ props.item.detail }}</span>
-      </template>
+        <img v-show="echo" class="echo" :src="echo ?? BLANK" alt="" />
+        <span class="name" :class="{ two: props.item?.detail }">{{
+          profile ? "" : (props.item?.title ?? "")
+        }}</span>
+        <span v-show="props.item?.detail" class="detail">{{ props.item?.detail ?? "" }}</span>
+      </div>
     </div>
     <div class="mirror">
-      <img v-if="floorOwn" class="floor" :src="floorOwn" alt="" />
-      <img v-else-if="shownFloorFace()" class="floor" :src="shownFloorFace()!" alt="" />
-      <img v-if="floorPatch" class="patch" :src="floorPatch" alt="" />
+      <img
+        v-show="floorOwn || shownFloorFace()"
+        class="floor"
+        :src="floorOwn ?? shownFloorFace() ?? BLANK"
+        alt=""
+      />
+      <img v-show="floorPatch" class="patch" :src="floorPatch ?? BLANK" alt="" />
     </div>
   </div>
 </template>

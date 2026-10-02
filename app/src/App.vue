@@ -103,6 +103,7 @@ import {
 } from "./pages";
 import type { PaneItem } from "./panel";
 import { PARK_WARM_MS, PARKED, useParked, warming } from "./parked";
+import { BEAT_MS, launchSkipsBoot, readPresence, sleptThrough, writePresence } from "./presence";
 import { liveTarget, nameInputs } from "./preview/live";
 import { CANVAS_H, CANVAS_W } from "./ribbon";
 import { ringSrc, ripplePattern } from "./ripples";
@@ -198,10 +199,13 @@ const bootMode = ref<BootSpeed | "off">("full");
 function chooseBootMode(): void {
   const asked = new URLSearchParams(window.location.search).get("boot");
   const preference = asked === "off" || asked === "full" || asked === "short" ? asked : "auto";
-  bootMode.value = resolveBootMode(preference, {
-    cold: true,
-    reduceMotion: settings.settings.reduceMotion,
-  });
+  bootMode.value =
+    preference === "auto" && launchSkipsBoot(readPresence())
+      ? "off"
+      : resolveBootMode(preference, {
+          cold: true,
+          reduceMotion: settings.settings.reduceMotion,
+        });
 }
 
 const { text: toastText, shown: toastShown, notify, loadFont, signIn } = useToasts();
@@ -1162,23 +1166,28 @@ function onHubKey(button: Button | null): boolean {
 }
 
 let visibleSince = performance.now();
-let hiddenAt: number | null = null;
-/** Away this long, the TV was off or on another input, and a return is a fresh start. */
-const AWAY_REPLAY_MS = 30 * 60 * 1000;
+let lastBeat = Date.now();
+let visibleAtBeat = !document.hidden;
+let beatTimer: ReturnType<typeof setInterval> | undefined;
+
+function replayBoot(): void {
+  if (bootMode.value === "off" || booting.value) return;
+  bootHold.value = false;
+  booting.value = true;
+  boot.value += 1;
+}
+
+function beat(): void {
+  const now = Date.now();
+  if (sleptThrough(lastBeat, now, visibleAtBeat) && !document.hidden) replayBoot();
+  lastBeat = now;
+  visibleAtBeat = !document.hidden;
+  writePresence({ state: visibleAtBeat ? "visible" : "hidden", at: now });
+}
 
 function noteVisibility(): void {
-  if (document.hidden) {
-    hiddenAt ??= Date.now();
-    return;
-  }
-  visibleSince = performance.now();
-  const away = hiddenAt === null ? 0 : Date.now() - hiddenAt;
-  hiddenAt = null;
-  if (away >= AWAY_REPLAY_MS && bootMode.value !== "off" && !booting.value) {
-    bootHold.value = false;
-    booting.value = true;
-    boot.value += 1;
-  }
+  if (!document.hidden) visibleSince = performance.now();
+  beat();
 }
 
 /** Home relaunches the running app: on screen already it toggles the Guide, from the background it only returns. */
@@ -1266,6 +1275,8 @@ onMounted(() => {
   window.addEventListener("keydown", onKeyDown);
   document.addEventListener("webOSRelaunch", onRelaunch);
   document.addEventListener("visibilitychange", noteVisibility);
+  beat();
+  beatTimer = setInterval(beat, BEAT_MS);
   void apps.load();
   void loadFont();
   useSystemToastsStore().start(notify);
@@ -1278,6 +1289,7 @@ onUnmounted(() => {
   window.removeEventListener("keydown", onKeyDown);
   document.removeEventListener("webOSRelaunch", onRelaunch);
   document.removeEventListener("visibilitychange", noteVisibility);
+  clearInterval(beatTimer);
 });
 
 function expose(): void {

@@ -110,7 +110,7 @@ import { CHANNEL_ORDER, isChannel, SECTIONS, startChannel } from "./sections";
 import type { Settings } from "./settings";
 import { AVATAR_DOWNLOAD, formatGamerscore } from "./settingsScreen";
 import { setupDone } from "./setup";
-import { nextFrame, wait } from "./shell/frames";
+import { framesCalm, nextFrame, wait } from "./shell/frames";
 import { play, stop, stopAll } from "./shell/scripted";
 import { useArtBake } from "./shell/useArtBake";
 import { useGuideNav } from "./shell/useGuideNav";
@@ -125,6 +125,7 @@ import { useSteamStore } from "./stores/steam";
 import { useStorageStore } from "./stores/storage";
 import { useSystemToastsStore } from "./stores/systemToasts";
 import { theme } from "./theme";
+import { activateFonts } from "./theme/loader";
 
 /**
  * The hub: the channel list at the top left, the channel's row of panes below
@@ -183,6 +184,8 @@ const guide = ref(false);
  * the same boolean to true twice would not remount the component.
  */
 const boot = ref(0);
+/** The longest the settled logo waits for steady frames. */
+const SETTLE_MAX_MS = 10000;
 const booting = ref(true);
 const bootMode = ref<BootSpeed | "off">("full");
 
@@ -215,6 +218,27 @@ function firstRun(): void {
   if (forced || !setupDone()) setTimeout(openSetup, 1500);
 }
 
+/**
+ * The dashboard stays unpainted behind the boot until the bumper has settled.
+ * Painting it and adding the theme's fonts keeps the TV to about a frame a
+ * second for several seconds, which would stutter the bumper and hold the
+ * boot's own start back. Instead the settled logo is held while that happens,
+ * and the handover goes ahead once frames are steady again.
+ */
+const dashShown = ref(false);
+const bootHold = ref(true);
+
+function showDash(): void {
+  dashShown.value = true;
+  activateFonts();
+}
+
+async function onBootHeld(): Promise<void> {
+  showDash();
+  await framesCalm(SETTLE_MAX_MS);
+  bootHold.value = false;
+}
+
 function onBootDone(payload: { reason: BootReason }): void {
   if (payload.reason === "skipped") console.info("[nxe] boot skipped");
   booting.value = false;
@@ -225,6 +249,7 @@ function onBootDone(payload: { reason: BootReason }): void {
 /** A boot resolved to off never mounts, so the dashboard is simply the first thing shown. */
 function settleBoot(): void {
   if (bootMode.value === "off") {
+    showDash();
     booting.value = false;
     setTimeout(signInToast, 900);
     firstRun();
@@ -1122,6 +1147,7 @@ function onHubKey(button: Button | null): boolean {
   else if (button === "a") activate();
   else if (button === "x") toggleHide();
   else if (button === "replay") {
+    bootHold.value = false;
     booting.value = true;
     boot.value += 1;
   } else if (button === "guide") {
@@ -1254,6 +1280,7 @@ function expose(): void {
 <template>
   <main
     class="stage"
+    :data-unready="!dashShown || undefined"
     :data-settings="settingsOpen || undefined"
     :data-page="pageOpen || undefined"
     :style="motion"
@@ -1370,12 +1397,18 @@ function expose(): void {
       :key="boot"
       :mode="bootMode"
       :play="bootReady"
+      :hold="bootHold"
+      @held="onBootHeld"
       @done="onBootDone"
     />
   </main>
 </template>
 
 <style scoped>
+.stage[data-unready] > :not(.boot) {
+  visibility: hidden;
+}
+
 .stage {
   position: relative;
   width: 100%;

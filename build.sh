@@ -32,12 +32,15 @@ rm -rf dist/app/tv
 mkdir -p dist/app/tv
 cp service/bootstrap.sh service/launch-at-boot.sh dist/app/tv/
 cp -R service/home-hook dist/app/tv/home-hook
+mkdir -p dist/app/tv/themes
+cp -R themes/nxe dist/app/tv/themes/nxe
+find dist/app/tv -name .DS_Store -delete
 rm -rf dist/app/tv/home-hook/test_controller.py dist/app/tv/home-hook/__pycache__
 find dist/app -name '*.map' -delete
 
-# The packaged app must be the original-material build; the retail look is a
-# separate theme add-on and does not ship here.
-if find dist/app -type f \( -iname 'convection*' -o -iname 'segoe*' \) | grep -q .; then
+# The app bundle itself must be the original-material build; the retail look
+# rides only as the theme add-on under tv/themes.
+if find dist/app -path dist/app/tv -prune -o -type f \( -iname 'convection*' -o -iname 'segoe*' \) -print | grep -q .; then
   echo "build.sh: retail fonts found in dist/app" >&2
   exit 1
 fi

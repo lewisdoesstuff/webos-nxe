@@ -100,7 +100,7 @@ import {
   stepAlongBy,
 } from "./pages";
 import type { PaneItem } from "./panel";
-import { PARK_WARM_MS, PARKED, useParked } from "./parked";
+import { PARK_WARM_MS, PARKED, useParked, warming } from "./parked";
 import { liveTarget, nameInputs } from "./preview/live";
 import { CANVAS_H, CANVAS_W } from "./ribbon";
 import { ringSrc, ripplePattern } from "./ripples";
@@ -705,7 +705,6 @@ const frameStyle = {
  * drawing their resting layers. Off the frame they are never rastered, so they
  * sit on it for a moment after the boot, long enough to paint once.
  */
-const warming = ref(true);
 watch(
   booting,
   (busy) => {

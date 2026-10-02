@@ -1,4 +1,4 @@
-import { onUnmounted, ref, watch, type Ref } from "vue";
+import { computed, onUnmounted, ref, watch, type Ref } from "vue";
 
 /**
  * Where a closed layer waits. A layer at rest opacity is still drawn every
@@ -13,8 +13,15 @@ export const PARKED = "translate(3200px, 0px)";
 /** How long after the boot a parked layer stays on the frame, so it is painted before it leaves. */
 export const PARK_WARM_MS = 800;
 
+/**
+ * True from mount until a moment after the boot. Closed layers stay on the
+ * frame meanwhile, so each is rastered once before it is first opened: a
+ * settings panel parked since mount stalled its first opening 140ms on the TV.
+ */
+export const warming = ref(true);
+
 /** Whether a closed layer is parked: it leaves at once when opened, and parks only after its fade out. */
-export function useParked(open: () => boolean, fadeMs: number): Ref<boolean> {
+export function useParked(open: () => boolean, fadeMs: number): Readonly<Ref<boolean>> {
   const parked = ref(!open());
   let timer: ReturnType<typeof setTimeout> | undefined;
   watch(open, (now) => {
@@ -26,5 +33,5 @@ export function useParked(open: () => boolean, fadeMs: number): Ref<boolean> {
       }, fadeMs + 50);
   });
   onUnmounted(() => clearTimeout(timer));
-  return parked;
+  return computed(() => parked.value && !warming.value);
 }

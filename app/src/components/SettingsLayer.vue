@@ -3,7 +3,7 @@ import { computed, nextTick, ref, watch } from "vue";
 
 import { LEAVE, RETURN } from "../hubMotion";
 import { type Page, type PageFocus } from "../pages";
-import { PARKED, useParked } from "../parked";
+import { PARKED, useParked, warming } from "../parked";
 import type { Box } from "../ribbon";
 import { SETTINGS_ROWS, settingsWindow, type SettingDetail } from "../settingsScreen";
 import { qrMatrix, qrPath } from "../steam/qr";
@@ -142,6 +142,7 @@ const withIcons = computed(() => items.value.some((item) => item.icon !== undefi
     class="settings"
     :data-page="page.id"
     :data-open="open || undefined"
+    :data-warm="warming || undefined"
     :style="{ transform: parked ? PARKED : 'none' }"
   >
     <span class="title" :style="titleStyle">{{ page.title }}</span>
@@ -273,6 +274,11 @@ const withIcons = computed(() => items.value.some((item) => item.icon !== undefi
   transition:
     transform var(--out-ms) linear var(--out-at),
     opacity var(--out-ms) linear var(--out-at);
+}
+
+/* Flat while warming, so the closed panel is rastered once before its first opening. */
+.settings[data-warm] .panel {
+  transform: none;
 }
 
 .settings[data-open] .panel {

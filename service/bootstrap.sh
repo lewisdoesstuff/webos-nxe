@@ -5,7 +5,6 @@
 #   sh bootstrap.sh <app dir>
 #
 # - copies the Home hook and boot scripts shipped in <app dir>/tv to a persistent path
-# - installs the theme add-ons shipped in <app dir>/tv/themes when they are not there yet
 # - links `hack` to / inside the app dir, so the page can reach other apps' icons
 # - adds the Luna ACL groups the app needs, keeping every group already there
 #
@@ -24,16 +23,6 @@ if [ -d "$SRC" ]; then
     mkdir -p "$DEST"
     cp -R "$SRC/." "$DEST/"
     chmod +x "$DEST"/*.sh "$DEST"/home-hook/*.sh "$DEST"/home-hook/native/prebuilt/ezinject 2>/dev/null
-fi
-
-THEMES=/media/internal/nxe-themes
-if [ -d "$SRC/themes" ]; then
-    mkdir -p "$THEMES"
-    for dir in "$SRC"/themes/*/; do
-        id=$(basename "$dir")
-        [ -d "$THEMES/$id" ] || cp -R "$dir" "$THEMES/$id"
-    done
-    (cd "$THEMES" && ls -d */ | tr -d / | sed 's/.*/"&"/' | paste -sd, - | sed 's/.*/[&]/' > index.json)
 fi
 
 if [ "$(readlink "$APP_DIR/hack" 2>/dev/null)" != "/" ]; then

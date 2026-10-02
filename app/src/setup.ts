@@ -21,6 +21,10 @@ export interface SetupState {
   readonly nxeInstalled: boolean;
   /** Whether the theme chosen for the next start is NXE. */
   readonly nxeChosen: boolean;
+  /** Whether the NXE theme can be downloaded from here. */
+  readonly nxeDownloadable: boolean;
+  /** Whether a download is running, or the last one failed. */
+  readonly nxeDownload: "idle" | "busy" | "failed";
   readonly steamSignedIn: boolean;
 }
 
@@ -31,6 +35,7 @@ export type SetupAction =
   | { readonly kind: "boot" }
   | { readonly kind: "launch" }
   | { readonly kind: "theme"; readonly id: string }
+  | { readonly kind: "download-theme" }
   | { readonly kind: "avatar" }
   | { readonly kind: "steam" }
   | { readonly kind: "done" };
@@ -114,6 +119,24 @@ export function setupPage(step: SetupStep, state: SetupState): DialogPage {
           back: "next",
         };
       }
+      if (state.nxeDownload === "busy") {
+        return {
+          kind: "dialog",
+          id,
+          title: "NXE Theme",
+          options: [{ id: "wait", label: "Please Wait" }],
+          back: "wait",
+        };
+      }
+      if (!state.nxeInstalled && state.nxeDownloadable) {
+        return {
+          kind: "dialog",
+          id,
+          title: "NXE Theme",
+          options: [{ id: "download", label: "Download NXE Theme" }, SKIP],
+          back: "skip",
+        };
+      }
       return {
         kind: "dialog",
         id,
@@ -164,9 +187,16 @@ export function setupBody(step: SetupStep, state: SetupState): string {
         : "Open this dashboard after the TV starts, instead of stopping on LG's home screen. Remove the init.d link 61-nxe-launch to undo.";
     case "theme":
       if (state.nxeChosen) return "The NXE theme is chosen and takes effect at the next start.";
-      return state.nxeInstalled
-        ? "The NXE theme is installed. Use it for the retail look. It takes effect at the next start."
-        : "The NXE theme is not installed. Run tools/install-theme.sh nxe from a computer to add it.";
+      if (state.nxeDownload === "busy") return "Downloading the NXE theme. This takes a moment.";
+      if (state.nxeInstalled) {
+        return "The NXE theme is installed. Use it for the retail look. It takes effect at the next start.";
+      }
+      if (state.nxeDownloadable) {
+        return state.nxeDownload === "failed"
+          ? "The download failed. Check the TV's connection and try again."
+          : "Download the NXE theme for the retail look. It needs the internet and takes effect at the next start.";
+      }
+      return "The NXE theme is not installed. Run tools/install-theme.sh nxe from a computer to add it.";
     case "avatar":
       return "Design your avatar on 360sona in the TV's browser and save the export to Downloads as MyAvatar.glb. It appears at the next start.";
     case "steam":
@@ -195,6 +225,8 @@ export function setupAction(pageId: string, optionId: string): SetupAction | nul
       return step === "steam" ? { kind: "done" } : { kind: "next" };
     case "use":
       return step === "theme" ? { kind: "theme", id: "nxe" } : null;
+    case "download":
+      return step === "theme" ? { kind: "download-theme" } : null;
     case "customize":
       return step === "avatar" ? { kind: "avatar" } : null;
     case "signin":

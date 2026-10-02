@@ -21,3 +21,7 @@ interface Window {
   /** Set on the TV only; the mock transport is selected when this is missing. */
   webOS?: unknown;
 }
+
+/** Where the NXE theme zip is downloaded from, and its SHA-256. Empty when the build has no source. */
+declare const NXE_THEME_URL: string;
+declare const NXE_THEME_SHA256: string;

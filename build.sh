@@ -13,6 +13,15 @@ command -v ares-package >/dev/null || {
   exit 1
 }
 
+# The NXE theme is downloaded during setup, not shipped. Its zip is built once
+# and kept so the hash baked into the app keeps matching the uploaded file.
+THEME_ZIP=dist/themes/nxe.zip
+if [[ ! -f $THEME_ZIP ]] || [[ -n $(find themes/nxe -type f -newer "$THEME_ZIP" | head -1) ]]; then
+  tools/pack-theme.sh nxe >/dev/null
+fi
+export NXE_THEME_SHA256=$(shasum -a 256 "$THEME_ZIP" | cut -d' ' -f1)
+export NXE_THEME_URL="${NXE_THEME_URL:-https://files.lew.ooo/nxe/nxe.zip}"
+
 bun run check
 bun run build
 
@@ -32,15 +41,13 @@ rm -rf dist/app/tv
 mkdir -p dist/app/tv
 cp service/bootstrap.sh service/launch-at-boot.sh dist/app/tv/
 cp -R service/home-hook dist/app/tv/home-hook
-mkdir -p dist/app/tv/themes
-cp -R themes/nxe dist/app/tv/themes/nxe
 find dist/app/tv -name .DS_Store -delete
 rm -rf dist/app/tv/home-hook/test_controller.py dist/app/tv/home-hook/__pycache__
 find dist/app -name '*.map' -delete
 
-# The app bundle itself must be the original-material build; the retail look
-# rides only as the theme add-on under tv/themes.
-if find dist/app -path dist/app/tv -prune -o -type f \( -iname 'convection*' -o -iname 'segoe*' \) -print | grep -q .; then
+# The package must be the original-material build; the retail look is only the
+# theme zip, which is not in it.
+if find dist/app -type f \( -iname 'convection*' -o -iname 'segoe*' \) -print | grep -q .; then
   echo "build.sh: retail fonts found in dist/app" >&2
   exit 1
 fi
@@ -55,3 +62,4 @@ IPK="dist/${APP_ID}_${VERSION}_all.ipk"
 [[ -f "$IPK" ]] || IPK=$(ls -t dist/*.ipk | head -1)
 
 echo "built: $IPK"
+echo "theme zip to upload: $THEME_ZIP -> $NXE_THEME_URL (sha256 $NXE_THEME_SHA256)"

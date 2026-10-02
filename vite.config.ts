@@ -125,6 +125,10 @@ function lazy(load: () => Promise<SteamApi>): SteamApi {
 
 export default defineConfig({
   root: appDir,
+  define: {
+    NXE_THEME_URL: JSON.stringify(process.env["NXE_THEME_URL"] ?? ""),
+    NXE_THEME_SHA256: JSON.stringify(process.env["NXE_THEME_SHA256"] ?? ""),
+  },
   base: "./",
   publicDir: false,
   resolve: {

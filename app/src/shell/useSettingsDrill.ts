@@ -58,7 +58,8 @@ import { useAppsStore } from "../stores/apps";
 import { useSettingsStore } from "../stores/settings";
 import { useSteamStore } from "../stores/steam";
 import { useTvStore } from "../stores/tv";
-import { chooseTheme, installedThemes, selectedTheme } from "../theme/loader";
+import { chooseTheme, installedThemes, listInstalled, selectedTheme } from "../theme/loader";
+import { downloadTheme, themeDownloadable } from "../themeDownload";
 
 /**
  * The dashboard's own settings, as a real drill stack: the root names the
@@ -116,6 +117,7 @@ export function useSettingsDrill(leaveHub: () => void) {
   const homeIsArmed = ref<boolean | null>(null);
   const hookIsOn = ref<boolean | null>(null);
   const launchIsOn = ref<boolean | null>(null);
+  const themeDownload = ref<"idle" | "busy" | "failed">("idle");
 
   function setupState(): SetupState {
     return {
@@ -124,6 +126,8 @@ export function useSettingsDrill(leaveHub: () => void) {
       launchHook: launchIsOn.value,
       nxeInstalled: installedThemes().some((info) => info.id === "nxe"),
       nxeChosen: selectedTheme().id === "nxe",
+      nxeDownloadable: themeDownloadable(),
+      nxeDownload: themeDownload.value,
       steamSignedIn: steam.status.state === "signedIn",
     };
   }
@@ -209,6 +213,17 @@ export function useSettingsDrill(leaveHub: () => void) {
       case "theme":
         chooseTheme(action.id);
         advanceSetup(frame.page.id);
+        return;
+      case "download-theme":
+        themeDownload.value = "busy";
+        refreshTop();
+        void downloadTheme()
+          .then(async (ok) => {
+            if (ok) await listInstalled();
+            themeDownload.value = ok ? "idle" : "failed";
+            if (!ok) playSound("back");
+          })
+          .then(refreshTop);
         return;
       case "avatar":
         void apps.launch(BROWSER_APP, { target: AVATAR_EDITOR_URL });

@@ -18,6 +18,8 @@ const none: SetupState = {
   launchHook: null,
   nxeInstalled: false,
   nxeChosen: false,
+  nxeDownloadable: false,
+  nxeDownload: "idle",
   steamSignedIn: false,
 };
 
@@ -36,6 +38,15 @@ describe("setup", () => {
     expect(labels(none)).toEqual(["next"]);
     expect(labels({ ...none, nxeInstalled: true })).toEqual(["use", "skip"]);
     expect(labels({ ...none, nxeInstalled: true, nxeChosen: true })).toEqual(["next"]);
+  });
+
+  it("offers the download when the theme is missing and a source is set", () => {
+    const can = { ...none, nxeDownloadable: true };
+    expect(labels(can)).toEqual(["download", "skip"]);
+    expect(labels({ ...can, nxeDownload: "busy" })).toEqual(["wait"]);
+    expect(labels({ ...can, nxeInstalled: true })).toEqual(["use", "skip"]);
+    expect(setupAction("setup:theme", "download")).toEqual({ kind: "download-theme" });
+    expect(setupAction("setup:theme", "wait")).toBeNull();
   });
 
   it("picks the theme, and finishes on the last step", () => {
@@ -87,6 +98,8 @@ describe("setup", () => {
           launchHook: true,
           nxeInstalled: true,
           nxeChosen: true,
+          nxeDownloadable: true,
+          nxeDownload: "failed" as const,
           steamSignedIn: true,
         },
       ]) {

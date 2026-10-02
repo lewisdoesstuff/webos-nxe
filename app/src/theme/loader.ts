@@ -198,7 +198,8 @@ export function chooseTheme(id: string): void {
   writeJson(THEME_KEY, id);
 }
 
-async function listInstalled(): Promise<void> {
+/** Read the add-on folder again, for a theme installed while the app is running. */
+export async function listInstalled(): Promise<void> {
   try {
     const ids = await readJsonFile<unknown>(`${HACK_PREFIX}${THEMES_DIR}/index.json`);
     if (!Array.isArray(ids)) return;

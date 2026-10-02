@@ -1128,6 +1128,27 @@ function onHubKey(button: Button | null): boolean {
   return true;
 }
 
+let visibleSince = performance.now();
+
+function noteVisibility(): void {
+  if (!document.hidden) visibleSince = performance.now();
+}
+
+/** Home relaunches the running app: on screen already it toggles the Guide, from the background it only returns. */
+function onRelaunch(): void {
+  const system = (window as typeof window & { webOSSystem?: { launchParams?: string } })
+    .webOSSystem;
+  let home = false;
+  try {
+    home = Boolean(JSON.parse(system?.launchParams || "{}")?.home);
+  } catch {}
+  if (!home) return;
+  if (document.hidden || performance.now() - visibleSince < 1500) return;
+  if (guide.value) onGuideKey("guide");
+  else if (!booting.value && !settingsOpen.value && !pageOpen.value && moving.value === null)
+    onHubKey("guide");
+}
+
 function onKeyDown(event: KeyboardEvent): void {
   noteKey();
   if (draft.value !== null) return;
@@ -1196,6 +1217,8 @@ onMounted(() => {
   chooseBootMode();
   settleBoot();
   window.addEventListener("keydown", onKeyDown);
+  window.addEventListener("webOSRelaunch", onRelaunch);
+  document.addEventListener("visibilitychange", noteVisibility);
   void apps.load();
   void loadFont();
   useSystemToastsStore().start(notify);
@@ -1204,7 +1227,11 @@ onMounted(() => {
   expose();
 });
 
-onUnmounted(() => window.removeEventListener("keydown", onKeyDown));
+onUnmounted(() => {
+  window.removeEventListener("keydown", onKeyDown);
+  window.removeEventListener("webOSRelaunch", onRelaunch);
+  document.removeEventListener("visibilitychange", noteVisibility);
+});
 
 function expose(): void {
   (window as typeof window & { nxeDebug?: unknown }).nxeDebug = {

@@ -62,6 +62,9 @@ import {
   foldFrames,
   hiddenThroughout,
   keyframe,
+  cruiseFor,
+  cruiseTrack,
+  mustBrake,
   rowTrack,
   slotFrame,
   swingFrames,
@@ -755,10 +758,26 @@ function cancelDriven(): void {
   driving.value = false;
 }
 
+/** Repeats closer together than this, in one direction, are a held stick. */
+const HELD_MS = 300;
+let lastMove = { at: -Infinity, direction: 0 };
+
 /** How far a held stick may run the row ahead of where it stands, which the pool's spare cards cover. */
 const ROW_LAG = 2;
 
 /** Where the row stands, in items, and how fast it is going. */
+/**
+ * The animation timeline's time. A new move takes over from where the running
+ * one stands at this instant, and its animations are started at this same
+ * instant, so the hand-over is seamless. Reading `performance.now()` instead
+ * put the two a frame or so apart, which showed as the row twitching back on
+ * each press of a held stick.
+ */
+function timelineNow(): number {
+  const time = document.timeline.currentTime;
+  return typeof time === "number" ? time : performance.now();
+}
+
 function rowAt(now: number, rest: number): { position: number; velocity: number } {
   return rowRun ? trackAt(rowRun.track, now - rowRun.start) : { position: rest, velocity: 0 };
 }
@@ -767,10 +786,10 @@ function animateAvatar(
   frames: readonly MotionFrame[],
   offsets: readonly number[],
   options: KeyframeAnimationOptions,
-): void {
+): Animation | null {
   const avatar = avatarElement();
-  if (!avatar || onFriendsChannel.value) return;
-  play(
+  if (!avatar || onFriendsChannel.value) return null;
+  return play(
     avatar,
     frames.map((frame, index) => {
       const place = avatarPlace(frame, offsets[index] ?? 0, AVATAR_CANVAS);
@@ -784,13 +803,22 @@ function animateAvatar(
 }
 
 /** Runs the row from where it stands to the new focus on retail's spring, every pane on the same track. */
-async function driveMove(from: { position: number; velocity: number }): Promise<void> {
+async function driveMove(
+  from: { position: number; velocity: number },
+  at: number,
+  cruise: number | null = null,
+): Promise<void> {
   driving.value = true;
   clearTimeout(drivingTimer);
   await nextTick();
-  const track = rowTrack(from.position, from.velocity, shown.value.item);
+  const target = shown.value.item;
+  const track =
+    cruise === null
+      ? rowTrack(from.position, from.velocity, target)
+      : cruiseTrack(from.position, from.velocity, target, cruise);
   const duration = trackMs(track);
-  rowRun = { track, start: performance.now() };
+  rowRun = { track, start: at };
+  const started: Animation[] = [];
   const elements = paneElements();
   const avatarOf = avatarPane.value?.element;
   const options = { duration, easing: "linear" };
@@ -802,20 +830,41 @@ async function driveMove(from: { position: number; velocity: number }): Promise<
       continue;
     }
     const frames = trackFrames(track, pane.item, pane.slot);
-    play(element, frames.map(keyframe), options);
+    started.push(play(element, frames.map(keyframe), options));
     if (pane.element === avatarOf) {
       const item = pane.item;
-      animateAvatar(
+      const avatar = animateAvatar(
         frames,
         track.positions.map((position) => item - position),
         options,
       );
+      if (avatar) started.push(avatar);
     }
   }
+  for (const animation of started) animation.startTime = at;
   drivingTimer = setTimeout(() => {
     driving.value = false;
     rowRun = null;
   }, duration);
+  if (cruise !== null) void brakeWhenReleased(rowRun, target);
+}
+
+/**
+ * While the row cruises, watch for the moment it must brake to stop on its
+ * target. If no repeat has moved the target on by then, the stick was let go,
+ * and the ordinary spring takes over from exactly where the row is.
+ */
+async function brakeWhenReleased(run: typeof rowRun, target: number): Promise<void> {
+  for (;;) {
+    await nextFrame();
+    if (rowRun !== run || run === null) return;
+    const now = timelineNow();
+    const state = rowAt(now, target);
+    if (mustBrake(state.position, state.velocity, target)) {
+      void driveMove(state, now);
+      return;
+    }
+  }
 }
 
 async function driveDeal(mine: number): Promise<void> {
@@ -989,7 +1038,7 @@ function navigate(move: HubMove): void {
   if (
     !channelChanged &&
     single &&
-    Math.abs(next.item - rowAt(performance.now(), next.item).position) > ROW_LAG
+    Math.abs(next.item - rowAt(timelineNow(), next.item).position) > ROW_LAG
   ) {
     return;
   }
@@ -1005,10 +1054,15 @@ function navigate(move: HubMove): void {
   generation++;
   held.value = null;
   phase.value = "rest";
-  const now = performance.now();
+  const now = timelineNow();
   const from = rowAt(now, shown.value.item);
+  const direction = Math.sign(next.item - shown.value.item);
+  const holding =
+    single && rowRun !== null && direction === lastMove.direction && now - lastMove.at < HELD_MS;
+  const cruise = holding ? cruiseFor(now - lastMove.at) : null;
+  lastMove = { at: now, direction };
   shown.value = next;
-  void driveMove(from);
+  void driveMove(from, now, cruise);
 }
 
 /** A launches the focused pane's item. A placeholder is drawn and nothing

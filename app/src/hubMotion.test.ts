@@ -9,6 +9,9 @@ import {
   swingFrames,
   cardFrame,
   dealFrames,
+  cruiseFor,
+  cruiseTrack,
+  mustBrake,
   rowTrack,
   trackAt,
   trackFrames,
@@ -99,5 +102,22 @@ describe("leaving for settings", () => {
     expect(frames[0]!.transform).toContain("rotateY(0deg)");
     expect(frames.at(-1)!.transform).toContain("rotateY(90deg)");
     expect(Number(frames.at(-1)!.opacity)).toBe(HIDDEN);
+  });
+});
+
+describe("a held stick", () => {
+  it("cruises at the repeat rate without braking for each card", () => {
+    const cruise = cruiseFor(100);
+    const track = cruiseTrack(0, cruise, 3, cruise);
+    const speeds = track.velocities.slice(1, -1);
+    expect(Math.min(...speeds)).toBeCloseTo(cruise, 5);
+    expect(Math.max(...speeds)).toBeCloseTo(cruise, 5);
+    expect(track.positions.at(-1)).toBe(3);
+  });
+
+  it("says when the spring has to take over to stop on the target", () => {
+    expect(mustBrake(0, 0, 1)).toBe(true);
+    expect(mustBrake(0, 2, 3)).toBe(false);
+    expect(mustBrake(2.9, 5, 3)).toBe(true);
   });
 });

@@ -109,6 +109,55 @@ export function rowTrack(from: number, velocity: number, to: number): RowTrack {
   return { positions, velocities };
 }
 
+/**
+ * A held stick. Each repeat moves the target one card on, and a spring that
+ * brakes for every target surges and slows with every repeat, which reads as
+ * the row stuttering. So while a stick is held the row cruises at the rate the
+ * repeats arrive, easing to it at the spring's acceleration and never braking;
+ * the shell starts the ordinary spring from wherever the row is once the
+ * repeats stop (`mustBrake`), so it still settles the retail way.
+ */
+export function cruiseTrack(from: number, velocity: number, to: number, cruise: number): RowTrack {
+  const step = FRAME_S * BOOST;
+  const positions = [from];
+  const velocities = [velocity];
+  let position = from;
+  let speed = velocity;
+  const goal = Math.min(MAX_VELOCITY * BOOST, cruise);
+  for (let frame = 0; frame < 600 && position !== to; frame++) {
+    const direction = Math.sign(to - position);
+    let toward = speed * direction;
+    toward =
+      toward < goal
+        ? Math.min(goal, toward + ACCELERATION * step)
+        : Math.max(goal, toward - DECELERATION * step);
+    const next = position + toward * direction * step;
+    if (Math.sign(to - next) !== direction) {
+      position = to;
+      speed = 0;
+    } else {
+      position = next;
+      speed = toward * direction;
+    }
+    positions.push(position);
+    velocities.push(speed);
+  }
+  return { positions, velocities };
+}
+
+/** The cruising speed for repeats `interval` ms apart, one card each, in the spring's units. */
+export function cruiseFor(interval: number): number {
+  return 1000 / Math.max(1, interval) / BOOST;
+}
+
+/** Whether the row, at `position` going at `velocity`, has to start braking now to stop at `to`. */
+export function mustBrake(position: number, velocity: number, to: number): boolean {
+  const direction = Math.sign(to - position);
+  const toward = velocity * direction;
+  if (toward <= 0) return true;
+  return Math.abs(to - position) / toward <= toward / DECELERATION;
+}
+
 export function trackMs(track: RowTrack): number {
   return (track.positions.length - 1) * FRAME_MS;
 }
@@ -116,8 +165,13 @@ export function trackMs(track: RowTrack): number {
 /** Where a track stands `elapsed` ms in. */
 export function trackAt(track: RowTrack, elapsed: number): { position: number; velocity: number } {
   const last = track.positions.length - 1;
-  const index = Math.min(last, Math.max(0, Math.floor(elapsed / FRAME_MS)));
-  return { position: track.positions[index] ?? 0, velocity: track.velocities[index] ?? 0 };
+  const at = Math.min(last, Math.max(0, elapsed / FRAME_MS));
+  const low = Math.floor(at);
+  const high = Math.min(last, low + 1);
+  const t = at - low;
+  const between = (values: readonly number[]) =>
+    (values[low] ?? 0) + ((values[high] ?? 0) - (values[low] ?? 0)) * t;
+  return { position: between(track.positions), velocity: between(track.velocities) };
 }
 
 /** Whether the card for `item` stays out of sight for the whole of `track`, so it need not move. */

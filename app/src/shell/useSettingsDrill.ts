@@ -1,7 +1,7 @@
 import { computed, ref, watch } from "vue";
 
 import { describeApp } from "../appDescriptions";
-import { armHome, homeArmed } from "../homeTakeover";
+import { armHome, bootHookEnabled, enableBootHook, homeArmed } from "../homeTakeover";
 import { type Button, horizontal, vertical } from "../keys";
 import {
   type Page,
@@ -107,10 +107,12 @@ export function useSettingsDrill(leaveHub: () => void) {
   }
 
   const homeIsArmed = ref<boolean | null>(null);
+  const hookIsOn = ref<boolean | null>(null);
 
   function setupState(): SetupState {
     return {
       homeArmed: homeIsArmed.value,
+      bootHook: hookIsOn.value,
       nxeInstalled: installedThemes().some((info) => info.id === "nxe"),
       nxeChosen: selectedTheme().id === "nxe",
       steamSignedIn: steam.status.state === "signedIn",
@@ -126,8 +128,9 @@ export function useSettingsDrill(leaveHub: () => void) {
   function openSetup(): void {
     const page = setupPageFor(SETUP_ROOT);
     if (page) openOn(page);
-    void homeArmed().then((armed) => {
+    void Promise.all([homeArmed(), bootHookEnabled()]).then(([armed, hook]) => {
       homeIsArmed.value = armed;
+      hookIsOn.value = hook;
       if (top(stack.value)?.page.id === SETUP_ROOT) refreshTop();
     });
   }
@@ -171,6 +174,12 @@ export function useSettingsDrill(leaveHub: () => void) {
         void armHome().then((ran) => {
           if (ran) return;
           playSound("back");
+          advanceSetup(frame.page.id);
+        });
+        return;
+      case "boot":
+        void enableBootHook().then((ran) => {
+          if (!ran) playSound("back");
           advanceSetup(frame.page.id);
         });
         return;

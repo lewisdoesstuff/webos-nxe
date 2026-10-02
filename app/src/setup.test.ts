@@ -14,6 +14,7 @@ const labels = (state: SetupState) => setupPage("theme", state).options.map((opt
 
 const none: SetupState = {
   homeArmed: null,
+  bootHook: null,
   nxeInstalled: false,
   nxeChosen: false,
   steamSignedIn: false,
@@ -55,9 +56,14 @@ describe("setup", () => {
 
   it("skips the offer when the Home key is already ours", () => {
     const ids = (homeArmed: boolean | null) =>
-      setupPage("home", { ...none, homeArmed }).options.map((option) => option.id);
+      setupPage("home", { ...none, homeArmed, bootHook: true }).options.map((option) => option.id);
     expect(ids(true)).toEqual(["next"]);
     expect(ids(false)).toEqual(["confirm", "skip"]);
+    expect(setupPage("home", { ...none, homeArmed: true }).options.map((o) => o.id)).toEqual([
+      "boot",
+      "skip",
+    ]);
+    expect(setupAction("setup:home", "boot")).toEqual({ kind: "boot" });
     expect(ids(null)).toEqual(["confirm", "skip"]);
   });
 
@@ -65,7 +71,13 @@ describe("setup", () => {
     for (const step of [...SETUP_STEPS, "home-confirm" as const]) {
       for (const state of [
         none,
-        { homeArmed: true, nxeInstalled: true, nxeChosen: true, steamSignedIn: true },
+        {
+          homeArmed: true,
+          bootHook: true,
+          nxeInstalled: true,
+          nxeChosen: true,
+          steamSignedIn: true,
+        },
       ]) {
         const page = setupPage(step, state);
         expect(page.options.some((option) => option.id === page.back)).toBe(true);

@@ -13,6 +13,8 @@ export const SETUP_STEPS: readonly SetupStep[] = ["home", "theme", "avatar", "st
 export interface SetupState {
   /** Whether the Home key already opens this app, or null when that cannot be read. */
   readonly homeArmed: boolean | null;
+  /** Whether the init.d hook that re-arms it at boot is in place, or null when unreadable. */
+  readonly bootHook: boolean | null;
   /** Whether the NXE theme add-on is installed on this device. */
   readonly nxeInstalled: boolean;
   /** Whether the theme chosen for the next start is NXE. */
@@ -24,6 +26,7 @@ export type SetupAction =
   | { readonly kind: "next" }
   | { readonly kind: "confirm" }
   | { readonly kind: "arm" }
+  | { readonly kind: "boot" }
   | { readonly kind: "theme"; readonly id: string }
   | { readonly kind: "avatar" }
   | { readonly kind: "steam" }
@@ -59,6 +62,12 @@ export function nextSetupId(id: string): string | null {
 
 const SKIP = { id: "skip", label: "Not Now" };
 
+function homeOptions(state: SetupState): DialogPage["options"] {
+  if (state.homeArmed !== true) return [{ id: "confirm", label: "Set Up Home Button" }, SKIP];
+  if (state.bootHook === true) return [{ id: "next", label: "Continue" }];
+  return [{ id: "boot", label: "Enable at Boot" }, SKIP];
+}
+
 export function setupPage(step: SetupStep, state: SetupState): DialogPage {
   const id = `${SETUP_PREFIX}${step}`;
   switch (step) {
@@ -67,11 +76,8 @@ export function setupPage(step: SetupStep, state: SetupState): DialogPage {
         kind: "dialog",
         id,
         title: "Home Button",
-        options:
-          state.homeArmed === true
-            ? [{ id: "next", label: "Continue" }]
-            : [{ id: "confirm", label: "Set Up Home Button" }, SKIP],
-        back: state.homeArmed === true ? "next" : "skip",
+        options: homeOptions(state),
+        back: state.homeArmed === true && state.bootHook === true ? "next" : "skip",
       };
     case "home-confirm":
       return {
@@ -130,9 +136,12 @@ export function setupPage(step: SetupStep, state: SetupState): DialogPage {
 export function setupBody(step: SetupStep, state: SetupState): string {
   switch (step) {
     case "home":
-      return state.homeArmed === true
-        ? "The Home button opens this dashboard."
-        : "Make the Home button open this dashboard instead of the TV's home screen.";
+      if (state.homeArmed === true) {
+        return state.bootHook === true
+          ? "The Home button opens this dashboard, and is set again at every boot."
+          : "The Home button opens this dashboard until the TV restarts. Enable it at boot to set it again each time the TV starts, which costs about 90 seconds of dark screen after every boot. Remove the init.d link 60-blades-homekey to undo.";
+      }
+      return "Make the Home button open this dashboard instead of the TV's home screen.";
     case "home-confirm":
       return "The screen goes dark for about 90 seconds while the TV restarts its system UI, and this app closes. Restarting the TV undoes it.";
     case "theme":
@@ -158,6 +167,8 @@ export function setupAction(pageId: string, optionId: string): SetupAction | nul
       return step === "home" ? { kind: "confirm" } : null;
     case "arm":
       return step === "home-confirm" ? { kind: "arm" } : null;
+    case "boot":
+      return step === "home" ? { kind: "boot" } : null;
     case "next":
     case "skip":
       if (step === "home-confirm") return { kind: "next" };

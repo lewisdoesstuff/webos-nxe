@@ -47,3 +47,31 @@ export async function armHome(): Promise<boolean> {
     return false;
   }
 }
+
+const AUTOSTART = "/var/lib/webosbrew/nxe/service/autostart.sh";
+const BOOT_HOOK = "/var/lib/webosbrew/init.d/60-blades-homekey";
+
+export const HOOK_COMMAND = `test -L ${BOOT_HOOK} && echo 1 || echo 0`;
+
+/** Links the autostart script into init.d. It re-arms and restarts sam on every boot, and does nothing if the patch no longer applies. */
+export const ENABLE_HOOK_COMMAND = `test -f ${AUTOSTART} && chmod +x ${AUTOSTART} && ln -sf ${AUTOSTART} ${BOOT_HOOK}`;
+
+/** Whether the boot hook is in place. Null when the elevated shell cannot be reached. */
+export async function bootHookEnabled(): Promise<boolean | null> {
+  try {
+    const reply = await callLuna<ExecReply>(EXEC_URI, { command: HOOK_COMMAND });
+    const out = (reply.stdoutString ?? "").trim();
+    return out === "1" ? true : out === "0" ? false : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function enableBootHook(): Promise<boolean> {
+  try {
+    await callLuna(EXEC_URI, { command: ENABLE_HOOK_COMMAND });
+    return true;
+  } catch {
+    return false;
+  }
+}

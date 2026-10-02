@@ -113,26 +113,45 @@ export function rowTrack(from: number, velocity: number, to: number): RowTrack {
  * A held stick. Each repeat moves the target one card on, and a spring that
  * brakes for every target surges and slows with every repeat, which reads as
  * the row stuttering. So while a stick is held the row cruises at the rate the
- * repeats arrive, easing to it at the spring's acceleration and never braking;
- * the shell starts the ordinary spring from wherever the row is once the
- * repeats stop (`mustBrake`), so it still settles the retail way.
+ * repeats arrive, easing to it at the spring's own acceleration, and brakes
+ * only in the last stretch before its target, at whatever even deceleration
+ * stops it exactly there. A repeat during that stretch carries the speed on;
+ * a released stick ends on that smooth stop. Speeds are cards a second here
+ * and in the spring's units at either end.
  */
+const CRUISE_STOP = 150;
+const CRUISE_STOP_REACH = 0.75;
+
 export function cruiseTrack(from: number, velocity: number, to: number, cruise: number): RowTrack {
-  const step = FRAME_S * BOOST;
+  const accel = ACCELERATION * BOOST * BOOST;
+  const goal = Math.min(MAX_VELOCITY * BOOST * BOOST, cruise);
   const positions = [from];
   const velocities = [velocity];
   let position = from;
-  let speed = velocity;
-  const goal = Math.min(MAX_VELOCITY * BOOST, cruise);
+  let speed = velocity * BOOST;
   for (let frame = 0; frame < 600 && position !== to; frame++) {
     const direction = Math.sign(to - position);
+    const left = Math.abs(to - position);
     let toward = speed * direction;
-    toward =
-      toward < goal
-        ? Math.min(goal, toward + ACCELERATION * step)
-        : Math.max(goal, toward - DECELERATION * step);
-    const next = position + toward * direction * step;
-    if (Math.sign(to - next) !== direction) {
+    const reach = Math.min(CRUISE_STOP_REACH, (toward * toward) / (2 * CRUISE_STOP));
+    if (toward > 0 && left <= reach) {
+      const stopping = (2 * left) / toward;
+      const brake = (toward * toward) / (2 * left);
+      for (let t = FRAME_S; t < stopping; t += FRAME_S) {
+        positions.push(position + direction * (toward * t - (brake * t * t) / 2));
+        velocities.push((direction * (toward - brake * t)) / BOOST);
+      }
+      positions.push(to);
+      velocities.push(0);
+      return { positions, velocities };
+    } else {
+      toward =
+        toward < goal
+          ? Math.min(goal, toward + accel * FRAME_S)
+          : Math.max(goal, toward - accel * FRAME_S);
+    }
+    const next = position + toward * direction * FRAME_S;
+    if (toward <= 0 || Math.sign(to - next) !== direction) {
       position = to;
       speed = 0;
     } else {
@@ -140,22 +159,14 @@ export function cruiseTrack(from: number, velocity: number, to: number, cruise: 
       speed = toward * direction;
     }
     positions.push(position);
-    velocities.push(speed);
+    velocities.push(speed / BOOST);
   }
   return { positions, velocities };
 }
 
-/** The cruising speed for repeats `interval` ms apart, one card each, in the spring's units. */
+/** The cruising speed for repeats `interval` ms apart, one card each, in cards a second. */
 export function cruiseFor(interval: number): number {
-  return 1000 / Math.max(1, interval) / BOOST;
-}
-
-/** Whether the row, at `position` going at `velocity`, has to start braking now to stop at `to`. */
-export function mustBrake(position: number, velocity: number, to: number): boolean {
-  const direction = Math.sign(to - position);
-  const toward = velocity * direction;
-  if (toward <= 0) return true;
-  return Math.abs(to - position) / toward <= toward / DECELERATION;
+  return 1000 / Math.max(1, interval);
 }
 
 export function trackMs(track: RowTrack): number {

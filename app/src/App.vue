@@ -64,7 +64,6 @@ import {
   keyframe,
   cruiseFor,
   cruiseTrack,
-  mustBrake,
   rowTrack,
   slotFrame,
   swingFrames,
@@ -760,7 +759,12 @@ function cancelDriven(): void {
 
 /** Repeats closer together than this, in one direction, are a held stick. */
 const HELD_MS = 300;
-let lastMove = { at: -Infinity, direction: 0 };
+/**
+ * The last left or right press, taken or not, and the repeat interval smoothed
+ * over the hold, since repeats land on whole frames. Counting every press
+ * rather than every move keeps the cruise at the stick's own rate.
+ */
+let lastPress = { at: -Infinity, direction: 0, interval: HELD_MS, holding: false };
 
 /** How far a held stick may run the row ahead of where it stands, which the pool's spare cards cover. */
 const ROW_LAG = 2;
@@ -846,25 +850,6 @@ async function driveMove(
     driving.value = false;
     rowRun = null;
   }, duration);
-  if (cruise !== null) void brakeWhenReleased(rowRun, target);
-}
-
-/**
- * While the row cruises, watch for the moment it must brake to stop on its
- * target. If no repeat has moved the target on by then, the stick was let go,
- * and the ordinary spring takes over from exactly where the row is.
- */
-async function brakeWhenReleased(run: typeof rowRun, target: number): Promise<void> {
-  for (;;) {
-    await nextFrame();
-    if (rowRun !== run || run === null) return;
-    const now = timelineNow();
-    const state = rowAt(now, target);
-    if (mustBrake(state.position, state.velocity, target)) {
-      void driveMove(state, now);
-      return;
-    }
-  }
 }
 
 async function driveDeal(mine: number): Promise<void> {
@@ -1035,10 +1020,20 @@ function navigate(move: HubMove): void {
   if (next === hub.value) return;
   const channelChanged = next.channel !== hub.value.channel;
   const single = move === "left" || move === "right";
+  const pressed = timelineNow();
+  const direction = Math.sign(next.item - hub.value.item);
+  const holding = single && direction === lastPress.direction && pressed - lastPress.at < HELD_MS;
+  const gap = pressed - lastPress.at;
+  lastPress = {
+    at: pressed,
+    direction,
+    interval: holding && lastPress.holding ? lastPress.interval * 0.75 + gap * 0.25 : gap,
+    holding,
+  };
   if (
     !channelChanged &&
     single &&
-    Math.abs(next.item - rowAt(timelineNow(), next.item).position) > ROW_LAG
+    Math.abs(next.item - rowAt(pressed, next.item).position) > ROW_LAG
   ) {
     return;
   }
@@ -1054,15 +1049,10 @@ function navigate(move: HubMove): void {
   generation++;
   held.value = null;
   phase.value = "rest";
-  const now = timelineNow();
-  const from = rowAt(now, shown.value.item);
-  const direction = Math.sign(next.item - shown.value.item);
-  const holding =
-    single && rowRun !== null && direction === lastMove.direction && now - lastMove.at < HELD_MS;
-  const cruise = holding ? cruiseFor(now - lastMove.at) : null;
-  lastMove = { at: now, direction };
+  const from = rowAt(pressed, shown.value.item);
+  const cruise = holding && rowRun !== null ? cruiseFor(lastPress.interval) : null;
   shown.value = next;
-  void driveMove(from, now, cruise);
+  void driveMove(from, pressed, cruise);
 }
 
 /** A launches the focused pane's item. A placeholder is drawn and nothing

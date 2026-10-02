@@ -11,7 +11,6 @@ import {
   dealFrames,
   cruiseFor,
   cruiseTrack,
-  mustBrake,
   rowTrack,
   trackAt,
   trackFrames,
@@ -107,17 +106,18 @@ describe("leaving for settings", () => {
 
 describe("a held stick", () => {
   it("cruises at the repeat rate without braking for each card", () => {
-    const cruise = cruiseFor(100);
-    const track = cruiseTrack(0, cruise, 3, cruise);
-    const speeds = track.velocities.slice(1, -1);
-    expect(Math.min(...speeds)).toBeCloseTo(cruise, 5);
-    expect(Math.max(...speeds)).toBeCloseTo(cruise, 5);
-    expect(track.positions.at(-1)).toBe(3);
+    const track = cruiseTrack(0, cruiseFor(100) / 1.75, 4, cruiseFor(100));
+    const middle = track.velocities.slice(2, 12);
+    expect(Math.max(...middle) - Math.min(...middle)).toBeLessThan(0.01);
+    expect(track.positions.at(-1)).toBe(4);
   });
 
-  it("says when the spring has to take over to stop on the target", () => {
-    expect(mustBrake(0, 0, 1)).toBe(true);
-    expect(mustBrake(0, 2, 3)).toBe(false);
-    expect(mustBrake(2.9, 5, 3)).toBe(true);
+  it("ends on an even stop rather than a snap", () => {
+    const track = cruiseTrack(0, cruiseFor(80) / 1.75, 3, cruiseFor(80));
+    const steps = track.positions
+      .slice(1)
+      .map((position, index) => position - track.positions[index]!);
+    const last = steps.slice(-4);
+    expect(last.every((step, index) => index === 0 || step <= last[index - 1]! + 1e-9)).toBe(true);
   });
 });

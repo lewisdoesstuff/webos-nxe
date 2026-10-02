@@ -12,7 +12,8 @@
 # and nothing in there runs by itself: there is no init.d hook and none is ever
 # created, so a copy on the TV is inert files. tools/homectl.sh does not need it,
 # because it streams each script over ssh on stdin instead. It is here for when
-# you want the watcher running on the box rather than over a shell.
+# you want the watcher running on the box rather than over a shell. A running
+# home hook controller is restarted so it picks up the copied code.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -81,6 +82,9 @@ if [[ $SYNC_SERVICE == 1 ]]; then
   ssh -o BatchMode=yes -o LogLevel=ERROR "$TV_HOST" \
     "chmod +x '$SERVICE_ROOT'/*.sh '$SERVICE_ROOT'/*.py '$SERVICE_ROOT'/tactics/*.sh"
   echo "synced service/ -> ${TV_HOST}:${SERVICE_ROOT}"
+  # A running home hook controller keeps the code it started with.
+  ssh -o BatchMode=yes -o LogLevel=ERROR "$TV_HOST" \
+    "H='$SERVICE_ROOT/home-hook'; if [ -r /tmp/nxe-homehook.pid ] && kill -0 \$(cat /tmp/nxe-homehook.pid) 2>/dev/null; then sh \$H/stop.sh && sleep 1 && sh \$H/start.sh; fi"
   echo "  nothing there runs by itself. There is no init.d hook and none is created."
   echo "  service/autostart.sh is deliberately not wired up; see the comments in it."
 fi

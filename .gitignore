@@ -11,3 +11,8 @@ docs/refs/
 .openchamber/
 .claude/worktrees/
 app/src/avatar/local/
+
+# local-only: tracked in their own repos, never pushed from here
+themes/nxe/
+mock-tv/
+.claude/

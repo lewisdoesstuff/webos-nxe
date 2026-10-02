@@ -2,9 +2,9 @@
 # SPDX-License-Identifier: GPL-3.0-only
 # Run on Linux/WSL. Only builds files locally; never connects to a TV.
 set -eu
-project=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
-native="$project/tv-helper/native"
-cache=${HOME_HOOK_BUILD_DIR:-/tmp/lg-xmb-home-hook-build}
+native=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+project=$native
+cache=${HOME_HOOK_BUILD_DIR:-/tmp/nxe-home-hook-build}
 mkdir -p "$cache" "$native/prebuilt"
 get_pin() { python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))[sys.argv[2]])' "$native/dependencies.json" "$1"; }
 toolchain="$cache/$(get_pin toolchainDirectory)"
@@ -29,8 +29,8 @@ cmake --install "$cache/ezinject-build"
 build_id=$(python3 - "$project" <<'PY'
 import hashlib, pathlib, sys
 root = pathlib.Path(sys.argv[1])
-paths = ['tv-helper/native/home-hook.c', 'tv-helper/native/CMakeLists.txt',
-         'tv-helper/native/dependencies.json', 'tools/build-home-hook.sh']
+paths = ['home-hook.c', 'CMakeLists.txt',
+         'dependencies.json', 'build-home-hook.sh']
 entries = ''.join('%s %s\n' % (p, hashlib.sha256((root / p).read_bytes()).hexdigest()) for p in sorted(paths))
 print(hashlib.sha256(entries.encode()).hexdigest())
 PY
@@ -44,9 +44,9 @@ cp "$sysroot/bin/ezinject" "$native/prebuilt/ezinject"
 python3 - "$project" "$build_id" <<'PY'
 import hashlib, json, pathlib, struct, sys
 root = pathlib.Path(sys.argv[1])
-out = root / 'tv-helper/native/prebuilt'
-paths = ['tv-helper/native/home-hook.c', 'tv-helper/native/CMakeLists.txt',
-         'tv-helper/native/dependencies.json', 'tools/build-home-hook.sh']
+out = root / 'prebuilt'
+paths = ['home-hook.c', 'CMakeLists.txt',
+         'dependencies.json', 'build-home-hook.sh']
 files = {}
 for name in ['ezinject', 'lgxmb-home-hook.so']:
     data = (out / name).read_bytes()

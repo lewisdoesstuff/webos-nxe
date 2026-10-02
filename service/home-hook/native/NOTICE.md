@@ -43,7 +43,8 @@ bundled here. No binaries from the Syspoke or unofficial LG Input Hook IPKs are
 used.
 
 The source in this directory (`home-hook.c`, `test-home-hook.c`, `CMakeLists.txt`,
-`dependencies.json`, `build-home-hook.sh`) is the exact source of the prebuilt
-binaries; its hashes match `prebuilt/build.json`. The script is unmodified from
-the LG-XMB project, where it ran as `tools/build-home-hook.sh` with the files under
-`tv-helper/native/`, so it needs that layout to run.
+`dependencies.json`, `build-home-hook.sh`) is the source of the prebuilt
+binaries. The hashes in `prebuilt/build.json` are of the files as they were in the
+LG-XMB project, where the script lived at `tools/build-home-hook.sh` and the rest
+under `tv-helper/native/`. Only the paths in the script differ here, so a rebuild
+writes a new build id and new hashes.

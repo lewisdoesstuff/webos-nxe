@@ -1,0 +1,16 @@
+{
+  "strings": {
+    "channels": [
+      "Inside Xbox",
+      "Friends",
+      "Video & Music Marketplace",
+      "Game Marketplace",
+      "My Xbox"
+    ],
+    "gameStore": "Game Marketplace",
+    "mediaStore": "Video & Music Marketplace",
+    "dashboard": "Xbox Dashboard",
+    "gamertag": "Gamertag",
+    "gamerscore": "Gamerscore"
+  }
+}

@@ -9,7 +9,7 @@ import { applyManifest } from "./theme/resolve";
  * they run with the NXE theme's strings over the default theme.
  */
 const manifest = JSON.parse(
-  readFileSync(resolve(import.meta.dirname, "../../themes/nxe/theme.json"), "utf8"),
+  readFileSync(resolve(import.meta.dirname, "testFixtures/theme.json"), "utf8"),
 ) as ThemeManifest;
 setTheme(
   applyManifest(

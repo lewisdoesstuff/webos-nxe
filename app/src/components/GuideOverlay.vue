@@ -115,15 +115,18 @@ const props = withDefaults(
     clock24h?: boolean;
     /** The gamer picture, when there is one to replace the default. */
     pic?: string;
+    /** The name on the gamertag blade. */
+    profile?: string;
     /** Draw the Magic Remote's keys instead of the face buttons. */
     remote?: boolean;
   }>(),
-  { open: false, blade: 4, item: 0, clock: "", showClock: true, clock24h: true, remote: false },
+  { open: false, blade: 2, item: 0, clock: "", showClock: true, clock24h: true, remote: false },
 );
 
 const bladeIds = BLADE_IDS;
 
 function title(id: string): string {
+  if (id === "player1" && props.profile) return props.profile;
   return id.charAt(0).toUpperCase() + id.slice(1);
 }
 
@@ -591,7 +594,7 @@ const CLOCK: Box = { x: CLOCK_X, y: CLOCK_Y, width: CLOCK_W, height: CLOCK_H };
 .slab {
   position: absolute;
   transform-origin: 0 50%;
-  border-radius: 10px 3px 0 0;
+  border-radius: 10px 3px 3px 10px;
   clip-path: polygon(
     0 0,
     100% 0,
@@ -629,7 +632,7 @@ const CLOCK: Box = { x: CLOCK_X, y: CLOCK_Y, width: CLOCK_W, height: CLOCK_H };
 }
 
 .slab[data-side="right"] {
-  border-radius: 3px 10px 0 0;
+  border-radius: 3px 10px 10px 3px;
   clip-path: polygon(
     0 0,
     100% 0,

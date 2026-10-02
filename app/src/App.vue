@@ -353,6 +353,7 @@ const {
   item: guideItem,
   items: guideItems,
   onButton: onGuideButton,
+  reset: resetGuide,
 } = useGuideNav(rows, (item) => {
   guide.value = false;
   playSound("hudSelect");
@@ -753,6 +754,9 @@ watch(
 const guideAway = useParked(() => guide.value, DIM_OUT_MS);
 const friendAway = useParked(() => friendCard.value !== null, DRILL_MS);
 const guideParked = computed(() => guideAway.value && !warming.value);
+watch(guideAway, (away) => {
+  if (away) resetGuide();
+});
 const friendParked = computed(() => friendAway.value && !warming.value);
 const parkedFrame = { transform: `${PARKED} scale(1.5)` };
 
@@ -1377,6 +1381,7 @@ function expose(): void {
         :item="guideItem"
         :items="guideItems"
         :pic="shownPic"
+        :profile="gamertag"
         :show-clock="settings.settings.showClock"
         :clock24h="settings.settings.clock24h"
         :remote="settings.settings.remoteHints"

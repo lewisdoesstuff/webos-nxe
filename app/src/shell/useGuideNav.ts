@@ -11,14 +11,21 @@ import { playBladeSound, playSound } from "../sound";
  * The Guide's blades, mapped onto this TV: Settings is the System channel,
  * Games and Media are those channels, Marketplace is LG's store, and the
  * gamertag blade, the scene data's `home`, is the Apps channel. It opens on
- * Settings. `choose` takes the item A picks.
+ * the gamertag blade. `choose` takes the item A picks.
  */
 export function useGuideNav(
   rows: Ref<readonly (readonly HubItem[])[]>,
   choose: (item: HubItem) => void,
 ) {
-  const blade = ref(BLADE_IDS.indexOf("settings"));
+  const home = BLADE_IDS.indexOf("player1");
+  const blade = ref(home);
   const item = ref(0);
+
+  /** Back to the gamertag blade, for the next time the Guide opens. */
+  function reset() {
+    blade.value = home;
+    item.value = 0;
+  }
 
   function channelItems(id: SectionId): HubItem[] {
     return pageItems(rows.value[CHANNEL_ORDER.indexOf(id)] ?? []);
@@ -67,5 +74,5 @@ export function useGuideNav(
     return false;
   }
 
-  return { blade, item, items, onButton };
+  return { blade, item, items, onButton, reset };
 }

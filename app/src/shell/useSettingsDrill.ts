@@ -58,8 +58,14 @@ import { useAppsStore } from "../stores/apps";
 import { useSettingsStore } from "../stores/settings";
 import { useSteamStore } from "../stores/steam";
 import { useTvStore } from "../stores/tv";
-import { chooseTheme, installedThemes, listInstalled, selectedTheme } from "../theme/loader";
-import { downloadTheme, themeDownloadable } from "../themeDownload";
+import {
+  chooseTheme,
+  installedThemes,
+  listInstalled,
+  selectedTheme,
+  themeNeedsRestart,
+} from "../theme/loader";
+import { downloadTheme, restartApp, themeDownloadable } from "../themeDownload";
 
 /**
  * The dashboard's own settings, as a real drill stack: the root names the
@@ -155,6 +161,7 @@ export function useSettingsDrill(leaveHub: () => void) {
     markSetupDone();
     stack.value = [];
     playSound("transition");
+    if (themeNeedsRestart()) void restartApp();
   }
 
   /** Replace the setup page with the next one, or finish. */

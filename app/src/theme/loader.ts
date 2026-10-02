@@ -185,6 +185,12 @@ export function chosenThemeId(): string {
 }
 
 let selected = DEFAULT_THEME.id;
+let active = DEFAULT_THEME.id;
+
+/** Whether the chosen theme differs from the one drawn right now. */
+export function themeNeedsRestart(): boolean {
+  return selected !== active;
+}
 
 /** The theme that will start next time: the one picked in Settings, which is the active one until the app restarts. */
 export function selectedTheme(): ThemeInfo {
@@ -236,5 +242,6 @@ export async function loadTheme(): Promise<void> {
     console.error(`[nxe] theme "${id}" failed, using the default`, cause);
     theme = DEFAULT_THEME;
   }
+  active = theme === DEFAULT_THEME ? DEFAULT_THEME.id : id;
   install(theme);
 }

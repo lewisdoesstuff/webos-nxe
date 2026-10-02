@@ -186,15 +186,15 @@ export function setupBody(step: SetupStep, state: SetupState): string {
         ? "This dashboard opens after the TV starts."
         : "Open this dashboard after the TV starts, instead of stopping on LG's home screen. Remove the init.d link 61-nxe-launch to undo.";
     case "theme":
-      if (state.nxeChosen) return "The NXE theme is chosen and takes effect at the next start.";
+      if (state.nxeChosen) return "The NXE theme is chosen and is applied when setup finishes.";
       if (state.nxeDownload === "busy") return "Downloading the NXE theme. This takes a moment.";
       if (state.nxeInstalled) {
-        return "The NXE theme is installed. Use it for the retail look. It takes effect at the next start.";
+        return "The NXE theme is installed. Use it for the retail look. It is applied when setup finishes.";
       }
       if (state.nxeDownloadable) {
         return state.nxeDownload === "failed"
           ? "The download failed. Check the TV's connection and try again."
-          : "Download the NXE theme for the retail look. It needs the internet and takes effect at the next start.";
+          : "Download the NXE theme for the retail look. It needs the internet and is applied when setup finishes.";
       }
       return "The NXE theme is not installed. Run tools/install-theme.sh nxe from a computer to add it.";
     case "avatar":

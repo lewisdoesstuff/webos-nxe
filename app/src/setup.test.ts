@@ -66,10 +66,10 @@ describe("setup", () => {
     expect(nextSetupId("setup:home-confirm")).toBe("setup:launch");
   });
 
-  it("skips the offer when the Home key is already ours", () => {
+  it("keeps Continue first and allows setting up again when the Home key is already ours", () => {
     const ids = (homeArmed: boolean | null) =>
       setupPage("home", { ...none, homeArmed, bootHook: true }).options.map((option) => option.id);
-    expect(ids(true)).toEqual(["next"]);
+    expect(ids(true)).toEqual(["next", "confirm"]);
     expect(ids(false)).toEqual(["confirm", "skip"]);
     expect(setupPage("home", { ...none, homeArmed: true }).options.map((o) => o.id)).toEqual([
       "boot",

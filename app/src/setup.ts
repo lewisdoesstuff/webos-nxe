@@ -74,8 +74,9 @@ const SKIP = { id: "skip", label: "Not Now" };
 
 function homeOptions(state: SetupState): DialogPage["options"] {
   if (state.homeArmed !== true) return [{ id: "confirm", label: "Set Up Home Button" }, SKIP];
-  if (state.bootHook === true) return [{ id: "next", label: "Continue" }];
-  return [{ id: "boot", label: "Enable at Boot" }, SKIP];
+  const again = { id: "confirm", label: "Set Up Again" };
+  if (state.bootHook === true) return [{ id: "next", label: "Continue" }, again];
+  return [{ id: "boot", label: "Enable at Boot" }, again, SKIP];
 }
 
 export function setupPage(step: SetupStep, state: SetupState): DialogPage {

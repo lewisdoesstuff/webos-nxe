@@ -38,9 +38,10 @@ export async function armHome(): Promise<boolean> {
   }
 }
 
-export const INPUT_HOOK_COMMAND = "test -d /home/root/.config/lginputhook && echo 1 || echo 0";
+export const INPUT_HOOK_COMMAND =
+  "for p in $(pidof lginput2 micomservice RELEASE tvservice); do grep -qiE 'inputhook|lginput-hook' /proc/$p/maps 2>/dev/null && echo 1 && exit; done; echo 0";
 
-/** Whether LG Input Hook has been run on this TV. Null when the elevated shell cannot be reached. */
+/** Whether LG Input Hook is loaded in the TV\u2019s input processes right now. Null when the elevated shell cannot be reached. */
 export async function inputHookPresent(): Promise<boolean | null> {
   try {
     const reply = await callLuna<ExecReply>(EXEC_URI, { command: INPUT_HOOK_COMMAND });

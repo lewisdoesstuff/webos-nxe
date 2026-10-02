@@ -4,9 +4,9 @@
       "id": "ooo.lew.nxe",
       "title": "NXE",
       "shortDescription": "<p>A home screen that recreates the look and motion of the late-2008 console dashboard.</p>",
-      "fullDescriptionUrl": "https://raw.githubusercontent.com/lewisdoesstuff/webos-xne/main/description.html",
-      "iconUri": "https://raw.githubusercontent.com/lewisdoesstuff/webos-xne/main/app/icons/icon-256.png",
-      "manifestUrl": "https://github.com/lewisdoesstuff/webos-xne/releases/latest/download/ooo.lew.nxe.manifest.json",
+      "fullDescriptionUrl": "https://raw.githubusercontent.com/lewisdoesstuff/webos-nxe/main/description.html",
+      "iconUri": "https://raw.githubusercontent.com/lewisdoesstuff/webos-nxe/main/app/icons/icon-256.png",
+      "manifestUrl": "https://github.com/lewisdoesstuff/webos-nxe/releases/latest/download/ooo.lew.nxe.manifest.json",
       "requirements": {
         "webosRelease": ">=23"
       }

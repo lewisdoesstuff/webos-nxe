@@ -4,7 +4,7 @@
 import crypto from "node:crypto";
 import fs from "node:fs";
 
-const REPO = "https://github.com/lewisdoesstuff/webos-xne";
+const REPO = "https://github.com/lewisdoesstuff/webos-nxe";
 
 const ipkPath = process.argv[2];
 if (!ipkPath) {

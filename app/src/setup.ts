@@ -5,16 +5,18 @@ export const SETUP_KEY = "nxe.setup";
 export const SETUP_PREFIX = "setup:";
 export const SETUP_ROOT = `${SETUP_PREFIX}home`;
 
-export type SetupStep = "home" | "home-confirm" | "theme" | "avatar" | "steam";
+export type SetupStep = "home" | "home-confirm" | "launch" | "theme" | "avatar" | "steam";
 
 /** The pages in order. `home-confirm` is only reached from `home`. */
-export const SETUP_STEPS: readonly SetupStep[] = ["home", "theme", "avatar", "steam"];
+export const SETUP_STEPS: readonly SetupStep[] = ["home", "launch", "theme", "avatar", "steam"];
 
 export interface SetupState {
   /** Whether the Home key already opens this app, or null when that cannot be read. */
   readonly homeArmed: boolean | null;
   /** Whether the init.d hook that re-arms it at boot is in place, or null when unreadable. */
   readonly bootHook: boolean | null;
+  /** Whether the init.d link that opens this app after boot is in place, or null when unreadable. */
+  readonly launchHook: boolean | null;
   /** Whether the NXE theme add-on is installed on this device. */
   readonly nxeInstalled: boolean;
   /** Whether the theme chosen for the next start is NXE. */
@@ -27,6 +29,7 @@ export type SetupAction =
   | { readonly kind: "confirm" }
   | { readonly kind: "arm" }
   | { readonly kind: "boot" }
+  | { readonly kind: "launch" }
   | { readonly kind: "theme"; readonly id: string }
   | { readonly kind: "avatar" }
   | { readonly kind: "steam" }
@@ -90,6 +93,17 @@ export function setupPage(step: SetupStep, state: SetupState): DialogPage {
         ],
         back: "skip",
       };
+    case "launch":
+      return {
+        kind: "dialog",
+        id,
+        title: "Start at Boot",
+        options:
+          state.launchHook === true
+            ? [{ id: "next", label: "Continue" }]
+            : [{ id: "launch", label: "Open at Boot" }, SKIP],
+        back: state.launchHook === true ? "next" : "skip",
+      };
     case "theme":
       if (state.nxeChosen) {
         return {
@@ -144,6 +158,10 @@ export function setupBody(step: SetupStep, state: SetupState): string {
       return "Make the Home button open this dashboard instead of the TV's home screen.";
     case "home-confirm":
       return "The screen goes dark for about 90 seconds while the TV restarts its system UI, and this app closes. Restarting the TV undoes it.";
+    case "launch":
+      return state.launchHook === true
+        ? "This dashboard opens after the TV starts."
+        : "Open this dashboard after the TV starts, instead of stopping on LG's home screen. Remove the init.d link 61-nxe-launch to undo.";
     case "theme":
       if (state.nxeChosen) return "The NXE theme is chosen and takes effect at the next start.";
       return state.nxeInstalled
@@ -169,6 +187,8 @@ export function setupAction(pageId: string, optionId: string): SetupAction | nul
       return step === "home-confirm" ? { kind: "arm" } : null;
     case "boot":
       return step === "home" ? { kind: "boot" } : null;
+    case "launch":
+      return step === "launch" ? { kind: "launch" } : null;
     case "next":
     case "skip":
       if (step === "home-confirm") return { kind: "next" };

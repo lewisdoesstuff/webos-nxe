@@ -1,7 +1,14 @@
 import { computed, ref, watch } from "vue";
 
 import { describeApp } from "../appDescriptions";
-import { armHome, bootHookEnabled, enableBootHook, homeArmed } from "../homeTakeover";
+import {
+  armHome,
+  bootHookEnabled,
+  enableBootHook,
+  enableLaunchHook,
+  homeArmed,
+  launchHookEnabled,
+} from "../homeTakeover";
 import { type Button, horizontal, vertical } from "../keys";
 import {
   type Page,
@@ -108,11 +115,13 @@ export function useSettingsDrill(leaveHub: () => void) {
 
   const homeIsArmed = ref<boolean | null>(null);
   const hookIsOn = ref<boolean | null>(null);
+  const launchIsOn = ref<boolean | null>(null);
 
   function setupState(): SetupState {
     return {
       homeArmed: homeIsArmed.value,
       bootHook: hookIsOn.value,
+      launchHook: launchIsOn.value,
       nxeInstalled: installedThemes().some((info) => info.id === "nxe"),
       nxeChosen: selectedTheme().id === "nxe",
       steamSignedIn: steam.status.state === "signedIn",
@@ -128,11 +137,14 @@ export function useSettingsDrill(leaveHub: () => void) {
   function openSetup(): void {
     const page = setupPageFor(SETUP_ROOT);
     if (page) openOn(page);
-    void Promise.all([homeArmed(), bootHookEnabled()]).then(([armed, hook]) => {
-      homeIsArmed.value = armed;
-      hookIsOn.value = hook;
-      if (top(stack.value)?.page.id === SETUP_ROOT) refreshTop();
-    });
+    void Promise.all([homeArmed(), bootHookEnabled(), launchHookEnabled()]).then(
+      ([armed, hook, launch]) => {
+        homeIsArmed.value = armed;
+        hookIsOn.value = hook;
+        launchIsOn.value = launch;
+        if (isSetupPage(top(stack.value)?.page.id ?? "")) refreshTop();
+      },
+    );
   }
 
   function finishSetup(): void {
@@ -179,6 +191,12 @@ export function useSettingsDrill(leaveHub: () => void) {
         return;
       case "boot":
         void enableBootHook().then((ran) => {
+          if (!ran) playSound("back");
+          advanceSetup(frame.page.id);
+        });
+        return;
+      case "launch":
+        void enableLaunchHook().then((ran) => {
           if (!ran) playSound("back");
           advanceSetup(frame.page.id);
         });

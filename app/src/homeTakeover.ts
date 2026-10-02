@@ -75,3 +75,31 @@ export async function enableBootHook(): Promise<boolean> {
     return false;
   }
 }
+
+const LAUNCH_SCRIPT = "/var/lib/webosbrew/nxe/service/launch-at-boot.sh";
+const LAUNCH_HOOK = "/var/lib/webosbrew/init.d/61-nxe-launch";
+
+export const LAUNCH_HOOK_COMMAND = `test -L ${LAUNCH_HOOK} && echo 1 || echo 0`;
+
+/** Links the script that opens this app after boot into init.d. */
+export const ENABLE_LAUNCH_COMMAND = `test -f ${LAUNCH_SCRIPT} && chmod +x ${LAUNCH_SCRIPT} && ln -sf ${LAUNCH_SCRIPT} ${LAUNCH_HOOK}`;
+
+/** Whether the open-at-boot link is in place. Null when the elevated shell cannot be reached. */
+export async function launchHookEnabled(): Promise<boolean | null> {
+  try {
+    const reply = await callLuna<ExecReply>(EXEC_URI, { command: LAUNCH_HOOK_COMMAND });
+    const out = (reply.stdoutString ?? "").trim();
+    return out === "1" ? true : out === "0" ? false : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function enableLaunchHook(): Promise<boolean> {
+  try {
+    await callLuna(EXEC_URI, { command: ENABLE_LAUNCH_COMMAND });
+    return true;
+  } catch {
+    return false;
+  }
+}

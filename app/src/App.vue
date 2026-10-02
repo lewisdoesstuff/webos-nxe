@@ -47,6 +47,7 @@ import {
   advancePins,
   paneSlot,
   placePool,
+  PAST_OFFSET,
   POOL_SIZE,
   type PooledPane,
   stepHub,
@@ -843,8 +844,21 @@ async function driveDeal(mine: number): Promise<void> {
   }
 }
 
+/**
+ * The cards the deal shows get their new content one a frame, ahead of their
+ * reveal. The spare cards past either end are out of sight until the next
+ * move, so they wait until the deal has landed: each content swap is a pane's
+ * worth of raster on the TV's GPU, and doing all of them inside the deal cost
+ * it a frame in every two.
+ */
 async function releasePanes(mine: number): Promise<void> {
-  for (let rank = 2; rank <= 2 * POOL_SIZE; rank++) {
+  for (let rank = 2; rank <= PAST_OFFSET; rank++) {
+    await nextFrame();
+    if (mine !== generation) return;
+    released.value = rank;
+  }
+  await wait(DEAL_SETTLE_MS);
+  for (let rank = PAST_OFFSET + 1; rank <= 2 * POOL_SIZE; rank++) {
     await nextFrame();
     if (mine !== generation) return;
     released.value = rank;

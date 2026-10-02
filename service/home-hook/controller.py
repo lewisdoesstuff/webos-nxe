@@ -28,6 +28,8 @@ ARTIFACTS = ("ezinject", LIBRARY)
 HOME_KEYS = (125, 773, 774)
 SCM_CREDENTIALS = 2
 LAUNCH_GAP = 1.0
+STOCK_HOME = "com.webos.app.home"
+APP_ID_PATTERN = re.compile(rb'"appId"\s*:\s*"([^"]*)"')
 
 
 class HookError(Exception):
@@ -56,6 +58,11 @@ def parse_message(data):
     except (UnicodeError, ValueError):
         return None
     return None
+
+
+def foreground_ids(chunk):
+    """The app ids named in a chunk of getForegroundAppInfo output, in order."""
+    return [match.decode("ascii", "replace") for match in APP_ID_PATTERN.findall(chunk)]
 
 
 def lease_text(build, now_seconds):
@@ -160,6 +167,8 @@ def launch():
 class Controller:
     def __init__(self):
         self.build, self.path = install()
+        self.watch = None
+        self.watch_tail = b""
         runtime_directory()
         remove_owned("lease")
         remove_owned("control.sock")
@@ -225,6 +234,32 @@ class Controller:
                     self.last_launch = now
                     launch()
 
+    def follow_foreground(self):
+        """Keeps a subscription on the foreground app so a force-close, which lands on the stock home, is sent here instead."""
+        if self.watch is not None and self.watch.poll() is None:
+            return
+        self.watch = subprocess.Popen(
+            ["luna-send", "-i", "-f", "luna://com.webos.applicationManager/getForegroundAppInfo",
+             json.dumps({"subscribe": True})],
+            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+        os.set_blocking(self.watch.stdout.fileno(), False)
+
+    def foreground(self, now):
+        try:
+            chunk = self.watch.stdout.read(4096)
+        except (BlockingIOError, OSError):
+            return
+        if not chunk:
+            return
+        data = self.watch_tail + chunk
+        # Keep the last unfinished object for the next read.
+        cut = data.rfind(b"}")
+        self.watch_tail = data[cut + 1:] if cut >= 0 else data[-256:]
+        for app_id in foreground_ids(data[: cut + 1] if cut >= 0 else b""):
+            if app_id == STOCK_HOME and self.ok(now) and now - self.last_launch > LAUNCH_GAP * 2:
+                self.last_launch = now
+                launch()
+
     def ok(self, now):
         return bool(self.identities) and all(
             i in self.ready and 0 <= now - self.ready[i] < 2 for i in self.identities.values())
@@ -237,8 +272,12 @@ class Controller:
         os.replace(tmp, os.path.join(RUNTIME, "lease"))
 
     def step(self):
-        if select.select([self.sock], [], [], 0.25)[0]:
+        self.follow_foreground()
+        ready = select.select([self.sock, self.watch.stdout], [], [], 0.25)[0]
+        if self.sock in ready:
             self.messages(clock())
+        if self.watch.stdout in ready:
+            self.foreground(clock())
         now = clock()
         for identity, (child, deadline) in list(self.children.items()):
             code = child.poll()
@@ -264,6 +303,9 @@ class Controller:
         try:
             remove_owned("lease")
         finally:
+            if self.watch is not None and self.watch.poll() is None:
+                self.watch.kill()
+                self.watch.wait()
             for child, _ in self.children.values():
                 if child.poll() is None:
                     child.kill()

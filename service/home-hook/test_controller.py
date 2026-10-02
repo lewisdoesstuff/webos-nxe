@@ -19,6 +19,10 @@ class ParseTests(unittest.TestCase):
                      b"LGXMB_HOME 1 READY a 1 2 bogus 3", b"\xff\xfe"):
             self.assertIsNone(controller.parse_message(data))
 
+    def test_foreground_ids(self):
+        chunk = b'{\n "appId": "ooo.lew.nxe",\n "x": 1\n}\n{\n "appId": "",\n}\n{ "appId": "com.webos.app.home" }'
+        self.assertEqual(controller.foreground_ids(chunk), ["ooo.lew.nxe", "", "com.webos.app.home"])
+
     def test_lease_format(self):
         self.assertEqual(controller.lease_text("abc", 1.5), "LGXMB_HOME 1 abc 1500\n")
 

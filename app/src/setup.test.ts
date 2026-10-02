@@ -73,6 +73,7 @@ describe("setup", () => {
     expect(ids(false)).toEqual(["confirm", "skip"]);
     expect(setupPage("home", { ...none, homeArmed: true }).options.map((o) => o.id)).toEqual([
       "boot",
+      "confirm",
       "skip",
     ]);
     expect(setupAction("setup:home", "boot")).toEqual({ kind: "boot" });

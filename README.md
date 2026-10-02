@@ -4,6 +4,7 @@ A home screen for rooted LG webOS TVs that recreates the look and motion of the 
 
 ![The home pane](assets/screenshots/home.jpg)
 ![The Guide](assets/screenshots/guide.jpg)
+![System Settings](assets/screenshots/settings.jpg)
 
 It runs from `file://` on the TV, and in desktop Chrome against a mock Luna transport for development. The app ships with an original default theme, and other looks load as theme add-ons (`app/src/theme/`).
 

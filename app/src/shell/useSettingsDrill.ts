@@ -13,6 +13,8 @@ import {
   top,
 } from "../pages";
 import {
+  AVATAR_EDITOR_URL,
+  BROWSER_APP,
   DESCRIPTION_KEY,
   parseGamerscore,
   profilePage,
@@ -23,14 +25,32 @@ import {
   settingsStep,
   type SettingDetail,
 } from "../settingsScreen";
+import {
+  markSetupDone,
+  nextSetupId,
+  isSetupPage,
+  setupAction,
+  setupBody,
+  setupPage,
+  setupStepOf,
+  SETUP_ROOT,
+  type SetupState,
+} from "../setup";
 import { playSound } from "../sound";
 import { friendCard as makeFriendCard, type FriendCard } from "../steam/card";
-import { friendPageId, STEAM_FRIEND, STEAM_GAMES, STEAM_QR, type SteamView } from "../steam/pages";
+import {
+  friendPageId,
+  STEAM_FRIEND,
+  STEAM_GAMES,
+  STEAM_QR,
+  steamPage,
+  type SteamView,
+} from "../steam/pages";
 import { useAppsStore } from "../stores/apps";
 import { useSettingsStore } from "../stores/settings";
 import { useSteamStore } from "../stores/steam";
 import { useTvStore } from "../stores/tv";
-import { chooseTheme } from "../theme/loader";
+import { chooseTheme, installedThemes, selectedTheme } from "../theme/loader";
 
 /**
  * The dashboard's own settings, as a real drill stack: the root names the
@@ -83,6 +103,71 @@ export function useSettingsDrill(leaveHub: () => void) {
       steamView.value,
     );
     if (card) openOn(card);
+  }
+
+  function setupState(): SetupState {
+    return {
+      nxeInstalled: installedThemes().some((info) => info.id === "nxe"),
+      nxeChosen: selectedTheme().id === "nxe",
+      steamSignedIn: steam.status.state === "signedIn",
+    };
+  }
+
+  function setupPageFor(id: string): Page | null {
+    const stepId = setupStepOf(id);
+    return stepId === null ? null : setupPage(stepId, setupState());
+  }
+
+  /** The first-run setup, over the hub. */
+  function openSetup(): void {
+    const page = setupPageFor(SETUP_ROOT);
+    if (page) openOn(page);
+  }
+
+  function finishSetup(): void {
+    markSetupDone();
+    stack.value = [];
+    playSound("transition");
+  }
+
+  /** Replace the setup page with the next one, or finish. */
+  function advanceSetup(from: string): void {
+    const next = nextSetupId(from);
+    const page = next === null ? null : setupPageFor(next);
+    if (page === null) {
+      finishSetup();
+      return;
+    }
+    stack.value = [{ page, focus: ROOT_FOCUS }];
+  }
+
+  function activateSetup(optionId: string): void {
+    const frame = top(stack.value);
+    if (!frame) return;
+    const action = setupAction(frame.page.id, optionId);
+    if (!action) return;
+    playSound("select");
+    switch (action.kind) {
+      case "next":
+        advanceSetup(frame.page.id);
+        return;
+      case "done":
+        finishSetup();
+        return;
+      case "theme":
+        chooseTheme(action.id);
+        advanceSetup(frame.page.id);
+        return;
+      case "avatar":
+        void apps.launch(BROWSER_APP, { target: AVATAR_EDITOR_URL });
+        return;
+      case "steam": {
+        const qr = steamPage(STEAM_QR, steamView.value);
+        if (!qr) return;
+        stack.value = push(stack.value, qr);
+        loadPushed(STEAM_QR);
+      }
+    }
   }
 
   /** What is being typed in the profile menu, or null. While it is set, keys belong to the entry. */
@@ -145,6 +230,11 @@ export function useSettingsDrill(leaveHub: () => void) {
   function activate(): void {
     const frame = top(stack.value);
     if (!frame) return;
+    if (frame.page.kind === "dialog" && isSetupPage(frame.page.id)) {
+      const option = frame.page.options[frame.focus.item];
+      if (option) activateSetup(option.id);
+      return;
+    }
     const action = settingsAction(
       frame.page,
       frame.focus,
@@ -188,6 +278,9 @@ export function useSettingsDrill(leaveHub: () => void) {
       case "steam":
         void steam.signOut();
         return;
+      case "setup":
+        openSetup();
+        return;
       case "tv":
         tv.apply(action.def, action.value);
         if (action.pop) stack.value = pop(stack.value);
@@ -211,6 +304,11 @@ export function useSettingsDrill(leaveHub: () => void) {
   }
 
   function closeLevel(): void {
+    const frame = top(stack.value);
+    if (frame && frame.page.kind === "dialog" && isSetupPage(frame.page.id)) {
+      activateSetup(frame.page.back);
+      return;
+    }
     stack.value = pop(stack.value);
     playSound("back");
     if (stack.value.length === 0) playSound("transition");
@@ -225,13 +323,15 @@ export function useSettingsDrill(leaveHub: () => void) {
   function refreshTop(): void {
     const frame = top(stack.value);
     if (!frame) return;
-    const rebuilt = settingsPageFor(
-      frame.page.id,
-      settings.settings,
-      apps.launchPoints,
-      tv.snapshot,
-      steamView.value,
-    );
+    const rebuilt = isSetupPage(frame.page.id)
+      ? setupPageFor(frame.page.id)
+      : settingsPageFor(
+          frame.page.id,
+          settings.settings,
+          apps.launchPoints,
+          tv.snapshot,
+          steamView.value,
+        );
     if (!rebuilt) return;
     const count = rowCount(rebuilt, frame.focus);
     const focus =
@@ -262,6 +362,10 @@ export function useSettingsDrill(leaveHub: () => void) {
   const detail = computed((): SettingDetail => {
     const frame = top(stack.value);
     if (!frame) return { values: [], description: "" };
+    if (frame.page.kind === "dialog") {
+      const stepId = setupStepOf(frame.page.id);
+      return { values: [], description: stepId === null ? "" : setupBody(stepId, setupState()) };
+    }
     return settingsDetail(
       frame.page,
       frame.focus,
@@ -289,7 +393,7 @@ export function useSettingsDrill(leaveHub: () => void) {
         stack.value = pop(stack.value);
         playSound("select");
       }
-      if (id.startsWith("settings:steam")) refreshTop();
+      if (id.startsWith("settings:steam") || id === "setup:steam") refreshTop();
     },
   );
   watch(
@@ -303,6 +407,7 @@ export function useSettingsDrill(leaveHub: () => void) {
     stack,
     isOpen,
     open,
+    openSetup,
     openProfile,
     openFriend,
     draft,

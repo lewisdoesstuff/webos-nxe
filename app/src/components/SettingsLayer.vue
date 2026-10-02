@@ -115,7 +115,9 @@ interface Slot {
 const ROW_PITCH = 45;
 
 const items = computed(() =>
-  props.page.kind === "list" ? (props.page.groups[props.focus.group]?.items ?? []) : [],
+  props.page.kind === "list"
+    ? (props.page.groups[props.focus.group]?.items ?? [])
+    : props.page.options,
 );
 
 const slots = computed((): Slot[] => {
@@ -127,14 +129,16 @@ const slots = computed((): Slot[] => {
     return {
       index,
       label: item?.label ?? "",
-      icon: item?.icon ?? "",
+      icon: (item && "icon" in item ? item.icon : undefined) ?? "",
       focused: item !== undefined && index === props.focus.item,
       y: slot * ROW_PITCH,
     };
   });
 });
 
-const withIcons = computed(() => items.value.some((item) => item.icon !== undefined));
+const withIcons = computed(() =>
+  items.value.some((item) => "icon" in item && item.icon !== undefined),
+);
 </script>
 
 <template>

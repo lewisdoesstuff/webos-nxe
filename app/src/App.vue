@@ -105,6 +105,7 @@ import { ringImage, ripplePattern } from "./ripples";
 import { CHANNEL_ORDER, isChannel, SECTIONS, startChannel } from "./sections";
 import type { Settings } from "./settings";
 import { AVATAR_DOWNLOAD, formatGamerscore } from "./settingsScreen";
+import { setupDone } from "./setup";
 import { nextFrame, wait } from "./shell/frames";
 import { useArtBake } from "./shell/useArtBake";
 import { useGuideNav } from "./shell/useGuideNav";
@@ -202,10 +203,16 @@ function signInToast(): void {
   signIn(() => gamertag.value, steamStarted);
 }
 
+function firstRun(): void {
+  const forced = new URLSearchParams(window.location.search).get("setup") === "1";
+  if (forced || !setupDone()) setTimeout(openSetup, 1500);
+}
+
 function onBootDone(payload: { reason: BootReason }): void {
   if (payload.reason === "skipped") console.info("[nxe] boot skipped");
   booting.value = false;
   setTimeout(signInToast, 600);
+  firstRun();
 }
 
 /** A boot resolved to off never mounts, so the dashboard is simply the first thing shown. */
@@ -213,6 +220,7 @@ function settleBoot(): void {
   if (bootMode.value === "off") {
     booting.value = false;
     setTimeout(signInToast, 900);
+    firstRun();
   }
 }
 
@@ -275,6 +283,7 @@ const {
   stack: settingsStack,
   isOpen: settingsOpen,
   open: openSettings,
+  openSetup,
   openProfile,
   openFriend,
   draft,

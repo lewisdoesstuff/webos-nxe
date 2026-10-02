@@ -255,6 +255,7 @@ describe("profile menu", () => {
       "Gamertag",
       "Gamerscore",
       "Customize Avatar",
+      "Run Setup",
     ]);
     expect(settingsPageFor("profile", SETTINGS_DEFAULTS, [])).toEqual(page);
   });

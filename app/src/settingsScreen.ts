@@ -386,6 +386,7 @@ export function profilePage(): ListPage {
           { id: "gamertag", label: theme().strings.gamertag },
           { id: "gamerscore", label: theme().strings.gamerscore },
           { id: "avatar", label: "Customize Avatar" },
+          { id: "setup", label: "Run Setup" },
         ],
       },
     ],
@@ -589,6 +590,7 @@ export type SettingsAction =
       readonly pop?: boolean;
     }
   | { readonly kind: "steam"; readonly op: SteamOp }
+  | { readonly kind: "setup" }
   | {
       readonly kind: "launch";
       readonly id: string;
@@ -646,6 +648,7 @@ export function settingsAction(
     if (item.id === "avatar") {
       return { kind: "launch", id: BROWSER_APP, params: { target: AVATAR_EDITOR_URL } };
     }
+    if (item.id === "setup") return { kind: "setup" };
     return null;
   }
   if (page.id === "settings") {

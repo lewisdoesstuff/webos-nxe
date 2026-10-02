@@ -8,6 +8,7 @@ import {
   bootMasterFrame,
   bootSkip,
   bootSkipMs,
+  keySkipsBoot,
   bootStart,
   bootTiming,
   type BootDone,
@@ -16,6 +17,7 @@ import {
   type BootState,
   FRAME_H,
   FRAME_W,
+  FRAME_MS,
   HOLD_MS,
   STAGE_INDEX,
 } from "../boot";
@@ -78,6 +80,8 @@ let announced = 0;
 let frame = 0;
 let origin = 0;
 let skipped = false;
+let lastTick = 0;
+const MAX_STEP_MS = 250;
 let frozen = false;
 let warmed = false;
 let drawn = -1;
@@ -156,6 +160,10 @@ function tick(now: number): void {
       }
     }
   }
+  // A frame that arrives long after the last one is a stall, such as the page
+  // returning to the foreground. The run resumes where it stood.
+  if (lastTick !== 0 && now - lastTick > MAX_STEP_MS) origin += now - lastTick - FRAME_MS;
+  lastTick = now;
   const next = bootAdvance(state.value, now - origin, timing.value);
   state.value = next;
   announce(next);
@@ -188,6 +196,7 @@ function play(): void {
   if (frame !== 0) return;
   if (bootDone(state.value, timing.value)) return;
   origin = 0;
+  lastTick = 0;
   frame = requestAnimationFrame(tick);
 }
 
@@ -235,7 +244,7 @@ function onKeyDown(event: KeyboardEvent): void {
   if (MODIFIER_KEYS.has(event.key)) return;
   event.preventDefault();
   event.stopImmediatePropagation();
-  skip();
+  if (keySkipsBoot(event.repeat, origin === 0 ? null : performance.now() - origin)) skip();
 }
 
 onMounted(() => {

@@ -33,7 +33,7 @@ The SDK is built from
 [sundermann/buildroot-nc4 at 93adce88](https://github.com/sundermann/buildroot-nc4/tree/93adce888212c31ff2a89f5ea9260961c64fc6c5)
 using `lgtv_defconfig`. That tree contains the dependency source locations,
 versions, patches and build recipes. `dependencies.json` pins the downloaded SDK
-archive by SHA-256. `tools/build-home-hook.sh` builds the injector and hook from
+archive by SHA-256. `build-home-hook.sh` builds the injector and hook from
 source with that SDK; the resulting `prebuilt/build.json` records the source and
 binary hashes. The build files and linked dependency sources above allow the
 hook to be rebuilt and relinked with modified libraries.
@@ -41,3 +41,9 @@ hook to be rebuilt and relinked with modified libraries.
 The TV's standard C/POSIX runtime libraries are dynamically linked and are not
 bundled here. No binaries from the Syspoke or unofficial LG Input Hook IPKs are
 used.
+
+The source in this directory (`home-hook.c`, `test-home-hook.c`, `CMakeLists.txt`,
+`dependencies.json`, `build-home-hook.sh`) is the exact source of the prebuilt
+binaries; its hashes match `prebuilt/build.json`. The script is unmodified from
+the LG-XMB project, where it ran as `tools/build-home-hook.sh` with the files under
+`tv-helper/native/`, so it needs that layout to run.

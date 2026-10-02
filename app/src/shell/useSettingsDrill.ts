@@ -7,6 +7,7 @@ import {
   enableBootHook,
   enableLaunchHook,
   homeArmed,
+  inputHookPresent,
   launchHookEnabled,
 } from "../homeTakeover";
 import { type Button, horizontal, vertical } from "../keys";
@@ -123,6 +124,7 @@ export function useSettingsDrill(leaveHub: () => void) {
   const homeIsArmed = ref<boolean | null>(null);
   const hookIsOn = ref<boolean | null>(null);
   const launchIsOn = ref<boolean | null>(null);
+  const inputHookIsOn = ref<boolean | null>(null);
   const themeDownload = ref<"idle" | "busy" | "failed">("idle");
 
   function setupState(): SetupState {
@@ -130,6 +132,7 @@ export function useSettingsDrill(leaveHub: () => void) {
       homeArmed: homeIsArmed.value,
       bootHook: hookIsOn.value,
       launchHook: launchIsOn.value,
+      inputHook: inputHookIsOn.value,
       nxeInstalled: installedThemes().some((info) => info.id === "nxe"),
       nxeChosen: selectedTheme().id === "nxe",
       nxeDownloadable: themeDownloadable(),
@@ -147,14 +150,18 @@ export function useSettingsDrill(leaveHub: () => void) {
   function openSetup(): void {
     const page = setupPageFor(SETUP_ROOT);
     if (page) openOn(page);
-    void Promise.all([homeArmed(), bootHookEnabled(), launchHookEnabled()]).then(
-      ([armed, hook, launch]) => {
-        homeIsArmed.value = armed;
-        hookIsOn.value = hook;
-        launchIsOn.value = launch;
-        if (isSetupPage(top(stack.value)?.page.id ?? "")) refreshTop();
-      },
-    );
+    void Promise.all([
+      homeArmed(),
+      bootHookEnabled(),
+      launchHookEnabled(),
+      inputHookPresent(),
+    ]).then(([armed, hook, launch, inputHook]) => {
+      inputHookIsOn.value = inputHook;
+      homeIsArmed.value = armed;
+      hookIsOn.value = hook;
+      launchIsOn.value = launch;
+      if (isSetupPage(top(stack.value)?.page.id ?? "")) refreshTop();
+    });
   }
 
   function finishSetup(): void {

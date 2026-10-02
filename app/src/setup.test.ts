@@ -109,4 +109,11 @@ describe("setup", () => {
       }
     }
   });
+
+  it("points Input Hook users at its key bindings", () => {
+    const state = { ...none, homeArmed: false, inputHook: true };
+    expect(setupBody("home-confirm", state)).toContain("LG Input Hook");
+    expect(setupBody("home", state)).toContain("LG Input Hook");
+    expect(setupBody("home", { ...none, inputHook: false })).not.toContain("LG Input Hook");
+  });
 });

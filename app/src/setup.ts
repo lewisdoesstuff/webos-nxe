@@ -13,6 +13,8 @@ export const SETUP_STEPS: readonly SetupStep[] = ["home", "launch", "theme", "av
 export interface SetupState {
   /** Whether the Home key already opens this app, or null when that cannot be read. */
   readonly homeArmed: boolean | null;
+  /** Whether LG Input Hook is installed, or null when unreadable. */
+  readonly inputHook?: boolean | null;
   /** Whether the init.d hook that re-arms it at boot is in place, or null when unreadable. */
   readonly bootHook: boolean | null;
   /** Whether the init.d link that opens this app after boot is in place, or null when unreadable. */
@@ -170,17 +172,21 @@ export function setupPage(step: SetupStep, state: SetupState): DialogPage {
   }
 }
 
+const INPUT_HOOK_NOTE =
+  " LG Input Hook is installed, so Home is added to its key bindings instead. Open Input Hook once after each restart.";
+
 export function setupBody(step: SetupStep, state: SetupState): string {
+  const note = state.inputHook === true ? INPUT_HOOK_NOTE : "";
   switch (step) {
     case "home":
       if (state.homeArmed === true) {
         return state.bootHook === true
-          ? "The Home button opens this dashboard, and is set again at every boot."
-          : "The Home button opens this dashboard until the TV restarts. Enable it at boot to hook it again each time the TV starts. Remove the init.d link 62-nxe-homehook to undo.";
+          ? `The Home button opens this dashboard, and is set again at every boot.${note}`
+          : `The Home button opens this dashboard until the TV restarts. Enable it at boot to hook it again each time the TV starts. Remove the init.d link 62-nxe-homehook to undo.${note}`;
       }
-      return "Make the Home button open this dashboard instead of the TV's home screen.";
+      return `Make the Home button open this dashboard instead of the TV's home screen.${note}`;
     case "home-confirm":
-      return "A small hook is loaded into the TV\u2019s input service, with no restart. Home then opens this app, and holding Home no longer does LG\u2019s own action. Restarting the TV undoes it.";
+      return `A small hook is loaded into the TV\u2019s input service, with no restart. Home then opens this app, and holding Home no longer does LG\u2019s own action. Restarting the TV undoes it.${note}`;
     case "launch":
       return state.launchHook === true
         ? "This dashboard opens after the TV starts."

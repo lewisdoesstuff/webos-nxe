@@ -38,6 +38,19 @@ export async function armHome(): Promise<boolean> {
   }
 }
 
+export const INPUT_HOOK_COMMAND = "test -d /home/root/.config/lginputhook && echo 1 || echo 0";
+
+/** Whether LG Input Hook has been run on this TV. Null when the elevated shell cannot be reached. */
+export async function inputHookPresent(): Promise<boolean | null> {
+  try {
+    const reply = await callLuna<ExecReply>(EXEC_URI, { command: INPUT_HOOK_COMMAND });
+    const out = (reply.stdoutString ?? "").trim();
+    return out === "1" ? true : out === "0" ? false : null;
+  } catch {
+    return null;
+  }
+}
+
 const AUTOSTART = `${HOOK_DIR}/autostart.sh`;
 const BOOT_HOOK = "/var/lib/webosbrew/init.d/62-nxe-homehook";
 

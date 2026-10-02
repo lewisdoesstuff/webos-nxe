@@ -1,7 +1,11 @@
 <script setup lang="ts" vapor>
 import { computed, ref, watch } from "vue";
 
+import { useParked } from "../parked";
 import type { Toast } from "../toasts";
+
+/** The parked offset as a `translate`, so it never fights the toast's own transform animations. */
+const PARKED_AT = "3200px 0";
 
 /**
  * The toast, as the 2008 dashboard drew it, measured off captures of the real
@@ -46,6 +50,9 @@ const width = computed(() => {
   return Math.min(1000, Math.round(190 + longest));
 });
 
+/** Off the frame once its exit has played, so a toast at rest costs no render pass. */
+const parked = useParked(() => props.shown, 900);
+
 /** Set once the toast has been shown, so the exit plays on the hide and not at mount. */
 const seen = ref(props.shown);
 watch(
@@ -62,7 +69,7 @@ watch(
     :data-shown="shown || undefined"
     :data-seen="seen || undefined"
     :data-icon="toast?.icon ?? 'xbox'"
-    :style="{ '--w': `${width}px` }"
+    :style="{ '--w': `${width}px`, translate: parked ? PARKED_AT : 'none' }"
   >
     <i class="cap-l" />
     <i class="body" />

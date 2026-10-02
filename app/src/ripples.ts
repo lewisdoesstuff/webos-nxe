@@ -8,8 +8,8 @@
  * a fixed number of ring groups, each a few rings in the outer half of one
  * layer, and the groups are spaced around one shared cycle with jitter.
  *
- * Pure: the view turns each group into one promoted layer whose texture is the
- * group's SVG and whose animation is a linear scale and an opacity. Every group
+ * Pure: the view turns each group into one canvas holding the group's SVG,
+ * animated by a linear scale and an opacity. Every group
  * grows at the same rate, so every ring keeps retail's speed, and growing a
  * group costs only its outer ring's box, which is why rings travel in groups.
  */
@@ -144,9 +144,9 @@ export function ringSvg(group: RingGroup): string {
   );
 }
 
-/** The group's texture as a CSS `url()`. */
-export function ringImage(group: RingGroup): string {
-  return `url("data:image/svg+xml,${encodeURIComponent(ringSvg(group))}")`;
+/** The group's texture as an image source. */
+export function ringSrc(group: RingGroup): string {
+  return `data:image/svg+xml,${encodeURIComponent(ringSvg(group))}`;
 }
 
 /** Texture bytes for all groups: each layer is `w * h * 4` in CSS pixels. */

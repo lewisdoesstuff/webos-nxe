@@ -109,6 +109,66 @@ export function rowTrack(from: number, velocity: number, to: number): RowTrack {
   return { positions, velocities };
 }
 
+/**
+ * A held stick. Each repeat moves the target one card on, and a spring that
+ * brakes for every target surges and slows with every repeat, which reads as
+ * the row stuttering. So while a stick is held the row cruises at the rate the
+ * repeats arrive, easing to it at the spring's own acceleration, and brakes
+ * only in the last stretch before its target, at whatever even deceleration
+ * stops it exactly there. A repeat during that stretch carries the speed on;
+ * a released stick ends on that smooth stop. Speeds are cards a second here
+ * and in the spring's units at either end.
+ */
+const CRUISE_STOP = 150;
+const CRUISE_STOP_REACH = 0.75;
+
+export function cruiseTrack(from: number, velocity: number, to: number, cruise: number): RowTrack {
+  const accel = ACCELERATION * BOOST * BOOST;
+  const goal = Math.min(MAX_VELOCITY * BOOST * BOOST, cruise);
+  const positions = [from];
+  const velocities = [velocity];
+  let position = from;
+  let speed = velocity * BOOST;
+  for (let frame = 0; frame < 600 && position !== to; frame++) {
+    const direction = Math.sign(to - position);
+    const left = Math.abs(to - position);
+    let toward = speed * direction;
+    const reach = Math.min(CRUISE_STOP_REACH, (toward * toward) / (2 * CRUISE_STOP));
+    if (toward > 0 && left <= reach) {
+      const stopping = (2 * left) / toward;
+      const brake = (toward * toward) / (2 * left);
+      for (let t = FRAME_S; t < stopping; t += FRAME_S) {
+        positions.push(position + direction * (toward * t - (brake * t * t) / 2));
+        velocities.push((direction * (toward - brake * t)) / BOOST);
+      }
+      positions.push(to);
+      velocities.push(0);
+      return { positions, velocities };
+    } else {
+      toward =
+        toward < goal
+          ? Math.min(goal, toward + accel * FRAME_S)
+          : Math.max(goal, toward - accel * FRAME_S);
+    }
+    const next = position + toward * direction * FRAME_S;
+    if (toward <= 0 || Math.sign(to - next) !== direction) {
+      position = to;
+      speed = 0;
+    } else {
+      position = next;
+      speed = toward * direction;
+    }
+    positions.push(position);
+    velocities.push(speed / BOOST);
+  }
+  return { positions, velocities };
+}
+
+/** The cruising speed for repeats `interval` ms apart, one card each, in cards a second. */
+export function cruiseFor(interval: number): number {
+  return 1000 / Math.max(1, interval);
+}
+
 export function trackMs(track: RowTrack): number {
   return (track.positions.length - 1) * FRAME_MS;
 }
@@ -116,8 +176,21 @@ export function trackMs(track: RowTrack): number {
 /** Where a track stands `elapsed` ms in. */
 export function trackAt(track: RowTrack, elapsed: number): { position: number; velocity: number } {
   const last = track.positions.length - 1;
-  const index = Math.min(last, Math.max(0, Math.floor(elapsed / FRAME_MS)));
-  return { position: track.positions[index] ?? 0, velocity: track.velocities[index] ?? 0 };
+  const at = Math.min(last, Math.max(0, elapsed / FRAME_MS));
+  const low = Math.floor(at);
+  const high = Math.min(last, low + 1);
+  const t = at - low;
+  const between = (values: readonly number[]) =>
+    (values[low] ?? 0) + ((values[high] ?? 0) - (values[low] ?? 0)) * t;
+  return { position: between(track.positions), velocity: between(track.velocities) };
+}
+
+/** Whether the card for `item` stays out of sight for the whole of `track`, so it need not move. */
+export function hiddenThroughout(track: RowTrack, item: number): boolean {
+  return track.positions.every((position) => {
+    const offset = item - position;
+    return offset <= GONE_OFFSET || offset >= PAST_OFFSET;
+  });
 }
 
 /** The frames of the card for `item` while the row runs `track`, ending on `rest`. */

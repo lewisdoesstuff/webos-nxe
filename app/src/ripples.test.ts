@@ -9,7 +9,7 @@ import {
   RING_OUTER,
   RING_PERIOD_MS,
   ringBytes,
-  ringImage,
+  ringSrc,
   ringSvg,
   ripplePattern,
 } from "./ripples";
@@ -99,6 +99,6 @@ describe("ringSvg", () => {
 
   it("encodes as a CSS url", () => {
     const [group] = ripplePattern("nxe");
-    expect(ringImage(group!)).toMatch(/^url\("data:image\/svg\+xml,%3Csvg/);
+    expect(ringSrc(group!)).toMatch(/^data:image\/svg\+xml,%3Csvg/);
   });
 });

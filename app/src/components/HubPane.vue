@@ -27,6 +27,27 @@ const props = defineProps<{
   item: PaneItem | null;
 }>();
 
+/**
+ * What an image shows before it has ever had a source. Every image element
+ * stays in the pane and a new item only changes sources: creating and
+ * inserting nodes for each item was most of a channel change's main-thread
+ * time on the TV.
+ */
+const BLANK = "data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==";
+
+/**
+ * An image's source that holds its last real value while the image is hidden,
+ * since setting a source costs more than a hidden image showing a stale one.
+ */
+function held(value: () => string | null | undefined): () => string {
+  let last = BLANK;
+  return () => {
+    const now = value();
+    if (now) last = now;
+    return last;
+  };
+}
+
 const source = computed(() => (props.item ? paneArt(props.item) : null));
 const art = computed(() => shownArt(source.value));
 const echo = computed(() => shownEcho(source.value));
@@ -44,6 +65,13 @@ const recent = computed(() =>
   })),
 );
 
+const cfaceSrc = computed(held(() => face.value));
+const flatSrc = computed(held(() => (face.value && art.value) || null));
+const artSrc = computed(held(() => art.value));
+const echoSrc = computed(held(() => echo.value));
+const floorSrc = computed(held(() => floorOwn.value ?? shownFloorFace()));
+const patchSrc = computed(held(() => floorPatch.value));
+
 const rootStyle = { width: `${PANE_W}px`, height: `${PANE_H}px` };
 
 /** The item's card background, the same one wherever it is in the row. */
@@ -54,8 +82,8 @@ const faceStyle = computed(() => ({ "--card": `url(${cardFor(props.item?.id ?? "
   <div class="pane" :data-item="props.item?.id ?? ''" :style="rootStyle">
     <div class="clip">
       <div class="face" :style="faceStyle" />
-      <template v-if="profile">
-        <span class="tag">{{ props.item?.title ?? "" }}</span>
+      <div v-show="profile">
+        <span class="tag">{{ profile ? (props.item?.title ?? "") : "" }}</span>
         <span class="score">{{ score }}<i class="coin">G</i></span>
         <span class="recent">Recent Apps</span>
         <div class="recents">
@@ -64,23 +92,24 @@ const faceStyle = computed(() => ({ "--card": `url(${cardFor(props.item?.id ?? "
             <span v-else>{{ app.initial }}</span>
           </span>
         </div>
-      </template>
-      <template v-else>
-        <img v-if="face" class="cface" :src="face" alt="" />
-        <img v-if="face && art" class="flat" :src="art" alt="" />
-        <div v-else class="tile" :class="{ bare: props.item?.bare }">
-          <img v-if="art" class="art" :src="art" alt="" />
-          <span v-else class="initial">{{ initial }}</span>
+      </div>
+      <div v-show="!profile">
+        <img v-show="face" class="cface" :src="cfaceSrc" alt="" />
+        <img v-show="face && art" class="flat" :src="flatSrc" alt="" />
+        <div v-show="!(face && art)" class="tile" :class="{ bare: props.item?.bare }">
+          <img v-show="art" class="art" :src="artSrc" alt="" />
+          <span v-show="!art" class="initial">{{ art ? "" : initial }}</span>
         </div>
-        <img v-if="echo" class="echo" :src="echo" alt="" />
-        <span class="name" :class="{ two: props.item?.detail }">{{ props.item?.title ?? "" }}</span>
-        <span v-if="props.item?.detail" class="detail">{{ props.item.detail }}</span>
-      </template>
+        <img v-show="echo" class="echo" :src="echoSrc" alt="" />
+        <span class="name" :class="{ two: props.item?.detail }">{{
+          profile ? "" : (props.item?.title ?? "")
+        }}</span>
+        <span v-show="props.item?.detail" class="detail">{{ props.item?.detail ?? "" }}</span>
+      </div>
     </div>
     <div class="mirror">
-      <img v-if="floorOwn" class="floor" :src="floorOwn" alt="" />
-      <img v-else-if="shownFloorFace()" class="floor" :src="shownFloorFace()!" alt="" />
-      <img v-if="floorPatch" class="patch" :src="floorPatch" alt="" />
+      <img v-show="floorOwn || shownFloorFace()" class="floor" :src="floorSrc" alt="" />
+      <img v-show="floorPatch" class="patch" :src="patchSrc" alt="" />
     </div>
   </div>
 </template>

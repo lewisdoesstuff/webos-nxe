@@ -3,6 +3,7 @@ import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
 
 import { AVATAR_CANVAS } from "./avatar/framing";
 import { lookFor, type Look } from "./avatar/look";
+import { drawBackdrop } from "./backdrop";
 import { type BootReason, type BootSpeed, resolveBootMode } from "./boot";
 import AvatarFigure from "./components/AvatarFigure.vue";
 import BootScreen from "./components/BootScreen.vue";
@@ -38,7 +39,6 @@ import {
   type HubState,
   LABEL_FONT,
   LABEL_H,
-  LABEL_W,
   labelSlot,
   MOVE_EASE,
   MOVE_MS,
@@ -48,6 +48,7 @@ import {
   advancePins,
   paneSlot,
   placePool,
+  PAST_OFFSET,
   POOL_SIZE,
   type PooledPane,
   stepHub,
@@ -59,7 +60,10 @@ import {
   RETURN,
   dealFrames,
   foldFrames,
+  hiddenThroughout,
   keyframe,
+  cruiseFor,
+  cruiseTrack,
   rowTrack,
   slotFrame,
   swingFrames,
@@ -98,15 +102,16 @@ import {
   stepAlongBy,
 } from "./pages";
 import type { PaneItem } from "./panel";
-import { PARK_WARM_MS, PARKED, useParked } from "./parked";
+import { PARK_WARM_MS, PARKED, useParked, warming } from "./parked";
 import { liveTarget, nameInputs } from "./preview/live";
 import { CANVAS_H, CANVAS_W } from "./ribbon";
-import { ringImage, ripplePattern } from "./ripples";
+import { ringSrc, ripplePattern } from "./ripples";
 import { CHANNEL_ORDER, isChannel, SECTIONS, startChannel } from "./sections";
 import type { Settings } from "./settings";
 import { AVATAR_DOWNLOAD, formatGamerscore } from "./settingsScreen";
 import { setupDone } from "./setup";
 import { nextFrame, wait } from "./shell/frames";
+import { play, stop, stopAll } from "./shell/scripted";
 import { useArtBake } from "./shell/useArtBake";
 import { useGuideNav } from "./shell/useGuideNav";
 import { usePaneMove } from "./shell/usePaneMove";
@@ -649,7 +654,6 @@ const avatarSrc = computed(() => (booting.value ? "" : `hack${AVATAR_DOWNLOAD}`)
 function labelStyle(index: number): Record<string, string> {
   const slot = labelSlot(hub.value.channel - index);
   return {
-    width: `${LABEL_W}px`,
     height: `${LABEL_H}px`,
     "font-size": `${LABEL_FONT}px`,
     "line-height": `${LABEL_H}px`,
@@ -712,7 +716,6 @@ const frameStyle = {
  * drawing their resting layers. Off the frame they are never rastered, so they
  * sit on it for a moment after the boot, long enough to paint once.
  */
-const warming = ref(true);
 watch(
   booting,
   (busy) => {
@@ -754,28 +757,40 @@ function avatarElement(): HTMLElement | null {
   return document.querySelector("canvas.avatar");
 }
 
-function scripted(animation: Animation): boolean {
-  return !(animation instanceof CSSTransition) && !(animation instanceof CSSAnimation);
-}
-
 /** Stops every scripted move and deal, so each pane falls back to its inline style. */
 function cancelDriven(): void {
   const avatar = avatarElement();
-  for (const element of avatar ? [...paneElements(), avatar] : paneElements()) {
-    element
-      .getAnimations()
-      .filter(scripted)
-      .forEach((animation) => animation.cancel());
-  }
+  stopAll(avatar ? [...paneElements(), avatar] : paneElements());
   rowRun = null;
   clearTimeout(drivingTimer);
   driving.value = false;
 }
 
+/** Repeats closer together than this, in one direction, are a held stick. */
+const HELD_MS = 300;
+/**
+ * The last left or right press, taken or not, and the repeat interval smoothed
+ * over the hold, since repeats land on whole frames. Counting every press
+ * rather than every move keeps the cruise at the stick's own rate.
+ */
+let lastPress = { at: -Infinity, direction: 0, interval: HELD_MS, holding: false };
+
 /** How far a held stick may run the row ahead of where it stands, which the pool's spare cards cover. */
 const ROW_LAG = 2;
 
 /** Where the row stands, in items, and how fast it is going. */
+/**
+ * The animation timeline's time. A new move takes over from where the running
+ * one stands at this instant, and its animations are started at this same
+ * instant, so the hand-over is seamless. Reading `performance.now()` instead
+ * put the two a frame or so apart, which showed as the row twitching back on
+ * each press of a held stick.
+ */
+function timelineNow(): number {
+  const time = document.timeline.currentTime;
+  return typeof time === "number" ? time : performance.now();
+}
+
 function rowAt(now: number, rest: number): { position: number; velocity: number } {
   return rowRun ? trackAt(rowRun.track, now - rowRun.start) : { position: rest, velocity: 0 };
 }
@@ -784,11 +799,11 @@ function animateAvatar(
   frames: readonly MotionFrame[],
   offsets: readonly number[],
   options: KeyframeAnimationOptions,
-): void {
+): Animation | null {
   const avatar = avatarElement();
-  if (!avatar || onFriendsChannel.value) return;
-  avatar.getAnimations().forEach((animation) => animation.cancel());
-  avatar.animate(
+  if (!avatar || onFriendsChannel.value) return null;
+  return play(
+    avatar,
     frames.map((frame, index) => {
       const place = avatarPlace(frame, offsets[index] ?? 0, AVATAR_CANVAS);
       return {
@@ -801,35 +816,45 @@ function animateAvatar(
 }
 
 /** Runs the row from where it stands to the new focus on retail's spring, every pane on the same track. */
-async function driveMove(from: { position: number; velocity: number }): Promise<void> {
+async function driveMove(
+  from: { position: number; velocity: number },
+  at: number,
+  cruise: number | null = null,
+): Promise<void> {
   driving.value = true;
   clearTimeout(drivingTimer);
   await nextTick();
-  const track = rowTrack(from.position, from.velocity, shown.value.item);
+  const target = shown.value.item;
+  const track =
+    cruise === null
+      ? rowTrack(from.position, from.velocity, target)
+      : cruiseTrack(from.position, from.velocity, target, cruise);
   const duration = trackMs(track);
-  rowRun = { track, start: performance.now() };
+  rowRun = { track, start: at };
+  const started: Animation[] = [];
   const elements = paneElements();
   const avatarOf = avatarPane.value?.element;
   const options = { duration, easing: "linear" };
   for (const pane of pool.value) {
     const element = elements[pane.element];
     if (!element) continue;
-    element
-      .getAnimations()
-      .filter(scripted)
-      .forEach((animation) => animation.cancel());
-    if (pane.item === null || duration === 0) continue;
+    if (pane.item === null || duration === 0 || hiddenThroughout(track, pane.item)) {
+      stop(element);
+      continue;
+    }
     const frames = trackFrames(track, pane.item, pane.slot);
-    element.animate(frames.map(keyframe), options);
+    started.push(play(element, frames.map(keyframe), options));
     if (pane.element === avatarOf) {
       const item = pane.item;
-      animateAvatar(
+      const avatar = animateAvatar(
         frames,
         track.positions.map((position) => item - position),
         options,
       );
+      if (avatar) started.push(avatar);
     }
   }
+  for (const animation of started) animation.startTime = at;
   drivingTimer = setTimeout(() => {
     driving.value = false;
     rowRun = null;
@@ -850,9 +875,8 @@ async function driveDeal(mine: number): Promise<void> {
   for (const pane of pool.value) {
     const element = elements[pane.element];
     if (!element || pane.item === null || pane.offset <= 0) continue;
-    element.getAnimations().forEach((animation) => animation.cancel());
     const frames = dealFrames(pane.offset, pane.slot);
-    element.animate(frames.map(keyframe), options);
+    play(element, frames.map(keyframe), options);
     if (pane.element === avatarOf) {
       animateAvatar(
         frames,
@@ -863,8 +887,21 @@ async function driveDeal(mine: number): Promise<void> {
   }
 }
 
+/**
+ * The cards the deal shows get their new content one a frame, ahead of their
+ * reveal. The spare cards past either end are out of sight until the next
+ * move, so they wait until the deal has landed: each content swap is a pane's
+ * worth of raster on the TV's GPU, and doing all of them inside the deal cost
+ * it a frame in every two.
+ */
 async function releasePanes(mine: number): Promise<void> {
-  for (let rank = 2; rank <= 2 * POOL_SIZE; rank++) {
+  for (let rank = 2; rank <= PAST_OFFSET; rank++) {
+    await nextFrame();
+    if (mine !== generation) return;
+    released.value = rank;
+  }
+  await wait(DEAL_SETTLE_MS);
+  for (let rank = PAST_OFFSET + 1; rank <= 2 * POOL_SIZE; rank++) {
     await nextFrame();
     if (mine !== generation) return;
     released.value = rank;
@@ -913,9 +950,10 @@ async function driveLeave(): Promise<void> {
       frames = foldFrames(pane.offset).map(keyframe);
       options = { duration: FOLD_FRAMES_MS, easing: "linear" };
     }
-    element.animate(frames, options);
-    if (pane.element === avatarOf) {
-      avatarElement()?.animate(frames.map(fadeOnly), options);
+    play(element, frames, options);
+    const avatar = avatarElement();
+    if (pane.element === avatarOf && avatar) {
+      play(avatar, frames.map(fadeOnly), options);
     }
   }
 }
@@ -941,9 +979,10 @@ async function driveReturn(): Promise<void> {
       pane.offset === 0
         ? swingFrames(slotFrame(pane.slot), 90, 0, RETURN.panel, RETURN.panel[1], true)
         : dealFrames(pane.offset, pane.slot).map(keyframe);
-    element.animate(frames, pane.offset === 0 ? options : dealing);
-    if (pane.element === avatarOf) {
-      avatarElement()?.animate(frames.map(fadeOnly), pane.offset === 0 ? options : dealing);
+    play(element, frames, pane.offset === 0 ? options : dealing);
+    const avatar = avatarElement();
+    if (pane.element === avatarOf && avatar) {
+      play(avatar, frames.map(fadeOnly), pane.offset === 0 ? options : dealing);
     }
   }
 }
@@ -990,10 +1029,20 @@ function navigate(move: HubMove): void {
   if (next === hub.value) return;
   const channelChanged = next.channel !== hub.value.channel;
   const single = move === "left" || move === "right";
+  const pressed = timelineNow();
+  const direction = Math.sign(next.item - hub.value.item);
+  const holding = single && direction === lastPress.direction && pressed - lastPress.at < HELD_MS;
+  const gap = pressed - lastPress.at;
+  lastPress = {
+    at: pressed,
+    direction,
+    interval: holding && lastPress.holding ? lastPress.interval * 0.75 + gap * 0.25 : gap,
+    holding,
+  };
   if (
     !channelChanged &&
     single &&
-    Math.abs(next.item - rowAt(performance.now(), next.item).position) > ROW_LAG
+    Math.abs(next.item - rowAt(pressed, next.item).position) > ROW_LAG
   ) {
     return;
   }
@@ -1009,10 +1058,10 @@ function navigate(move: HubMove): void {
   generation++;
   held.value = null;
   phase.value = "rest";
-  const now = performance.now();
-  const from = rowAt(now, shown.value.item);
+  const from = rowAt(pressed, shown.value.item);
+  const cruise = holding && rowRun !== null ? cruiseFor(lastPress.interval) : null;
   shown.value = next;
-  void driveMove(from);
+  void driveMove(from, pressed, cruise);
 }
 
 /** A launches the focused pane's item. A placeholder is drawn and nothing
@@ -1094,17 +1143,36 @@ function onKeyDown(event: KeyboardEvent): void {
   if (consumed) event.preventDefault();
 }
 
-const rings = ripplePattern(deviceSeed()).map((group) => ({
+/**
+ * Each ring group is a canvas drawn once, because a canvas is one texture and
+ * one quad, where a promoted box this size is eight 256px tiles the compositor
+ * redraws every frame the rings move.
+ */
+const ringGroups = ripplePattern(deviceSeed());
+const rings = ringGroups.map((group) => ({
   left: `${group.left}px`,
   top: `${group.top}px`,
   width: `${group.width}px`,
   height: `${group.height}px`,
-  backgroundImage: ringImage(group),
   animationDuration: `${group.periodMs}ms`,
   animationDelay: `${group.delayMs}ms`,
   "--from": String(group.from),
   "--peak": String(group.peak),
 }));
+
+function drawRings(): void {
+  const canvases = document.querySelectorAll<HTMLCanvasElement>(".ripples canvas");
+  ringGroups.forEach((group, index) => {
+    const canvas = canvases[index];
+    const context = canvas?.getContext("2d");
+    if (!canvas || !context) return;
+    canvas.width = group.width;
+    canvas.height = group.height;
+    const image = new Image();
+    image.addEventListener("load", () => context.drawImage(image, 0, 0, group.width, group.height));
+    image.src = ringSrc(group);
+  });
+}
 
 watch([hubAway, guide], ([away, open]) => {
   if (away || open) cancelDriven();
@@ -1122,6 +1190,9 @@ watch(
 );
 
 onMounted(() => {
+  drawRings();
+  const backdrop = document.querySelector<HTMLCanvasElement>("canvas.backdrop");
+  if (backdrop) void drawBackdrop(backdrop);
   chooseBootMode();
   settleBoot();
   window.addEventListener("keydown", onKeyDown);
@@ -1175,6 +1246,7 @@ function expose(): void {
       >
     </header>
     <div class="pic" :style="picStyle" />
+    <canvas class="backdrop" :data-shown="settingsOpen || undefined" />
     <div class="frame" data-frame :style="frameStyle">
       <PromptBar
         v-if="settings.settings.hintBar"
@@ -1183,7 +1255,7 @@ function expose(): void {
       />
     </div>
     <div class="ripples">
-      <i v-for="(ring, index) in rings" :key="index" :style="ring" />
+      <canvas v-for="(ring, index) in rings" :key="index" :style="ring" />
     </div>
     <!-- Over its rings, so promoted at rest like anything painted above a moving layer. -->
     <div class="orb" />
@@ -1395,9 +1467,8 @@ function expose(): void {
   pointer-events: none;
 }
 
-.ripples i {
+.ripples canvas {
   position: absolute;
-  background: center / 100% 100% no-repeat;
   opacity: 0.001;
   will-change: transform, opacity;
   animation: ripple 20s linear infinite;
@@ -1421,7 +1492,7 @@ function expose(): void {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .ripples i {
+  .ripples canvas {
     animation-play-state: paused;
   }
 }
@@ -1446,6 +1517,7 @@ function expose(): void {
   overflow: hidden;
   color: #fff;
   white-space: nowrap;
+  padding-right: 4px;
   transform-origin: 0 50%;
   text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.45);
   will-change: transform, opacity;
@@ -1565,24 +1637,21 @@ function expose(): void {
 /* Settings stands on the flat wallpaper instead of the hub's floor: dark green
    above, white-blue at the lower left, yellow and orange at the right. Both
    layers already exist, so swapping their paint allocates nothing. */
-.stage[data-settings] .sky {
-  background:
-    url("./assets/hub/bokeh.svg") 0 0 / 1920px 620px no-repeat,
-    radial-gradient(ellipse 34% 60% at 100% 100%, #f9f77a 0%, rgba(249, 247, 122, 0) 100%),
-    radial-gradient(ellipse 30% 55% at 0% 100%, #dff3ef 0%, rgba(223, 243, 239, 0) 100%),
-    radial-gradient(ellipse 40% 60% at 100% 0%, rgba(8, 20, 8, 0.9) 0%, rgba(8, 20, 8, 0) 100%),
-    linear-gradient(180deg, #002400 0%, #225600 24%, #4c8a0a 48%, #7fac66 75%, #b8d6a6 100%);
+/* Painted once after the static content, so nothing it covers is squashed above it. */
+.backdrop {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 1920px;
+  height: 1080px;
+  opacity: 0;
+  will-change: opacity;
+  transition: opacity 200ms linear;
+  pointer-events: none;
 }
 
-.stage[data-settings] .floor {
-  border-radius: 0;
-  -webkit-mask: linear-gradient(180deg, transparent 0, #000 35px);
-  mask: linear-gradient(180deg, transparent 0, #000 35px);
-  background:
-    radial-gradient(ellipse 520px 90px at 2420px 0, #f9f77a 0%, rgba(249, 247, 122, 0) 100%),
-    radial-gradient(ellipse 560px 260px at 2420px 170px, #f3c274 0%, rgba(243, 194, 116, 0) 100%),
-    radial-gradient(ellipse 620px 300px at 300px 0, #d9f0ee 0%, rgba(217, 240, 238, 0) 100%),
-    linear-gradient(180deg, #cfe0d8 0%, #b0bdbc 30%, #9b9e99 60%, #929592 100%);
+.backdrop[data-shown] {
+  opacity: 1;
 }
 
 .frame[data-settings-frame] {

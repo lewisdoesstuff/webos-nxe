@@ -9,6 +9,8 @@ import {
   swingFrames,
   cardFrame,
   dealFrames,
+  cruiseFor,
+  cruiseTrack,
   rowTrack,
   trackAt,
   trackFrames,
@@ -99,5 +101,23 @@ describe("leaving for settings", () => {
     expect(frames[0]!.transform).toContain("rotateY(0deg)");
     expect(frames.at(-1)!.transform).toContain("rotateY(90deg)");
     expect(Number(frames.at(-1)!.opacity)).toBe(HIDDEN);
+  });
+});
+
+describe("a held stick", () => {
+  it("cruises at the repeat rate without braking for each card", () => {
+    const track = cruiseTrack(0, cruiseFor(100) / 1.75, 4, cruiseFor(100));
+    const middle = track.velocities.slice(2, 12);
+    expect(Math.max(...middle) - Math.min(...middle)).toBeLessThan(0.01);
+    expect(track.positions.at(-1)).toBe(4);
+  });
+
+  it("ends on an even stop rather than a snap", () => {
+    const track = cruiseTrack(0, cruiseFor(80) / 1.75, 3, cruiseFor(80));
+    const steps = track.positions
+      .slice(1)
+      .map((position, index) => position - track.positions[index]!);
+    const last = steps.slice(-4);
+    expect(last.every((step, index) => index === 0 || step <= last[index - 1]! + 1e-9)).toBe(true);
   });
 });

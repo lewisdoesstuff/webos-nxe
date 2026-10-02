@@ -1,7 +1,6 @@
 import {
   AnimationMixer,
   Box3,
-  AddEquation,
   CanvasTexture,
   CustomBlending,
   DirectionalLight,
@@ -16,13 +15,13 @@ import {
   PlaneGeometry,
   Scene,
   ShaderMaterial,
-  SrcAlphaFactor,
   SRGBColorSpace,
   Timer,
   Vector3,
   WebGLRenderer,
   WebGLRenderTarget,
-  ZeroFactor,
+  OneFactor,
+  OneMinusSrcAlphaFactor,
   type AnimationAction,
   type Material,
   type Object3D,
@@ -31,9 +30,9 @@ import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 
 import { fetchBytes } from "../sound/engine";
 import { AVATAR_MIRROR, AVATAR_VIEW, frameAvatar } from "./framing";
-import { smoothClip } from "./smooth";
 import { firstIdle, nextIdle, planIdle, type IdlePlan, type IdleStep } from "./idle";
 import type { Look } from "./look";
+import { smoothClip } from "./smooth";
 
 /**
  * The avatar: one glTF model, skinned and animated, in one small canvas.
@@ -92,42 +91,65 @@ function shadowTexture(): CanvasTexture {
 }
 
 /**
- * Multiplies what is already drawn by an alpha that runs from the reflection's
- * opacity at the feet to nothing at its end, over the canvas below the feet.
- * In clip space, so it is one quad drawn after the mirrored figure.
+ * One full-canvas quad that draws the figure, already rendered into `map`,
+ * either upright or as its floor reflection: flipped about the feet's line and
+ * faded from the reflection's opacity at the feet to nothing at its end. `map`
+ * holds linear, premultiplied colour in sRGB storage, so the quad encodes it for
+ * the canvas and draws it over what is there with `ONE, ONE_MINUS_SRC_ALPHA`.
  */
-function mirrorFade(): Mesh {
+function figureQuad(map: WebGLRenderTarget["texture"], mirrored: boolean): Mesh {
   const feet = -1 + 2 * AVATAR_VIEW.foot;
   const end = feet - 2 * AVATAR_VIEW.fill * AVATAR_MIRROR.length;
   const material = new ShaderMaterial({
     uniforms: {
+      map: { value: map },
       feet: { value: feet },
       end: { value: end },
       opacity: { value: AVATAR_MIRROR.opacity },
     },
+    defines: mirrored ? { MIRRORED: "" } : {},
     vertexShader: `
-      varying float y;
+      varying vec2 clip;
       void main() {
-        y = position.y;
+        clip = position.xy;
         gl_Position = vec4(position.xy, 0.0, 1.0);
       }`,
     fragmentShader: `
+      uniform sampler2D map;
       uniform float feet;
       uniform float end;
       uniform float opacity;
-      varying float y;
+      varying vec2 clip;
+      vec3 encode(vec3 linear) {
+        return mix(
+          linear * 12.92,
+          pow(linear, vec3(1.0 / 2.4)) * 1.055 - 0.055,
+          step(vec3(0.0031308), linear)
+        );
+      }
       void main() {
-        gl_FragColor = vec4(0.0, 0.0, 0.0, opacity * clamp((y - end) / (feet - end), 0.0, 1.0));
+        #ifdef MIRRORED
+          if (clip.y > feet) discard;
+          float fade = opacity * clamp((clip.y - end) / (feet - end), 0.0, 1.0);
+          vec2 at = vec2(clip.x, 2.0 * feet - clip.y);
+        #else
+          float fade = 1.0;
+          vec2 at = clip;
+        #endif
+        vec4 texel = texture2D(map, at * 0.5 + 0.5);
+        if (texel.a > 0.0) texel.rgb = encode(texel.rgb / texel.a) * texel.a;
+        gl_FragColor = texel * fade;
       }`,
     transparent: true,
     depthTest: false,
     depthWrite: false,
     blending: CustomBlending,
-    blendEquation: AddEquation,
-    blendSrc: ZeroFactor,
-    blendDst: SrcAlphaFactor,
+    blendSrc: OneFactor,
+    blendDst: OneMinusSrcAlphaFactor,
+    blendSrcAlpha: OneFactor,
+    blendDstAlpha: OneMinusSrcAlphaFactor,
   });
-  const quad = new Mesh(new PlaneGeometry(2, feet + 1).translate(0, (feet - 1) / 2, 0), material);
+  const quad = new Mesh(new PlaneGeometry(2, 2), material);
   quad.frustumCulled = false;
   return quad;
 }
@@ -148,11 +170,12 @@ export class AvatarRenderer {
   private readonly scene = new Scene();
   private readonly camera: PerspectiveCamera;
   private readonly stand = new Group();
-  private readonly fade = new Scene();
+  private readonly ground = new Scene();
+  private readonly mirror = new Scene();
+  private readonly upright = new Scene();
+  private readonly figure: WebGLRenderTarget;
   private readonly flat = new OrthographicCamera(-1, 1, 1, -1, 0, 1);
-  private shadow: Mesh | null = null;
   private bounds: Box3 | null = null;
-  private floor = 0;
   private readonly timer = new Timer();
   private readonly interval: number;
   private readonly random: () => number;
@@ -174,7 +197,7 @@ export class AvatarRenderer {
     this.renderer = new WebGLRenderer({
       canvas,
       alpha: true,
-      antialias: true,
+      antialias: false,
       premultipliedAlpha: true,
       powerPreference: "high-performance",
     });
@@ -186,8 +209,15 @@ export class AvatarRenderer {
     );
     this.renderer.setClearColor(0x000000, 0);
     this.renderer.autoClear = false;
+    this.figure = new WebGLRenderTarget(
+      Math.round(options.width * scale),
+      Math.round(options.height * scale),
+      { samples: 4 },
+    );
+    this.figure.texture.colorSpace = SRGBColorSpace;
     this.scene.add(this.stand);
-    this.fade.add(mirrorFade());
+    this.mirror.add(figureQuad(this.figure.texture, true));
+    this.upright.add(figureQuad(this.figure.texture, false));
     this.renderer.outputColorSpace = SRGBColorSpace;
     this.camera = new PerspectiveCamera(AVATAR_VIEW.fov, options.width / options.height, 0.05, 50);
     this.scene.add(new HemisphereLight(SKY, GROUND, 2.2));
@@ -280,9 +310,7 @@ export class AvatarRenderer {
     );
     shadow.rotation.x = -Math.PI / 2;
     shadow.position.set(centre.x, box.min.y + 0.001, centre.z);
-    this.scene.add(shadow);
-    this.shadow = shadow;
-    this.floor = box.min.y;
+    this.ground.add(shadow);
     this.bounds = box;
   }
 
@@ -328,7 +356,6 @@ export class AvatarRenderer {
     const target = new WebGLRenderTarget(side, side);
     target.texture.colorSpace = SRGBColorSpace;
     const renderer = this.renderer;
-    if (this.shadow !== null) this.shadow.visible = false;
     renderer.setRenderTarget(target);
     renderer.clear();
     renderer.render(this.scene, camera);
@@ -336,7 +363,6 @@ export class AvatarRenderer {
     renderer.readRenderTargetPixels(target, 0, 0, side, side, pixels);
     renderer.setRenderTarget(null);
     target.dispose();
-    if (this.shadow !== null) this.shadow.visible = true;
 
     const shot = document.createElement("canvas");
     shot.width = side;
@@ -363,23 +389,23 @@ export class AvatarRenderer {
   }
 
   /**
-   * The floor reflection first: the figure flipped about the floor, faded out
-   * below the feet, then the figure and its shadow over it. A mirrored
-   * transform turns the faces inside out, which three.js corrects for.
+   * The figure is drawn once, into a multisampled target, and then twice from
+   * it: its reflection, flipped about the feet and faded, then its shadow, then
+   * the figure upright. Drawing the skinned model once a frame instead of twice
+   * halves the work that kept the TV off 60fps. The reflection is a flip on the
+   * canvas rather than in the scene, which at this camera's near-level height
+   * is the same picture.
    */
   private draw(): void {
     const renderer = this.renderer;
+    renderer.setRenderTarget(this.figure);
     renderer.clear();
-    this.stand.scale.y = -1;
-    this.stand.position.y = 2 * this.floor;
-    if (this.shadow !== null) this.shadow.visible = false;
     renderer.render(this.scene, this.camera);
-    renderer.render(this.fade, this.flat);
-    renderer.clearDepth();
-    this.stand.scale.y = 1;
-    this.stand.position.y = 0;
-    if (this.shadow !== null) this.shadow.visible = true;
-    renderer.render(this.scene, this.camera);
+    renderer.setRenderTarget(null);
+    renderer.clear();
+    renderer.render(this.mirror, this.flat);
+    renderer.render(this.ground, this.camera);
+    renderer.render(this.upright, this.flat);
   }
 
   private tick = (now: number): void => {
@@ -433,6 +459,7 @@ export class AvatarRenderer {
         material.dispose();
       }
     });
+    this.figure.dispose();
     this.renderer.dispose();
     this.renderer.forceContextLoss();
     this.mixer = null;

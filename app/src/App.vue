@@ -1162,9 +1162,23 @@ function onHubKey(button: Button | null): boolean {
 }
 
 let visibleSince = performance.now();
+let hiddenAt: number | null = null;
+/** Away this long, the TV was off or on another input, and a return is a fresh start. */
+const AWAY_REPLAY_MS = 30 * 60 * 1000;
 
 function noteVisibility(): void {
-  if (!document.hidden) visibleSince = performance.now();
+  if (document.hidden) {
+    hiddenAt ??= Date.now();
+    return;
+  }
+  visibleSince = performance.now();
+  const away = hiddenAt === null ? 0 : Date.now() - hiddenAt;
+  hiddenAt = null;
+  if (away >= AWAY_REPLAY_MS && bootMode.value !== "off" && !booting.value) {
+    bootHold.value = false;
+    booting.value = true;
+    boot.value += 1;
+  }
 }
 
 /** Home relaunches the running app: on screen already it toggles the Guide, from the background it only returns. */

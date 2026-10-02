@@ -1,6 +1,12 @@
-# NXE
+# WebOS NXE
 
-A home screen for rooted LG webOS TVs that recreates the look and motion of the late-2008 console dashboard: a column of channels, a row of panes you move along with the remote, a boot sequence, toasts, a Guide overlay, HDMI input previews and a Steam friends list.
+A home screen for rooted LG webOS TVs that recreates the look and motion of the late-2008 Xbox 360 NXE dashboard: a column of channels, a row of panes you move along with the remote, a boot sequence, toasts, a Guide overlay, HDMI input previews and a Steam friends list.
+
+> [!NOTE]
+> **AI Generated Software Ahead**  
+> This project is entirely AI generated.   
+> While it works on my TV, it may not work on yours.  
+> Please report any issues you find by opening an issue on GitHub.
 
 ![The home pane](assets/screenshots/home.jpg)
 ![The Guide](assets/screenshots/guide.jpg)

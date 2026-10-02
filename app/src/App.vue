@@ -90,7 +90,7 @@ import {
   withDescriptions,
   withDetail,
 } from "./hubRows";
-import { type Button, buttonFor, GREEN, horizontal } from "./keys";
+import { type Button, buttonFor, horizontal } from "./keys";
 import { PAGE_COUNTER_X, PAGE_COUNTER_Y } from "./pageRow";
 import {
   counterText as pageCounterText,
@@ -1109,8 +1109,8 @@ function onPageKey(button: Button | null): boolean {
 }
 
 /** A button at the hub root. B does nothing here, as on the dashboard. */
-function onHubKey(button: Button | null, keyCode: number): boolean {
-  if (button === "y" || (keyCode === GREEN && canMove.value)) {
+function onHubKey(button: Button | null): boolean {
+  if (button === "y") {
     startMove();
     return true;
   }
@@ -1139,7 +1139,7 @@ function onKeyDown(event: KeyboardEvent): void {
   else if (moving.value !== null) {
     onMoveButton(button);
     consumed = true;
-  } else consumed = onHubKey(button, event.keyCode);
+  } else consumed = onHubKey(button);
   if (consumed) event.preventDefault();
 }
 

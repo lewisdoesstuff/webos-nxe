@@ -2,10 +2,10 @@
  * The remote and a desktop keyboard, read as the controller. Pure.
  *
  * OK and green are A, Back and red are B, the arrows are the D-pad and
- * Channel +/- are the bumpers. Yellow is NXE's Y, which opens the Guide here,
- * and blue is X. On a desktop keyboard Enter is A, Escape, Backspace and `B`
+ * Channel +/- are the bumpers. Yellow is Y, blue is X and the remote's Guide
+ * key opens the Guide. On a desktop keyboard Enter is A, Escape, Backspace and `B`
  * are B, `X` hides, `Y` picks a pane up, `G` opens the Guide and `R` replays
- * the boot.
+ * the boot. Each colour key is the button of its own colour, so the hints match.
  */
 export type Button =
   | "a"
@@ -21,7 +21,7 @@ export type Button =
   | "pageLeft"
   | "pageRight";
 
-/** The remote's green key, which is A and also picks up a pane that can move. */
+/** The remote's green key, which is A. */
 export const GREEN = 404;
 
 const BUTTONS: Readonly<Record<number, Button>> = {
@@ -36,8 +36,10 @@ const BUTTONS: Readonly<Record<number, Button>> = {
   // UNVERIFIED on the TV.
   406: "x",
   89: "y",
+  405: "y",
   71: "guide",
-  405: "guide",
+  // The remote's Guide key, UNVERIFIED on the TV.
+  458: "guide",
   82: "replay",
   37: "left",
   38: "up",

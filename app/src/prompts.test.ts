@@ -251,6 +251,6 @@ describe("faceFor", () => {
     expect(faceFor(BACK, true)).toMatchObject({ letter: "", fill: BUTTON_FILL.b });
     expect(faceFor(HIDE, true)).toMatchObject({ letter: "", fill: BUTTON_FILL.x });
     expect(faceFor({ button: "y", label: "Xbox Dashboard" }, true).fill).toBe(BUTTON_FILL.y);
-    expect(faceFor(MOVE, true).fill).not.toBe(BUTTON_FILL.y);
+    expect(faceFor(MOVE, true).fill).toBe(BUTTON_FILL.y);
   });
 });

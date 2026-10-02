@@ -99,13 +99,12 @@ export interface Face {
   readonly letter: string;
 }
 
-const REMOTE_GREEN: Face = { fill: "#3FA60C", ring: "#1F6A06", glyph: "#0F3000", letter: "" };
 const REMOTE_OK: Face = { fill: "#E8E8EC", ring: "#8A8A94", glyph: "#2A2A30", letter: "OK" };
 
 /**
  * The disc for a prompt: the Xbox face button, or the Magic Remote key the
- * action actually answers to. `A` is OK, `B` is red (Back), `X` is blue, and `Y`
- * is yellow except where it means Move, which the remote does with green.
+ * action actually answers to. `A` is OK, and `B`, `X` and `Y` are the red, blue
+ * and yellow keys.
  */
 export function faceFor(prompt: Prompt, remote: boolean): Face {
   const { button } = prompt;
@@ -118,7 +117,6 @@ export function faceFor(prompt: Prompt, remote: boolean): Face {
     };
   }
   if (button === "a") return REMOTE_OK;
-  if (button === "y" && prompt.label === MOVE.label) return REMOTE_GREEN;
   return {
     fill: BUTTON_FILL[button],
     ring: BUTTON_RING[button],

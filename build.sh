@@ -13,14 +13,17 @@ command -v ares-package >/dev/null || {
   exit 1
 }
 
-# The NXE theme is downloaded during setup, not shipped. Its zip is built once
-# and kept so the hash baked into the app keeps matching the uploaded file.
-THEME_ZIP=dist/themes/nxe.zip
-if [[ ! -f $THEME_ZIP ]] || [[ -n $(find themes/nxe -type f -newer "$THEME_ZIP" | head -1) ]]; then
-  tools/pack-theme.sh nxe >/dev/null
+# The NXE theme is downloaded during setup, not shipped. When the theme folder
+# is present, its zip is built once and kept so the hash baked into the app
+# keeps matching the uploaded file.
+if [[ -d themes/nxe ]]; then
+  THEME_ZIP=dist/themes/nxe.zip
+  if [[ ! -f $THEME_ZIP ]] || [[ -n $(find themes/nxe -type f -newer "$THEME_ZIP" | head -1) ]]; then
+    tools/pack-theme.sh nxe >/dev/null
+  fi
+  export NXE_THEME_SHA256=$(shasum -a 256 "$THEME_ZIP" | cut -d' ' -f1)
+  export NXE_THEME_URL="${NXE_THEME_URL:-https://files.lew.ooo/nxe/nxe.zip}"
 fi
-export NXE_THEME_SHA256=$(shasum -a 256 "$THEME_ZIP" | cut -d' ' -f1)
-export NXE_THEME_URL="${NXE_THEME_URL:-https://files.lew.ooo/nxe/nxe.zip}"
 
 bun run check
 bun run build

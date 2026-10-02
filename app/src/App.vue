@@ -152,7 +152,9 @@ void storage.refresh();
 
 /** Where the user is. The labels follow it at once. Resumes the stored
  * channel rather than always starting on Apps. */
-const start = startChannel(settings.settings.lastChannel);
+const start = startChannel(
+  settings.settings.rememberChannel ? settings.settings.lastChannel : "apps",
+);
 const hub = ref<HubState>({ channel: start, item: 0 });
 /** What the row shows. It lags `hub` through a channel change's fade. */
 const shown = ref<HubState>({ channel: start, item: 0 });
@@ -1011,6 +1013,7 @@ async function changeChannel(): Promise<void> {
 let rememberTimer: ReturnType<typeof setTimeout> | undefined;
 function rememberChannel(id: string): void {
   clearTimeout(rememberTimer);
+  if (!settings.settings.rememberChannel) return;
   rememberTimer = setTimeout(
     () => settings.updateSetting("lastChannel", id),
     CHANNEL_OUT_MS + DEAL_SETTLE_MS,

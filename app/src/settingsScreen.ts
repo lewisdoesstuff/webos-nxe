@@ -139,6 +139,12 @@ export const GENERAL_DEFS: readonly SettingDef[] = [
   },
   {
     kind: "flag",
+    key: "rememberChannel",
+    title: "Remember Last Channel",
+    description: "Off starts on Apps every time.",
+  },
+  {
+    kind: "flag",
     key: "steam",
     title: "Steam",
     description:

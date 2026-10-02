@@ -1217,7 +1217,7 @@ onMounted(() => {
   chooseBootMode();
   settleBoot();
   window.addEventListener("keydown", onKeyDown);
-  window.addEventListener("webOSRelaunch", onRelaunch);
+  document.addEventListener("webOSRelaunch", onRelaunch);
   document.addEventListener("visibilitychange", noteVisibility);
   void apps.load();
   void loadFont();
@@ -1229,7 +1229,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   window.removeEventListener("keydown", onKeyDown);
-  window.removeEventListener("webOSRelaunch", onRelaunch);
+  document.removeEventListener("webOSRelaunch", onRelaunch);
   document.removeEventListener("visibilitychange", noteVisibility);
 });
 

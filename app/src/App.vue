@@ -3,6 +3,7 @@ import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
 
 import { AVATAR_CANVAS } from "./avatar/framing";
 import { lookFor, type Look } from "./avatar/look";
+import { drawBackdrop } from "./backdrop";
 import { type BootReason, type BootSpeed, resolveBootMode } from "./boot";
 import AvatarFigure from "./components/AvatarFigure.vue";
 import BootScreen from "./components/BootScreen.vue";
@@ -1138,6 +1139,8 @@ watch(
 
 onMounted(() => {
   drawRings();
+  const backdrop = document.querySelector<HTMLCanvasElement>("canvas.backdrop");
+  if (backdrop) void drawBackdrop(backdrop);
   chooseBootMode();
   settleBoot();
   window.addEventListener("keydown", onKeyDown);
@@ -1191,6 +1194,7 @@ function expose(): void {
       >
     </header>
     <div class="pic" :style="picStyle" />
+    <canvas class="backdrop" :data-shown="settingsOpen || undefined" />
     <div class="frame" data-frame :style="frameStyle">
       <PromptBar
         v-if="settings.settings.hintBar"
@@ -1581,24 +1585,21 @@ function expose(): void {
 /* Settings stands on the flat wallpaper instead of the hub's floor: dark green
    above, white-blue at the lower left, yellow and orange at the right. Both
    layers already exist, so swapping their paint allocates nothing. */
-.stage[data-settings] .sky {
-  background:
-    url("./assets/hub/bokeh.svg") 0 0 / 1920px 620px no-repeat,
-    radial-gradient(ellipse 34% 60% at 100% 100%, #f9f77a 0%, rgba(249, 247, 122, 0) 100%),
-    radial-gradient(ellipse 30% 55% at 0% 100%, #dff3ef 0%, rgba(223, 243, 239, 0) 100%),
-    radial-gradient(ellipse 40% 60% at 100% 0%, rgba(8, 20, 8, 0.9) 0%, rgba(8, 20, 8, 0) 100%),
-    linear-gradient(180deg, #002400 0%, #225600 24%, #4c8a0a 48%, #7fac66 75%, #b8d6a6 100%);
+/* Painted once after the static content, so nothing it covers is squashed above it. */
+.backdrop {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 1920px;
+  height: 1080px;
+  opacity: 0;
+  will-change: opacity;
+  transition: opacity 200ms linear;
+  pointer-events: none;
 }
 
-.stage[data-settings] .floor {
-  border-radius: 0;
-  -webkit-mask: linear-gradient(180deg, transparent 0, #000 35px);
-  mask: linear-gradient(180deg, transparent 0, #000 35px);
-  background:
-    radial-gradient(ellipse 520px 90px at 2420px 0, #f9f77a 0%, rgba(249, 247, 122, 0) 100%),
-    radial-gradient(ellipse 560px 260px at 2420px 170px, #f3c274 0%, rgba(243, 194, 116, 0) 100%),
-    radial-gradient(ellipse 620px 300px at 300px 0, #d9f0ee 0%, rgba(217, 240, 238, 0) 100%),
-    linear-gradient(180deg, #cfe0d8 0%, #b0bdbc 30%, #9b9e99 60%, #929592 100%);
+.backdrop[data-shown] {
+  opacity: 1;
 }
 
 .frame[data-settings-frame] {

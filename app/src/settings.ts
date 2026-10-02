@@ -20,7 +20,7 @@ export interface Settings {
   gamerscore: number;
   /** The channel the hub starts on, by section id. Apps when unset. */
   lastChannel: string;
-  /** Start on the channel last used instead of Apps. Off for a new install. */
+  /** Start on the channel last used instead of Home. */
   rememberChannel: boolean;
   clock24h: boolean;
   showClock: boolean;
@@ -157,8 +157,7 @@ export function mergeSettings(stored: unknown): { settings: Settings; migrated: 
     gamertag: stringOr(source["gamertag"], SETTINGS_DEFAULTS.gamertag),
     gamerscore: numberOr(source["gamerscore"], SETTINGS_DEFAULTS.gamerscore),
     lastChannel: stringOr(source["lastChannel"], SETTINGS_DEFAULTS.lastChannel),
-    // A document saved before this setting existed was remembering, so it keeps doing so.
-    rememberChannel: booleanOr(source["rememberChannel"], "lastChannel" in source),
+    rememberChannel: booleanOr(source["rememberChannel"], SETTINGS_DEFAULTS.rememberChannel),
     clock24h: booleanOr(source["clock24h"], SETTINGS_DEFAULTS.clock24h),
     showClock: booleanOr(source["showClock"], SETTINGS_DEFAULTS.showClock),
     hintBar: booleanOr(source["hintBar"], SETTINGS_DEFAULTS.hintBar),

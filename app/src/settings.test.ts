@@ -58,13 +58,10 @@ describe("mergeSettings", () => {
     expect(mergeSettings({ lastChannel: 3 }).settings.lastChannel).toBe("apps");
   });
 
-  it("leaves remembering the channel off for a new install and on for a saved document", () => {
+  it("leaves remembering the channel off unless stored on", () => {
     expect(SETTINGS_DEFAULTS.rememberChannel).toBe(false);
-    expect(mergeSettings({}).settings.rememberChannel).toBe(false);
-    expect(mergeSettings({ lastChannel: "games" }).settings.rememberChannel).toBe(true);
-    expect(
-      mergeSettings({ lastChannel: "games", rememberChannel: false }).settings.rememberChannel,
-    ).toBe(false);
+    expect(mergeSettings({ lastChannel: "games" }).settings.rememberChannel).toBe(false);
+    expect(mergeSettings({ rememberChannel: true }).settings.rememberChannel).toBe(true);
   });
 
   it("reports an older document as needing migration", () => {

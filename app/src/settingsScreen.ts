@@ -141,7 +141,7 @@ export const GENERAL_DEFS: readonly SettingDef[] = [
     kind: "flag",
     key: "rememberChannel",
     title: "Remember Last Channel",
-    description: "Off starts on Apps every time.",
+    description: "Off starts on Home every time.",
   },
   {
     kind: "flag",

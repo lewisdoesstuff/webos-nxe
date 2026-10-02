@@ -153,7 +153,7 @@ void storage.refresh();
 /** Where the user is. The labels follow it at once. Resumes the stored
  * channel rather than always starting on Apps. */
 const start = startChannel(
-  settings.settings.rememberChannel ? settings.settings.lastChannel : "apps",
+  settings.settings.rememberChannel ? settings.settings.lastChannel : "home",
 );
 const hub = ref<HubState>({ channel: start, item: 0 });
 /** What the row shows. It lags `hub` through a channel change's fade. */

@@ -90,7 +90,7 @@ import {
   withDescriptions,
   withDetail,
 } from "./hubRows";
-import { type Button, buttonFor, GREEN, horizontal } from "./keys";
+import { type Button, buttonFor, horizontal } from "./keys";
 import { PAGE_COUNTER_X, PAGE_COUNTER_Y } from "./pageRow";
 import {
   counterText as pageCounterText,
@@ -1112,8 +1112,8 @@ function onPageKey(button: Button | null): boolean {
 }
 
 /** A button at the hub root. B does nothing here, as on the dashboard. */
-function onHubKey(button: Button | null, keyCode: number): boolean {
-  if (button === "y" || (keyCode === GREEN && canMove.value)) {
+function onHubKey(button: Button | null): boolean {
+  if (button === "y") {
     startMove();
     return true;
   }
@@ -1131,6 +1131,27 @@ function onHubKey(button: Button | null, keyCode: number): boolean {
   return true;
 }
 
+let visibleSince = performance.now();
+
+function noteVisibility(): void {
+  if (!document.hidden) visibleSince = performance.now();
+}
+
+/** Home relaunches the running app: on screen already it toggles the Guide, from the background it only returns. */
+function onRelaunch(): void {
+  const system = (window as typeof window & { webOSSystem?: { launchParams?: string } })
+    .webOSSystem;
+  let home = false;
+  try {
+    home = Boolean(JSON.parse(system?.launchParams || "{}")?.home);
+  } catch {}
+  if (!home) return;
+  if (document.hidden || performance.now() - visibleSince < 1500) return;
+  if (guide.value) onGuideKey("guide");
+  else if (!booting.value && !settingsOpen.value && !pageOpen.value && moving.value === null)
+    onHubKey("guide");
+}
+
 function onKeyDown(event: KeyboardEvent): void {
   noteKey();
   if (draft.value !== null) return;
@@ -1142,7 +1163,7 @@ function onKeyDown(event: KeyboardEvent): void {
   else if (moving.value !== null) {
     onMoveButton(button);
     consumed = true;
-  } else consumed = onHubKey(button, event.keyCode);
+  } else consumed = onHubKey(button);
   if (consumed) event.preventDefault();
 }
 
@@ -1199,6 +1220,8 @@ onMounted(() => {
   chooseBootMode();
   settleBoot();
   window.addEventListener("keydown", onKeyDown);
+  document.addEventListener("webOSRelaunch", onRelaunch);
+  document.addEventListener("visibilitychange", noteVisibility);
   void apps.load();
   void loadFont();
   useSystemToastsStore().start(notify);
@@ -1207,7 +1230,11 @@ onMounted(() => {
   expose();
 });
 
-onUnmounted(() => window.removeEventListener("keydown", onKeyDown));
+onUnmounted(() => {
+  window.removeEventListener("keydown", onKeyDown);
+  document.removeEventListener("webOSRelaunch", onRelaunch);
+  document.removeEventListener("visibilitychange", noteVisibility);
+});
 
 function expose(): void {
   (window as typeof window & { nxeDebug?: unknown }).nxeDebug = {

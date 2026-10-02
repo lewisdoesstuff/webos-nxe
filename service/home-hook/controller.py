@@ -153,7 +153,7 @@ def inspect(identity, library):
 def launch():
     subprocess.Popen(
         ["luna-send", "-n", "1", "-f", "luna://com.webos.applicationManager/launch",
-         json.dumps({"id": APP_ID})],
+         json.dumps({"id": APP_ID, "params": {"home": True}})],
         stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 

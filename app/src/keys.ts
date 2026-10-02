@@ -2,8 +2,8 @@
  * The remote and a desktop keyboard, read as the controller. Pure.
  *
  * OK and green are A, Back and red are B, the arrows are the D-pad and
- * Channel +/- are the bumpers. Yellow is Y, blue is X and the remote's Guide
- * key opens the Guide. On a desktop keyboard Enter is A, Escape, Backspace and `B`
+ * Channel +/- are the bumpers. Yellow is Y, blue is X, and Home opens the
+ * Guide through the app's relaunch, not a key. On a desktop keyboard Enter is A, Escape, Backspace and `B`
  * are B, `X` hides, `Y` picks a pane up, `G` opens the Guide and `R` replays
  * the boot. Each colour key is the button of its own colour, so the hints match.
  */
@@ -38,8 +38,6 @@ const BUTTONS: Readonly<Record<number, Button>> = {
   89: "y",
   405: "y",
   71: "guide",
-  // The remote's Guide key, UNVERIFIED on the TV.
-  458: "guide",
   82: "replay",
   37: "left",
   38: "up",

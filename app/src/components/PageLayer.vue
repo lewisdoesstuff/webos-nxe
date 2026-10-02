@@ -24,6 +24,7 @@ import {
 } from "../pageRow";
 import { artTint, initialsFor, paneArt, type PaneItem } from "../panel";
 import { PARKED, useParked } from "../parked";
+import { play, stop } from "../shell/scripted";
 
 /**
  * A drilled page: its title and a row of panes receding like the hub's.
@@ -68,7 +69,7 @@ watch(
     for (const pane of pool.value) {
       const element = elements[pane.element];
       if (!element) continue;
-      element.getAnimations().forEach((animation) => animation.cancel());
+      stop(element);
       if (pane.item === null || pane.offset < 0 || pane.slot.opacity <= HIDDEN) continue;
       const rest = slotFrame(pane.slot);
       if (pane.offset === 0) {
@@ -76,16 +77,16 @@ watch(
         const frames = open
           ? swingFrames(rest, -90, 0, window, window[1], true, paneBoxPx, "right")
           : swingFrames(rest, 0, -90, window, window[1], false, paneBoxPx, "right");
-        element.animate(frames, { duration: window[1], easing: "linear" });
+        play(element, frames, { duration: window[1], easing: "linear" });
       } else if (open) {
-        element.animate(dealSlotFrames(pane.offset, pageSlot).map(keyframe), {
+        play(element, dealSlotFrames(pane.offset, pageSlot).map(keyframe), {
           duration: DEAL_FRAMES_MS,
           delay: LEAVE.arrive[1],
           easing: "linear",
           fill: "backwards",
         });
       } else {
-        element.animate(foldSlotFrames(pane.offset, pageSlot).map(keyframe), {
+        play(element, foldSlotFrames(pane.offset, pageSlot).map(keyframe), {
           duration: FOLD_FRAMES_MS,
           easing: "linear",
         });

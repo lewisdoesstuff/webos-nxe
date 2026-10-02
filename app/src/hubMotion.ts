@@ -120,6 +120,14 @@ export function trackAt(track: RowTrack, elapsed: number): { position: number; v
   return { position: track.positions[index] ?? 0, velocity: track.velocities[index] ?? 0 };
 }
 
+/** Whether the card for `item` stays out of sight for the whole of `track`, so it need not move. */
+export function hiddenThroughout(track: RowTrack, item: number): boolean {
+  return track.positions.every((position) => {
+    const offset = item - position;
+    return offset <= GONE_OFFSET || offset >= PAST_OFFSET;
+  });
+}
+
 /** The frames of the card for `item` while the row runs `track`, ending on `rest`. */
 export function trackFrames(track: RowTrack, item: number, rest: PaneSlot): MotionFrame[] {
   const frames = track.positions.slice(0, -1).map((position) => cardFrame(item - position));

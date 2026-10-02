@@ -38,7 +38,6 @@ import {
   type HubState,
   LABEL_FONT,
   LABEL_H,
-  LABEL_W,
   labelSlot,
   MOVE_EASE,
   MOVE_MS,
@@ -59,6 +58,7 @@ import {
   RETURN,
   dealFrames,
   foldFrames,
+  hiddenThroughout,
   keyframe,
   rowTrack,
   slotFrame,
@@ -101,11 +101,12 @@ import type { PaneItem } from "./panel";
 import { PARK_WARM_MS, PARKED, useParked } from "./parked";
 import { liveTarget, nameInputs } from "./preview/live";
 import { CANVAS_H, CANVAS_W } from "./ribbon";
-import { ringImage, ripplePattern } from "./ripples";
+import { ringSrc, ripplePattern } from "./ripples";
 import { CHANNEL_ORDER, isChannel, SECTIONS, startChannel } from "./sections";
 import type { Settings } from "./settings";
 import { AVATAR_DOWNLOAD, formatGamerscore } from "./settingsScreen";
 import { nextFrame, wait } from "./shell/frames";
+import { play, stop, stopAll } from "./shell/scripted";
 import { useArtBake } from "./shell/useArtBake";
 import { useGuideNav } from "./shell/useGuideNav";
 import { usePaneMove } from "./shell/usePaneMove";
@@ -640,7 +641,6 @@ const avatarSrc = computed(() => (booting.value ? "" : `hack${AVATAR_DOWNLOAD}`)
 function labelStyle(index: number): Record<string, string> {
   const slot = labelSlot(hub.value.channel - index);
   return {
-    width: `${LABEL_W}px`,
     height: `${LABEL_H}px`,
     "font-size": `${LABEL_FONT}px`,
     "line-height": `${LABEL_H}px`,
@@ -745,19 +745,10 @@ function avatarElement(): HTMLElement | null {
   return document.querySelector("canvas.avatar");
 }
 
-function scripted(animation: Animation): boolean {
-  return !(animation instanceof CSSTransition) && !(animation instanceof CSSAnimation);
-}
-
 /** Stops every scripted move and deal, so each pane falls back to its inline style. */
 function cancelDriven(): void {
   const avatar = avatarElement();
-  for (const element of avatar ? [...paneElements(), avatar] : paneElements()) {
-    element
-      .getAnimations()
-      .filter(scripted)
-      .forEach((animation) => animation.cancel());
-  }
+  stopAll(avatar ? [...paneElements(), avatar] : paneElements());
   rowRun = null;
   clearTimeout(drivingTimer);
   driving.value = false;
@@ -778,8 +769,8 @@ function animateAvatar(
 ): void {
   const avatar = avatarElement();
   if (!avatar || onFriendsChannel.value) return;
-  avatar.getAnimations().forEach((animation) => animation.cancel());
-  avatar.animate(
+  play(
+    avatar,
     frames.map((frame, index) => {
       const place = avatarPlace(frame, offsets[index] ?? 0, AVATAR_CANVAS);
       return {
@@ -805,13 +796,12 @@ async function driveMove(from: { position: number; velocity: number }): Promise<
   for (const pane of pool.value) {
     const element = elements[pane.element];
     if (!element) continue;
-    element
-      .getAnimations()
-      .filter(scripted)
-      .forEach((animation) => animation.cancel());
-    if (pane.item === null || duration === 0) continue;
+    if (pane.item === null || duration === 0 || hiddenThroughout(track, pane.item)) {
+      stop(element);
+      continue;
+    }
     const frames = trackFrames(track, pane.item, pane.slot);
-    element.animate(frames.map(keyframe), options);
+    play(element, frames.map(keyframe), options);
     if (pane.element === avatarOf) {
       const item = pane.item;
       animateAvatar(
@@ -841,9 +831,8 @@ async function driveDeal(mine: number): Promise<void> {
   for (const pane of pool.value) {
     const element = elements[pane.element];
     if (!element || pane.item === null || pane.offset <= 0) continue;
-    element.getAnimations().forEach((animation) => animation.cancel());
     const frames = dealFrames(pane.offset, pane.slot);
-    element.animate(frames.map(keyframe), options);
+    play(element, frames.map(keyframe), options);
     if (pane.element === avatarOf) {
       animateAvatar(
         frames,
@@ -904,9 +893,10 @@ async function driveLeave(): Promise<void> {
       frames = foldFrames(pane.offset).map(keyframe);
       options = { duration: FOLD_FRAMES_MS, easing: "linear" };
     }
-    element.animate(frames, options);
-    if (pane.element === avatarOf) {
-      avatarElement()?.animate(frames.map(fadeOnly), options);
+    play(element, frames, options);
+    const avatar = avatarElement();
+    if (pane.element === avatarOf && avatar) {
+      play(avatar, frames.map(fadeOnly), options);
     }
   }
 }
@@ -932,9 +922,10 @@ async function driveReturn(): Promise<void> {
       pane.offset === 0
         ? swingFrames(slotFrame(pane.slot), 90, 0, RETURN.panel, RETURN.panel[1], true)
         : dealFrames(pane.offset, pane.slot).map(keyframe);
-    element.animate(frames, pane.offset === 0 ? options : dealing);
-    if (pane.element === avatarOf) {
-      avatarElement()?.animate(frames.map(fadeOnly), pane.offset === 0 ? options : dealing);
+    play(element, frames, pane.offset === 0 ? options : dealing);
+    const avatar = avatarElement();
+    if (pane.element === avatarOf && avatar) {
+      play(avatar, frames.map(fadeOnly), pane.offset === 0 ? options : dealing);
     }
   }
 }
@@ -1085,17 +1076,36 @@ function onKeyDown(event: KeyboardEvent): void {
   if (consumed) event.preventDefault();
 }
 
-const rings = ripplePattern(deviceSeed()).map((group) => ({
+/**
+ * Each ring group is a canvas drawn once, because a canvas is one texture and
+ * one quad, where a promoted box this size is eight 256px tiles the compositor
+ * redraws every frame the rings move.
+ */
+const ringGroups = ripplePattern(deviceSeed());
+const rings = ringGroups.map((group) => ({
   left: `${group.left}px`,
   top: `${group.top}px`,
   width: `${group.width}px`,
   height: `${group.height}px`,
-  backgroundImage: ringImage(group),
   animationDuration: `${group.periodMs}ms`,
   animationDelay: `${group.delayMs}ms`,
   "--from": String(group.from),
   "--peak": String(group.peak),
 }));
+
+function drawRings(): void {
+  const canvases = document.querySelectorAll<HTMLCanvasElement>(".ripples canvas");
+  ringGroups.forEach((group, index) => {
+    const canvas = canvases[index];
+    const context = canvas?.getContext("2d");
+    if (!canvas || !context) return;
+    canvas.width = group.width;
+    canvas.height = group.height;
+    const image = new Image();
+    image.addEventListener("load", () => context.drawImage(image, 0, 0, group.width, group.height));
+    image.src = ringSrc(group);
+  });
+}
 
 watch([hubAway, guide], ([away, open]) => {
   if (away || open) cancelDriven();
@@ -1113,6 +1123,7 @@ watch(
 );
 
 onMounted(() => {
+  drawRings();
   chooseBootMode();
   settleBoot();
   window.addEventListener("keydown", onKeyDown);
@@ -1174,7 +1185,7 @@ function expose(): void {
       />
     </div>
     <div class="ripples">
-      <i v-for="(ring, index) in rings" :key="index" :style="ring" />
+      <canvas v-for="(ring, index) in rings" :key="index" :style="ring" />
     </div>
     <!-- Over its rings, so promoted at rest like anything painted above a moving layer. -->
     <div class="orb" />
@@ -1386,9 +1397,8 @@ function expose(): void {
   pointer-events: none;
 }
 
-.ripples i {
+.ripples canvas {
   position: absolute;
-  background: center / 100% 100% no-repeat;
   opacity: 0.001;
   will-change: transform, opacity;
   animation: ripple 20s linear infinite;
@@ -1412,7 +1422,7 @@ function expose(): void {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .ripples i {
+  .ripples canvas {
     animation-play-state: paused;
   }
 }
@@ -1437,6 +1447,7 @@ function expose(): void {
   overflow: hidden;
   color: #fff;
   white-space: nowrap;
+  padding-right: 4px;
   transform-origin: 0 50%;
   text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.45);
   will-change: transform, opacity;

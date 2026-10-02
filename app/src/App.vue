@@ -103,7 +103,7 @@ import {
 } from "./pages";
 import type { PaneItem } from "./panel";
 import { PARK_WARM_MS, PARKED, useParked, warming } from "./parked";
-import { BEAT_MS, launchSkipsBoot, readPresence, sleptThrough, writePresence } from "./presence";
+import { BEAT_MS, markHidden, sleptThrough, wasHiddenSinceStart } from "./presence";
 import { liveTarget, nameInputs } from "./preview/live";
 import { CANVAS_H, CANVAS_W } from "./ribbon";
 import { ringSrc, ripplePattern } from "./ripples";
@@ -189,6 +189,8 @@ const boot = ref(0);
 const SETTLE_MAX_MS = 10000;
 const booting = ref(true);
 const bootMode = ref<BootSpeed | "off">("full");
+/** False until the launch has been told apart from a return from the background. */
+const launchKnown = ref(false);
 
 /**
  * `auto` resolves to full on a cold start and short on a warm one, and to off
@@ -199,13 +201,19 @@ const bootMode = ref<BootSpeed | "off">("full");
 function chooseBootMode(): void {
   const asked = new URLSearchParams(window.location.search).get("boot");
   const preference = asked === "off" || asked === "full" || asked === "short" ? asked : "auto";
-  bootMode.value =
-    preference === "auto" && launchSkipsBoot(readPresence())
-      ? "off"
-      : resolveBootMode(preference, {
-          cold: true,
-          reduceMotion: settings.settings.reduceMotion,
-        });
+  bootMode.value = resolveBootMode(preference, {
+    cold: true,
+    reduceMotion: settings.settings.reduceMotion,
+  });
+  if (preference !== "auto" || bootMode.value === "off") {
+    launchKnown.value = true;
+    return;
+  }
+  void wasHiddenSinceStart().then((hidden) => {
+    markHidden(false);
+    launchKnown.value = true;
+    if (hidden) startWithoutBoot();
+  });
 }
 
 const { text: toastText, shown: toastShown, notify, loadFont, signIn } = useToasts();
@@ -251,13 +259,15 @@ function onBootDone(payload: { reason: BootReason }): void {
 }
 
 /** A boot resolved to off never mounts, so the dashboard is simply the first thing shown. */
+function startWithoutBoot(): void {
+  showDash();
+  booting.value = false;
+  setTimeout(signInToast, 900);
+  firstRun();
+}
+
 function settleBoot(): void {
-  if (bootMode.value === "off") {
-    showDash();
-    booting.value = false;
-    setTimeout(signInToast, 900);
-    firstRun();
-  }
+  if (bootMode.value === "off") startWithoutBoot();
 }
 
 const channels = CHANNEL_ORDER.map(
@@ -1182,11 +1192,11 @@ function beat(): void {
   if (sleptThrough(lastBeat, now, visibleAtBeat) && !document.hidden) replayBoot();
   lastBeat = now;
   visibleAtBeat = !document.hidden;
-  writePresence({ state: visibleAtBeat ? "visible" : "hidden", at: now });
 }
 
 function noteVisibility(): void {
   if (!document.hidden) visibleSince = performance.now();
+  markHidden(document.hidden);
   beat();
 }
 
@@ -1427,7 +1437,7 @@ function expose(): void {
       v-if="booting && bootMode !== 'off'"
       :key="boot"
       :mode="bootMode"
-      :play="bootReady"
+      :play="bootReady && launchKnown"
       :hold="bootHold"
       @held="onBootHeld"
       @done="onBootDone"

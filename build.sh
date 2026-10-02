@@ -13,15 +13,21 @@ command -v ares-package >/dev/null || {
   exit 1
 }
 
-# The NXE theme is downloaded during setup, not shipped. When the theme folder
-# is present, its zip is built once and kept so the hash baked into the app
-# keeps matching the uploaded file.
+# The NXE theme is downloaded during setup, not shipped. With themes/nxe present
+# its zip is built once and kept so the hash baked into the app keeps matching
+# the uploaded file. Without it (CI, a fresh clone) the hash comes from theme.lock,
+# which tools/publish-theme.sh writes.
+THEME_ZIP=
 if [[ -d themes/nxe ]]; then
   THEME_ZIP=dist/themes/nxe.zip
   if [[ ! -f $THEME_ZIP ]] || [[ -n $(find themes/nxe -type f -newer "$THEME_ZIP" | head -1) ]]; then
     tools/pack-theme.sh nxe >/dev/null
   fi
   export NXE_THEME_SHA256=$(shasum -a 256 "$THEME_ZIP" | cut -d' ' -f1)
+elif [[ -f theme.lock ]]; then
+  export NXE_THEME_SHA256=$(cut -d' ' -f1 theme.lock)
+fi
+if [[ -n ${NXE_THEME_SHA256:-} ]]; then
   export NXE_THEME_URL="${NXE_THEME_URL:-https://files.lew.ooo/nxe/nxe.zip}"
 fi
 
@@ -65,4 +71,6 @@ IPK="dist/${APP_ID}_${VERSION}_all.ipk"
 [[ -f "$IPK" ]] || IPK=$(ls -t dist/*.ipk | head -1)
 
 echo "built: $IPK"
-echo "theme zip to upload: $THEME_ZIP -> $NXE_THEME_URL (sha256 $NXE_THEME_SHA256)"
+if [[ -n $THEME_ZIP ]]; then
+  echo "theme zip to upload: $THEME_ZIP -> $NXE_THEME_URL (sha256 $NXE_THEME_SHA256)"
+fi

@@ -9,4 +9,6 @@ tools/pack-theme.sh nxe >/dev/null
 zip=dist/themes/nxe.zip
 scp "$zip" "$HOST:$DEST"
 echo "uploaded $zip to $HOST:$DEST"
-echo "sha256 $(shasum -a 256 "$zip" | cut -d' ' -f1)"
+sha=$(shasum -a 256 "$zip" | cut -d' ' -f1)
+echo "$sha  nxe.zip" > theme.lock
+echo "sha256 $sha (written to theme.lock, commit it)"

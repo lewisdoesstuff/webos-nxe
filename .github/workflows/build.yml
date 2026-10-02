@@ -1,0 +1,79 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+
+      - name: Install ares CLI
+        run: npm install -g @webos-tools/cli
+
+      - run: bun install --frozen-lockfile
+
+      - name: Verify
+        run: bun run verify
+
+      - name: Build IPK
+        run: ./build.sh
+
+      - name: Upload IPK
+        uses: actions/upload-artifact@v4
+        with:
+          name: ipk
+          path: dist/*.ipk
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: ipk
+          path: dist
+
+      # The manifest must describe these exact bytes, so it is generated here
+      # from the built artifact.
+      - name: Generate manifest and stable asset names
+        run: |
+          IPK=$(ls dist/*.ipk)
+          ID=$(node -p "require('./app/appinfo.json').id")
+          node scripts/gen-manifest.mjs "$IPK" > "dist/${ID}.manifest.json"
+          cp "$IPK" "dist/${ID}.ipk"
+          cat "dist/${ID}.manifest.json"
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ID=$(node -p "require('./app/appinfo.json').id")
+          if gh release view "${{ github.ref_name }}" >/dev/null 2>&1; then
+            gh release upload "${{ github.ref_name }}" "dist/${ID}.ipk" "dist/${ID}.manifest.json" --clobber
+          else
+            gh release create "${{ github.ref_name }}" "dist/${ID}.ipk" "dist/${ID}.manifest.json" --title "${{ github.ref_name }}" --generate-notes
+          fi

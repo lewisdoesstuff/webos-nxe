@@ -153,11 +153,11 @@ export function setupBody(step: SetupStep, state: SetupState): string {
       if (state.homeArmed === true) {
         return state.bootHook === true
           ? "The Home button opens this dashboard, and is set again at every boot."
-          : "The Home button opens this dashboard until the TV restarts. Enable it at boot to set it again each time the TV starts, which costs about 90 seconds of dark screen after every boot. Remove the init.d link 60-blades-homekey to undo.";
+          : "The Home button opens this dashboard until the TV restarts. Enable it at boot to hook it again each time the TV starts. Remove the init.d link 62-nxe-homehook to undo.";
       }
       return "Make the Home button open this dashboard instead of the TV's home screen.";
     case "home-confirm":
-      return "The screen goes dark for about 90 seconds while the TV restarts its system UI, and this app closes. Restarting the TV undoes it.";
+      return "A small hook is loaded into the TV\u2019s input service, with no restart. Home then opens this app, and holding Home no longer does LG\u2019s own action. Restarting the TV undoes it.";
     case "launch":
       return state.launchHook === true
         ? "This dashboard opens after the TV starts."

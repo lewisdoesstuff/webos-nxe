@@ -184,9 +184,14 @@ export function useSettingsDrill(leaveHub: () => void) {
       }
       case "arm":
         void armHome().then((ran) => {
-          if (ran) return;
-          playSound("back");
-          advanceSetup(frame.page.id);
+          if (!ran) {
+            playSound("back");
+            advanceSetup(frame.page.id);
+            return;
+          }
+          homeIsArmed.value = true;
+          const home = setupPageFor(SETUP_ROOT);
+          if (home) stack.value = [{ page: home, focus: ROOT_FOCUS }];
         });
         return;
       case "boot":

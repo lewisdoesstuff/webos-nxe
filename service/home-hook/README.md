@@ -17,5 +17,13 @@ sh stop.sh       stop it and remove the lease; Home is stock at once
 sh autostart.sh  start it at boot (link into init.d as 62-nxe-homehook)
 ```
 
+With [LG Input Hook](https://repo.webosbrew.org/apps/org.webosbrew.inputhook/)
+installed, two hooks on the same LG functions are not safe, so nothing is
+injected. `controller.py` instead adds an Execute binding for each Home key
+(125, 773, 774) to `/home/root/.config/lginputhook/keybinds.json` that opens this
+app, re-checks it every two seconds, never replaces a binding you made yourself,
+and removes its own on `stop.sh`. Launch Input Hook once after boot so it is
+injected before this starts.
+
 The library stays mapped in LG's processes until they exit. With the lease gone
 it does nothing.

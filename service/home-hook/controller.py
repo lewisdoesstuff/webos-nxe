@@ -9,6 +9,7 @@ import os
 import re
 import select
 import shutil
+import signal
 import socket
 import stat
 import struct
@@ -29,6 +30,9 @@ HOME_KEYS = (125, 773, 774)
 SCM_CREDENTIALS = 2
 LAUNCH_GAP = 1.0
 STOCK_HOME = "com.webos.app.home"
+FOREIGN_HOOK_TOKENS = ("inputhook", "lginput-hook")
+INPUTHOOK_BINDS = "/home/root/.config/lginputhook/keybinds.json"
+BIND_SYNC = 2.0
 APP_ID_PATTERN = re.compile(rb'"appId"\s*:\s*"([^"]*)"')
 
 
@@ -63,6 +67,53 @@ def parse_message(data):
 def foreground_ids(chunk):
     """The app ids named in a chunk of getForegroundAppInfo output, in order."""
     return [match.decode("ascii", "replace") for match in APP_ID_PATTERN.findall(chunk)]
+
+
+def launch_command():
+    return ("luna-send -n 1 -f luna://com.webos.applicationManager/launch '%s'"
+            % json.dumps({"id": APP_ID, "params": {"home": True}}, separators=(",", ":")))
+
+
+def is_ours(bind):
+    return (isinstance(bind, dict) and bind.get("action") == "exec"
+            and "applicationManager/launch" in str(bind.get("command", ""))
+            and ('"id":"%s"' % APP_ID) in str(bind.get("command", "")))
+
+
+def reconcile_binds(binds, enable):
+    """The LG Input Hook keybinds with Home routed to this app (enable) or with
+    our entries removed. Bindings the user made themselves are never replaced.
+    Returns (binds, changed)."""
+    if not isinstance(binds, dict):
+        binds = {}
+    result = dict(binds)
+    for code in HOME_KEYS:
+        key = str(code)
+        current = result.get(key)
+        if enable:
+            if current is None or (is_ours(current) and current.get("command") != launch_command()):
+                result[key] = {"action": "exec", "command": launch_command()}
+        elif is_ours(current):
+            del result[key]
+    return result, result != binds
+
+
+def sync_binds(enable, path=INPUTHOOK_BINDS):
+    try:
+        with open(path, "rb") as stream:
+            binds = json.loads(stream.read().decode("utf-8"))
+    except (OSError, ValueError):
+        if not enable or not os.path.isdir(os.path.dirname(path)):
+            return False
+        binds = {}
+    result, changed = reconcile_binds(binds, enable)
+    if not changed:
+        return False
+    tmp = path + ".nxe.tmp"
+    with open(tmp, "w") as stream:
+        stream.write(json.dumps(result))
+    os.replace(tmp, path)
+    return True
 
 
 def lease_text(build, now_seconds):
@@ -139,7 +190,8 @@ def install():
 
 
 def inspect(identity, library):
-    """True when our hook is already mapped, False when clear. Raises on an unsupported or conflicting process."""
+    """True when our hook is already mapped, False when clear, None when another
+    input hook is mapped. Raises on an unsupported process."""
     pid = identity[0]
     with open("/proc/%d/exe" % pid, "rb") as stream:
         header = stream.read(20)
@@ -152,8 +204,8 @@ def inspect(identity, library):
         if LIBRARY in path:
             require(path == library, "hook_reboot_required")
             mapped = True
-        elif any(token in path.lower() for token in ("inputhook", "lginput-hook")):
-            raise HookError("hook_conflict")
+        elif any(token in path.lower() for token in FOREIGN_HOOK_TOKENS):
+            return None
     return mapped
 
 
@@ -179,7 +231,8 @@ class Controller:
         self.sock.bind(sock_path)
         os.chmod(sock_path, 0o600)
         self.identities, self.attempted, self.ready, self.children = {}, {}, {}, {}
-        self.next_scan = self.next_lease = self.last_launch = 0.0
+        self.next_scan = self.next_lease = self.next_binds = self.last_launch = 0.0
+        self.shared = False
 
     def scan(self, now):
         current = targets()
@@ -188,7 +241,6 @@ class Controller:
         for identity in list(current.values()):
             if identity in self.attempted:
                 continue
-            self.attempted[identity] = now + 5
             try:
                 mapped = inspect(identity, os.path.join(self.path, LIBRARY))
             except OSError as error:
@@ -196,6 +248,11 @@ class Controller:
                     del current[identity[0]]
                     continue
                 raise
+            if mapped is None:
+                self.shared = True
+            if self.shared:
+                continue
+            self.attempted[identity] = now + 5
             if mapped:
                 continue
             log = os.path.join(RUNTIME, "inject-%d.log" % identity[0])
@@ -261,8 +318,8 @@ class Controller:
                 launch()
 
     def ok(self, now):
-        return bool(self.identities) and all(
-            i in self.ready and 0 <= now - self.ready[i] < 2 for i in self.identities.values())
+        return bool(self.identities) and (self.shared or all(
+            i in self.ready and 0 <= now - self.ready[i] < 2 for i in self.identities.values()))
 
     def write_lease(self, now):
         tmp = os.path.join(RUNTIME, "lease.tmp")
@@ -291,7 +348,13 @@ class Controller:
         if now >= self.next_scan:
             self.scan(now)
             self.next_scan = now + 2
-        require(not any(i not in self.ready and now >= self.attempted[i]
+        if self.shared:
+            remove_owned("lease")
+            if now >= self.next_binds:
+                sync_binds(True)
+                self.next_binds = now + BIND_SYNC
+            return
+        require(not any(i not in self.ready and now >= self.attempted.get(i, now + 1)
                         for i in self.identities.values()), "hook_reboot_required")
         if not self.ok(now):
             remove_owned("lease")
@@ -302,6 +365,8 @@ class Controller:
     def close(self):
         try:
             remove_owned("lease")
+            if self.shared:
+                sync_binds(False)
         finally:
             if self.watch is not None and self.watch.poll() is None:
                 self.watch.kill()
@@ -317,6 +382,7 @@ class Controller:
 def run():
     with open(PIDFILE, "w") as stream:
         stream.write(str(os.getpid()))
+    signal.signal(signal.SIGTERM, lambda *_: sys.exit(0))
     controller = Controller()
     try:
         while True:

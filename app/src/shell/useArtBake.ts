@@ -4,10 +4,12 @@ import { checkArt, prepareArt, prepareFloor } from "../artCache";
 import type { HubItem } from "../hubRows";
 import { paneArt } from "../panel";
 import { useAppsStore } from "../stores/apps";
-import { nextFrame } from "./frames";
+import { nextFrame, wait } from "./frames";
 
 /** The longest the boot waits for the channel, so a slow Luna never holds it for long. */
 const BOOT_WAIT_MS = 4000;
+/** How long the boot waits for the channel's art to decode; the rest finishes under the bumper. */
+const DECODE_WAIT_MS = 250;
 /** Past the boot's last frame and the teardown of its layer. */
 const BAKE_DELAY_MS = 1500;
 /** How long the hub must be left alone before the next bake, so a bake never lands inside a transition. */
@@ -50,7 +52,8 @@ export function useArtBake({ rows, channel, loaded, booting }: BakeDeps) {
 
   async function prepareShown(): Promise<void> {
     const urls = [...artOf(rows.value[channel()] ?? [])];
-    await Promise.all([prepareFloor(), ...urls.map((url) => prepareArt(url))]);
+    const shown = Promise.all([prepareFloor(), ...urls.map((url) => prepareArt(url))]);
+    await Promise.race([shown, wait(DECODE_WAIT_MS)]);
     await nextFrame();
     await nextFrame();
     readyToBoot("the channel is ready");

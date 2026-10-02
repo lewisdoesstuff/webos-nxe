@@ -90,7 +90,7 @@ import {
   withDescriptions,
   withDetail,
 } from "./hubRows";
-import { type Button, buttonFor, GREEN, horizontal } from "./keys";
+import { type Button, buttonFor, horizontal } from "./keys";
 import { PAGE_COUNTER_X, PAGE_COUNTER_Y } from "./pageRow";
 import {
   counterText as pageCounterText,
@@ -110,7 +110,7 @@ import { CHANNEL_ORDER, isChannel, SECTIONS, startChannel } from "./sections";
 import type { Settings } from "./settings";
 import { AVATAR_DOWNLOAD, formatGamerscore } from "./settingsScreen";
 import { setupDone } from "./setup";
-import { nextFrame, wait } from "./shell/frames";
+import { framesCalm, nextFrame, wait } from "./shell/frames";
 import { play, stop, stopAll } from "./shell/scripted";
 import { useArtBake } from "./shell/useArtBake";
 import { useGuideNav } from "./shell/useGuideNav";
@@ -125,6 +125,7 @@ import { useSteamStore } from "./stores/steam";
 import { useStorageStore } from "./stores/storage";
 import { useSystemToastsStore } from "./stores/systemToasts";
 import { theme } from "./theme";
+import { activateFonts } from "./theme/loader";
 
 /**
  * The hub: the channel list at the top left, the channel's row of panes below
@@ -152,7 +153,9 @@ void storage.refresh();
 
 /** Where the user is. The labels follow it at once. Resumes the stored
  * channel rather than always starting on Apps. */
-const start = startChannel(settings.settings.lastChannel);
+const start = startChannel(
+  settings.settings.rememberChannel ? settings.settings.lastChannel : "home",
+);
 const hub = ref<HubState>({ channel: start, item: 0 });
 /** What the row shows. It lags `hub` through a channel change's fade. */
 const shown = ref<HubState>({ channel: start, item: 0 });
@@ -181,6 +184,8 @@ const guide = ref(false);
  * the same boolean to true twice would not remount the component.
  */
 const boot = ref(0);
+/** The longest the settled logo waits for steady frames. */
+const SETTLE_MAX_MS = 10000;
 const booting = ref(true);
 const bootMode = ref<BootSpeed | "off">("full");
 
@@ -213,6 +218,27 @@ function firstRun(): void {
   if (forced || !setupDone()) setTimeout(openSetup, 1500);
 }
 
+/**
+ * The dashboard stays unpainted behind the boot until the bumper has settled.
+ * Painting it and adding the theme's fonts keeps the TV to about a frame a
+ * second for several seconds, which would stutter the bumper and hold the
+ * boot's own start back. Instead the settled logo is held while that happens,
+ * and the handover goes ahead once frames are steady again.
+ */
+const dashShown = ref(false);
+const bootHold = ref(true);
+
+function showDash(): void {
+  dashShown.value = true;
+  activateFonts();
+}
+
+async function onBootHeld(): Promise<void> {
+  showDash();
+  await framesCalm(SETTLE_MAX_MS);
+  bootHold.value = false;
+}
+
 function onBootDone(payload: { reason: BootReason }): void {
   if (payload.reason === "skipped") console.info("[nxe] boot skipped");
   booting.value = false;
@@ -223,6 +249,7 @@ function onBootDone(payload: { reason: BootReason }): void {
 /** A boot resolved to off never mounts, so the dashboard is simply the first thing shown. */
 function settleBoot(): void {
   if (bootMode.value === "off") {
+    showDash();
     booting.value = false;
     setTimeout(signInToast, 900);
     firstRun();
@@ -1011,6 +1038,7 @@ async function changeChannel(): Promise<void> {
 let rememberTimer: ReturnType<typeof setTimeout> | undefined;
 function rememberChannel(id: string): void {
   clearTimeout(rememberTimer);
+  if (!settings.settings.rememberChannel) return;
   rememberTimer = setTimeout(
     () => settings.updateSetting("lastChannel", id),
     CHANNEL_OUT_MS + DEAL_SETTLE_MS,
@@ -1109,8 +1137,8 @@ function onPageKey(button: Button | null): boolean {
 }
 
 /** A button at the hub root. B does nothing here, as on the dashboard. */
-function onHubKey(button: Button | null, keyCode: number): boolean {
-  if (button === "y" || (keyCode === GREEN && canMove.value)) {
+function onHubKey(button: Button | null): boolean {
+  if (button === "y") {
     startMove();
     return true;
   }
@@ -1119,6 +1147,7 @@ function onHubKey(button: Button | null, keyCode: number): boolean {
   else if (button === "a") activate();
   else if (button === "x") toggleHide();
   else if (button === "replay") {
+    bootHold.value = false;
     booting.value = true;
     boot.value += 1;
   } else if (button === "guide") {
@@ -1126,6 +1155,27 @@ function onHubKey(button: Button | null, keyCode: number): boolean {
     playSound("hudOpen");
   } else return false;
   return true;
+}
+
+let visibleSince = performance.now();
+
+function noteVisibility(): void {
+  if (!document.hidden) visibleSince = performance.now();
+}
+
+/** Home relaunches the running app: on screen already it toggles the Guide, from the background it only returns. */
+function onRelaunch(): void {
+  const system = (window as typeof window & { webOSSystem?: { launchParams?: string } })
+    .webOSSystem;
+  let home = false;
+  try {
+    home = Boolean(JSON.parse(system?.launchParams || "{}")?.home);
+  } catch {}
+  if (!home) return;
+  if (document.hidden || performance.now() - visibleSince < 1500) return;
+  if (guide.value) onGuideKey("guide");
+  else if (!booting.value && !settingsOpen.value && !pageOpen.value && moving.value === null)
+    onHubKey("guide");
 }
 
 function onKeyDown(event: KeyboardEvent): void {
@@ -1139,7 +1189,7 @@ function onKeyDown(event: KeyboardEvent): void {
   else if (moving.value !== null) {
     onMoveButton(button);
     consumed = true;
-  } else consumed = onHubKey(button, event.keyCode);
+  } else consumed = onHubKey(button);
   if (consumed) event.preventDefault();
 }
 
@@ -1196,6 +1246,8 @@ onMounted(() => {
   chooseBootMode();
   settleBoot();
   window.addEventListener("keydown", onKeyDown);
+  document.addEventListener("webOSRelaunch", onRelaunch);
+  document.addEventListener("visibilitychange", noteVisibility);
   void apps.load();
   void loadFont();
   useSystemToastsStore().start(notify);
@@ -1204,7 +1256,11 @@ onMounted(() => {
   expose();
 });
 
-onUnmounted(() => window.removeEventListener("keydown", onKeyDown));
+onUnmounted(() => {
+  window.removeEventListener("keydown", onKeyDown);
+  document.removeEventListener("webOSRelaunch", onRelaunch);
+  document.removeEventListener("visibilitychange", noteVisibility);
+});
 
 function expose(): void {
   (window as typeof window & { nxeDebug?: unknown }).nxeDebug = {
@@ -1224,6 +1280,7 @@ function expose(): void {
 <template>
   <main
     class="stage"
+    :data-unready="!dashShown || undefined"
     :data-settings="settingsOpen || undefined"
     :data-page="pageOpen || undefined"
     :style="motion"
@@ -1340,12 +1397,18 @@ function expose(): void {
       :key="boot"
       :mode="bootMode"
       :play="bootReady"
+      :hold="bootHold"
+      @held="onBootHeld"
       @done="onBootDone"
     />
   </main>
 </template>
 
 <style scoped>
+.stage[data-unready] > :not(.boot) {
+  visibility: hidden;
+}
+
 .stage {
   position: relative;
   width: 100%;

@@ -9,8 +9,8 @@ describe("buttonFor", () => {
     for (const code of [461, 403, 27, 8, 66]) expect(buttonFor(code)).toBe("b");
   });
 
-  it("reads yellow and G as the Guide, blue and X as X", () => {
-    expect(buttonFor(405)).toBe("guide");
+  it("reads yellow as Y, G as the Guide, blue and X as X", () => {
+    expect(buttonFor(405)).toBe("y");
     expect(buttonFor(71)).toBe("guide");
     expect(buttonFor(406)).toBe("x");
     expect(buttonFor(88)).toBe("x");

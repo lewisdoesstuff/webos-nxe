@@ -123,12 +123,27 @@ async function build(id: string, depth: number): Promise<Theme> {
   return applyManifest(under, { ...manifest, id }, base);
 }
 
+/** Faces that are read and parsed but not yet part of the document. */
+const staged: FontFace[] = [];
+
+/**
+ * Read the theme's fonts as bytes and parse them, without adding them.
+ *
+ * Adding a face to the document leaves the TV drawing about one frame a second
+ * for several seconds, so `activateFonts` does that at a moment the caller picks.
+ */
 async function loadFonts(theme: Theme): Promise<void> {
   const faces = theme.fonts.map(async (font) => {
-    const face = new FontFace(font.family, `url("${font.src}")`, { weight: String(font.weight) });
-    document.fonts.add(await face.load());
+    const bytes = await request<ArrayBuffer>(font.src, "arraybuffer");
+    const face = new FontFace(font.family, bytes, { weight: String(font.weight) });
+    staged.push(await face.load());
   });
   await Promise.allSettled(faces);
+}
+
+/** Add the loaded fonts to the document. */
+export function activateFonts(): void {
+  for (const face of staged.splice(0)) document.fonts.add(face);
 }
 
 function install(theme: Theme): void {

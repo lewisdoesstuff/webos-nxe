@@ -20,6 +20,8 @@ export interface Settings {
   gamerscore: number;
   /** The channel the hub starts on, by section id. Apps when unset. */
   lastChannel: string;
+  /** Start on the channel last used instead of Home. */
+  rememberChannel: boolean;
   clock24h: boolean;
   showClock: boolean;
   /** The A/B/X/Y + LB/RB row at the foot of the screen. */
@@ -66,6 +68,7 @@ export const SETTINGS_DEFAULTS: Settings = {
   gamertag: "Player",
   gamerscore: 0,
   lastChannel: "apps",
+  rememberChannel: false,
   clock24h: true,
   showClock: true,
   hintBar: true,
@@ -154,6 +157,7 @@ export function mergeSettings(stored: unknown): { settings: Settings; migrated: 
     gamertag: stringOr(source["gamertag"], SETTINGS_DEFAULTS.gamertag),
     gamerscore: numberOr(source["gamerscore"], SETTINGS_DEFAULTS.gamerscore),
     lastChannel: stringOr(source["lastChannel"], SETTINGS_DEFAULTS.lastChannel),
+    rememberChannel: booleanOr(source["rememberChannel"], SETTINGS_DEFAULTS.rememberChannel),
     clock24h: booleanOr(source["clock24h"], SETTINGS_DEFAULTS.clock24h),
     showClock: booleanOr(source["showClock"], SETTINGS_DEFAULTS.showClock),
     hintBar: booleanOr(source["hintBar"], SETTINGS_DEFAULTS.hintBar),

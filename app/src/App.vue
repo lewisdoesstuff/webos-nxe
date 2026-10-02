@@ -1662,7 +1662,7 @@ function expose(): void {
   text-shadow: none;
 }
 
-:global(:root[data-gamerscore-art]) .coin {
+:global(:root[data-gamerscore-art] .coin) {
   color: transparent;
 }
 

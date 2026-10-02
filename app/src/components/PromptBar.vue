@@ -124,12 +124,12 @@ function promptStyle(prompt: Prompt): Record<string, string> {
 }
 
 /* A theme's disc picture replaces the drawn one and its halo spills past the box. */
-:global(:root[data-button-art]) .prompt:not([data-bare]) .disc {
+:global(:root[data-button-art] .prompt:not([data-bare]) .disc) {
   background: none;
   box-shadow: none;
 }
 
-:global(:root[data-button-art]) .prompt:not([data-bare]) .disc::before {
+:global(:root[data-button-art] .prompt:not([data-bare]) .disc::before) {
   content: "";
   position: absolute;
   inset: -3px;

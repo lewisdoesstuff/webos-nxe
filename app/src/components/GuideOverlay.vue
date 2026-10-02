@@ -882,12 +882,12 @@ const CLOCK: Box = { x: CLOCK_X, y: CLOCK_Y, width: CLOCK_W, height: CLOCK_H };
   color: var(--letter, #fff);
 }
 
-:global(:root[data-button-art]) .disc {
+:global(:root[data-button-art] .disc) {
   background: none;
   box-shadow: none;
 }
 
-:global(:root[data-button-art]) .disc::before {
+:global(:root[data-button-art] .disc::before) {
   content: "";
   position: absolute;
   inset: -3px;

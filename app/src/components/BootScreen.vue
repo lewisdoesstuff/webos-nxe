@@ -7,6 +7,7 @@ import {
   bootFrameAt,
   bootMasterFrame,
   bootSkip,
+  bootSkipMs,
   bootStart,
   bootTiming,
   type BootDone,
@@ -50,8 +51,10 @@ const props = withDefaults(
     play?: boolean;
     /** Milliseconds to hold the settled logo before the handover, not compressed by the mode. */
     holdMs?: number;
+    /** True keeps the settled logo on screen, as long as it stays true, in front of the handover. */
+    hold?: boolean;
   }>(),
-  { mode: "full", play: true, holdMs: HOLD_MS },
+  { mode: "full", play: true, holdMs: HOLD_MS, hold: false },
 );
 
 /**
@@ -62,6 +65,8 @@ const props = withDefaults(
 const emit = defineEmits<{
   done: [payload: BootDone];
   stage: [payload: BootStageEvent];
+  /** The playhead is at the end of the bumper and `hold` is keeping it there. */
+  held: [];
 }>();
 
 const canvas = ref<HTMLCanvasElement>();
@@ -77,6 +82,7 @@ let frozen = false;
 let warmed = false;
 let drawn = -1;
 let released = 0;
+let heldSent = false;
 
 const RELEASE_SHARE = 0.5;
 const FADE_FROM = 0.35;
@@ -139,6 +145,16 @@ function tick(now: number): void {
   if (origin === 0) {
     origin = now - state.value.ms;
     if (sounded.value) bootSound.start(() => performance.now() - origin);
+  }
+  if (props.hold) {
+    const end = bootSkipMs(timing.value) - 1;
+    if (now - origin >= end) {
+      origin = now - end;
+      if (!heldSent) {
+        heldSent = true;
+        emit("held");
+      }
+    }
   }
   const next = bootAdvance(state.value, now - origin, timing.value);
   state.value = next;

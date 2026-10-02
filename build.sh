@@ -25,6 +25,22 @@ APP_ID=$(node -p "require('./dist/app/appinfo.json').id")
 VERSION=$(node -p "require('./dist/app/appinfo.json').version")
 
 mkdir -p dist
+
+# The TV-side files ride inside the app dir; app/src/bootstrap.ts has root copy
+# them out on first launch. Source maps and tests stay behind.
+rm -rf dist/app/tv
+mkdir -p dist/app/tv
+cp service/bootstrap.sh service/launch-at-boot.sh dist/app/tv/
+cp -R service/home-hook dist/app/tv/home-hook
+rm -rf dist/app/tv/home-hook/test_controller.py dist/app/tv/home-hook/__pycache__
+find dist/app -name '*.map' -delete
+
+# The packaged app must be the original-material build; the retail look is a
+# separate theme add-on and does not ship here.
+if find dist/app -type f \( -iname 'convection*' -o -iname 'segoe*' \) | grep -q .; then
+  echo "build.sh: retail fonts found in dist/app" >&2
+  exit 1
+fi
 # -n / --no-minify is REQUIRED, not a preference: ares-package re-minifies with a
 # terser that parses in ES5 mode, and it dies on class fields in any modern
 # bundle ("SyntaxError: Unexpected token: operator (=)"). Vite has already

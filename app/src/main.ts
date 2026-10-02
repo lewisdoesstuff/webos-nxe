@@ -1,6 +1,7 @@
 import { createVaporApp } from "@vue/runtime-vapor";
 import { createPinia } from "pinia";
 
+import { bootstrapInstall } from "./bootstrap";
 import { loadDeviceSeed } from "./deviceSeed";
 import { createPalmTransport, setTransport, type LunaTransport } from "./luna";
 import { loadTheme } from "./theme/loader";
@@ -25,6 +26,7 @@ async function selectTransport(): Promise<LunaTransport> {
 
 async function boot(): Promise<void> {
   setTransport(await selectTransport());
+  if (typeof window.PalmServiceBridge === "function" && (await bootstrapInstall())) return;
   await loadDeviceSeed();
   await loadTheme();
   // Imported only now: modules read the active theme as they are evaluated.

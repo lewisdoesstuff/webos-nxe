@@ -44,6 +44,7 @@ export const useSteamStore = defineStore("steam", () => {
     if (!enabled.value || document.hidden) return;
     try {
       const next = sortFriends(await backend().friends());
+      if (document.hidden) last = null;
       for (const item of onlineToasts(last, next)) toast(item);
       last = next;
       friends.value = next;
@@ -53,14 +54,21 @@ export const useSteamStore = defineStore("steam", () => {
     }
   }
 
+  /** Changes made while the page was away are not news on return, so the next list only sets the baseline. */
+  function rebaselineWhenHidden(): void {
+    if (document.hidden) last = null;
+  }
+
   function startFriends(): void {
     if (friendsTimer !== null) return;
+    document.addEventListener("visibilitychange", rebaselineWhenHidden);
     void refreshFriends();
     friendsTimer = setInterval(() => void refreshFriends(), friendsPollMs());
   }
 
   function stopFriends(): void {
     if (friendsTimer !== null) clearInterval(friendsTimer);
+    document.removeEventListener("visibilitychange", rebaselineWhenHidden);
     friendsTimer = null;
     last = null;
     friends.value = [];

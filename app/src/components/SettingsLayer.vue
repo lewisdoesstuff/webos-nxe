@@ -45,8 +45,8 @@ watch(
   (draft, before) => {
     if (draft === null || before !== null) return;
     void nextTick(() => {
+      // select() here makes the phone app's Done kill the renderer
       entry.value?.focus();
-      entry.value?.select();
     });
   },
 );
